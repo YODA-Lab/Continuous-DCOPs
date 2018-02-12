@@ -46,7 +46,9 @@ public class LS_RECEIVE_SEND_LS_UTIL extends Behaviour implements MESSAGE_TYPE {
 			if (receivedMessage != null) {
 				noMessageCount++;					
 				try {
-					agent.addtoUtilFromChildrenLS(Double.parseDouble((String) receivedMessage.getContentObject()));
+//					agent.addtoUtilFromChildrenLS(Double.parseDouble((String) receivedMessage.getContentObject()));
+					receivedMessage.getContentObject();
+
 				} catch (NumberFormatException e) {
 					e.printStackTrace();
 				} catch (UnreadableException e) {
@@ -63,32 +65,40 @@ public class LS_RECEIVE_SEND_LS_UTIL extends Behaviour implements MESSAGE_TYPE {
 		
 		agent.addupSimulatedTime(DCOP.getDelayMessageTime());
 		
-		agent.setUtilityAndCost(agent.getUtilFromChildrenLS() + 
-				agent.utilityWithParentAndPseudoAndUnary() - agent.calculcatingSwitchingCost());
+//		agent.setUtilityAndCost(agent.getUtilFromChildrenLS() + 
+//							agent.utilityWithParentAndPseudoAndUnary());
 
 		if (!agent.isRoot())
+//			agent.sendObjectMessageWithTime(agent.getParentAID(), 
+//					String.valueOf(agent.getUtilityAndCost()), LS_UTIL, agent.getSimulatedTime());
 			agent.sendObjectMessageWithTime(agent.getParentAID(), 
-					String.valueOf(agent.getUtilityAndCost()), LS_UTIL, agent.getSimulatedTime());
+							0.0, LS_UTIL, agent.getSimulatedTime());
 		else {
-			agent.setEndTime(System.currentTimeMillis());
-			Utilities.writeUtil_Time_LS(agent);
-			agent.setOldLSRunningTime(agent.getEndTime() - agent.getStartTime());
-			agent.setOldLSUtility(agent.getUtilityAndCost());
-			
-			System.out.println("RUNNING TIME: " + (agent.getEndTime() - agent.getStartTime()) + "ms");
-			System.out.println("SIMULATED TIME: " + agent.getSimulatedTime()/1000000 + "ms");
+//			agent.setEndTime(System.currentTimeMillis());
+//			Utilities.writeUtil_Time_LS(agent);
+//			agent.setOldLSRunningTime(agent.getEndTime() - agent.getStartTime());
+//			agent.setOldLSUtility(agent.getUtilityAndCost());
+//			
+//			System.out.println("RUNNING TIME: " + (agent.getEndTime() - agent.getStartTime()) + "ms");
+//			System.out.println("SIMULATED TIME: " + agent.getSimulatedTime()/1000000 + "ms");
+//			int countIteration = agent.getLsIteration() + 1;
+//			if (agent.algorithm == DCOP.LS_SDPOP) {
+//				System.err.println("Utility of Local-search DPOP at iteration " + countIteration + ": " + agent.getUtilityAndCost());
+//			}
+//			else if (agent.algorithm == DCOP.LS_RAND)
+//				System.err.println("Utility of Local-search RAND at iteration " + countIteration + ": " + agent.getUtilityAndCost());
 			int countIteration = agent.getLsIteration() + 1;
-			if (agent.algorithm == DCOP.LS_SDPOP) {
-				System.err.println("Utility of Local-search DPOP at iteration " + countIteration + ": " + agent.getUtilityAndCost());
-			}
-			else if (agent.algorithm == DCOP.LS_RAND)
-				System.err.println("Utility of Local-search RAND at iteration " + countIteration + ": " + agent.getUtilityAndCost());
+			System.out.println("==========Utility of DSA at iteration " + countIteration 
+									+ ": " + agent.getLsIteration());
+
+//										+ ": " + agent.getUtilityAndCost());
+
 		}
 		
 		agent.incrementLsIteration();
 		
 		if (agent.getLsIteration() < DCOP.MAX_ITERATION)
-			agent.sendImprove();
+			agent.sendImproveValue();
 	}
 
 	@Override

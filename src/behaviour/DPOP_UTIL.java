@@ -17,8 +17,16 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 import agent.DCOP;
+import agent.DCOP_INFO;
+import function.BinaryFunction;
+import function.Function;
+import function.Interval;
+import function.PiecewiseFunction;
+import function.UnaryFunction;
 import table.Row;
 import table.Table;
 import utilities.Utilities;
@@ -73,72 +81,77 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		//TODO: adjust remove children table
 		//TODO: join all tables at once, instead of pair-wise
 		
-		if (agent.algorithm == DCOP.C_DPOP) {
+		if (agent.algorithm == DCOP.DPOP) {
 			removeChildrenTableFromTableList(0);
-			createCollapsedUnarySwitchingCostTable(agent.h);
+			removeChildrenFunctionFromFunctionList(0);
+//			createCollapsedUnarySwitchingCostTable(agent.h);
 		}
-		else if (agent.algorithm == DCOP.HYBRID) {
-			agent.addExpectedRandomTableToList(agent.getCurrentTS());
-			agent.addConstraintTableToList(agent.getCurrentTS());
-			removeChildrenTableFromTableList(agent.getCurrentTS());
-			if (agent.getCurrentTS() != 0)
-				createUnarySwitchingCostTableAtATimeStep(agent.getCurrentTS(), DCOP.FORWARD_BOOL);
+		else if (agent.algorithm == DCOP.DSA) {
+			removeChildrenTableFromTableList(0);
+			System.out.println("DSA fix this error here!!!");
 		}
-		else if (agent.algorithm == DCOP.MULTI_CDPOP) {
-			removeChildrenTableFromTableList(agent.getCurrentTS());
-			createCollapsedUnarySwitchingCostTable(agent.hybridTS);
-			//consider with previous solution
-		}
-		//Done: forward is correct
-		else if (agent.algorithm == DCOP.FORWARD) {
-			//solve at currentTS with actual distribution
-			if (agent.getCurrentTS() < agent.h -1) {
-				agent.addExpectedRandomTableToList(agent.getCurrentTS());
-				agent.addConstraintTableToList(agent.getCurrentTS());
-				removeChildrenTableFromTableList(agent.getCurrentTS());
-				if (agent.getCurrentTS() != 0)
-					createUnarySwitchingCostTableAtATimeStep(agent.getCurrentTS(), DCOP.FORWARD_BOOL);
-			}
-			//when t = h-1, solve h first
-			//no switching cost
-			else if (agent.getCurrentTS() == agent.h-1) {
-				agent.addExpectedRandomTableToList(agent.h);
-				agent.addConstraintTableToList(agent.h);
-				removeChildrenTableFromTableList(agent.h);
-			}
-			//when t = h, solve h-1 with 2 switching cost
-			else if (agent.getCurrentTS() == agent.h) {
-				agent.addExpectedRandomTableToList(agent.h-1);
-				agent.addConstraintTableToList(agent.h-1);
-				removeChildrenTableFromTableList(agent.h-1);
-				createDoubleUnarySwitchingBeforeLastTimeStep(agent.h-1);
-			}
-		}
-		else if (agent.algorithm == DCOP.BACKWARD) {
-			//solve from h -> 0
-			//ERROR with solving DCOP more than necessary steps not happen,
-			//since number of behaviors is set correctly
-			agent.addExpectedRandomTableToList(agent.h - agent.getCurrentTS());
-			agent.addConstraintTableToList(agent.h - agent.getCurrentTS());
-			removeChildrenTableFromTableList(agent.h - agent.getCurrentTS());
-			//last time step: not need to add switching cost table
-			if (agent.getCurrentTS() != 0)
-				createUnarySwitchingCostTableAtATimeStep(agent.h - agent.getCurrentTS()
-															, DCOP.BACKWARD_BOOL);
-		}
-		else if (agent.algorithm == DCOP.REACT) {
-			agent.addConstraintTableToList(agent.getCurrentTS());
-			agent.addReactRandomTableToList(agent.getCurrentTS());
-			removeChildrenTableFromTableList(agent.getCurrentTS());
-			if (agent.getCurrentTS() != 0)
-				createUnarySwitchingCostTableAtATimeStep(agent.getCurrentTS(), DCOP.FORWARD_BOOL);
-		}
-		//Done: SDPOP, LS_SDPOP are correct
-		else if (agent.algorithm == DCOP.LS_SDPOP || agent.algorithm == DCOP.SDPOP) {
-			agent.addExpectedRandomTableToList(agent.getCurrentTS());
-			agent.addConstraintTableToList(agent.getCurrentTS());
-			removeChildrenTableFromTableList(agent.getCurrentTS());
-		}
+//		else if (agent.algorithm == DCOP.HYBRID) {
+//			agent.addExpectedRandomTableToList(agent.getCurrentTS());
+//			agent.addConstraintTableToList(agent.getCurrentTS());
+//			removeChildrenTableFromTableList(agent.getCurrentTS());
+//			if (agent.getCurrentTS() != 0)
+//				createUnarySwitchingCostTableAtATimeStep(agent.getCurrentTS(), DCOP.FORWARD_BOOL);
+//		}
+//		else if (agent.algorithm == DCOP.MULTI_CDPOP) {
+//			removeChildrenTableFromTableList(agent.getCurrentTS());
+//			createCollapsedUnarySwitchingCostTable(agent.hybridTS);
+//			//consider with previous solution
+//		}
+//		//Done: forward is correct
+//		else if (agent.algorithm == DCOP.FORWARD) {
+//			//solve at currentTS with actual distribution
+//			if (agent.getCurrentTS() < agent.h -1) {
+//				agent.addExpectedRandomTableToList(agent.getCurrentTS());
+//				agent.addConstraintTableToList(agent.getCurrentTS());
+//				removeChildrenTableFromTableList(agent.getCurrentTS());
+//				if (agent.getCurrentTS() != 0)
+//					createUnarySwitchingCostTableAtATimeStep(agent.getCurrentTS(), DCOP.FORWARD_BOOL);
+//			}
+//			//when t = h-1, solve h first
+//			//no switching cost
+//			else if (agent.getCurrentTS() == agent.h-1) {
+//				agent.addExpectedRandomTableToList(agent.h);
+//				agent.addConstraintTableToList(agent.h);
+//				removeChildrenTableFromTableList(agent.h);
+//			}
+//			//when t = h, solve h-1 with 2 switching cost
+//			else if (agent.getCurrentTS() == agent.h) {
+//				agent.addExpectedRandomTableToList(agent.h-1);
+//				agent.addConstraintTableToList(agent.h-1);
+//				removeChildrenTableFromTableList(agent.h-1);
+//				createDoubleUnarySwitchingBeforeLastTimeStep(agent.h-1);
+//			}
+//		}
+//		else if (agent.algorithm == DCOP.BACKWARD) {
+//			//solve from h -> 0
+//			//ERROR with solving DCOP more than necessary steps not happen,
+//			//since number of behaviors is set correctly
+//			agent.addExpectedRandomTableToList(agent.h - agent.getCurrentTS());
+//			agent.addConstraintTableToList(agent.h - agent.getCurrentTS());
+//			removeChildrenTableFromTableList(agent.h - agent.getCurrentTS());
+//			//last time step: not need to add switching cost table
+//			if (agent.getCurrentTS() != 0)
+//				createUnarySwitchingCostTableAtATimeStep(agent.h - agent.getCurrentTS()
+//															, DCOP.BACKWARD_BOOL);
+//		}
+//		else if (agent.algorithm == DCOP.REACT) {
+//			agent.addConstraintTableToList(agent.getCurrentTS());
+//			agent.addReactRandomTableToList(agent.getCurrentTS());
+//			removeChildrenTableFromTableList(agent.getCurrentTS());
+//			if (agent.getCurrentTS() != 0)
+//				createUnarySwitchingCostTableAtATimeStep(agent.getCurrentTS(), DCOP.FORWARD_BOOL);
+//		}
+//		//Done: SDPOP, LS_SDPOP are correct
+//		else if (agent.algorithm == DCOP.LS_SDPOP || agent.algorithm == DCOP.SDPOP) {
+//			agent.addExpectedRandomTableToList(agent.getCurrentTS());
+//			agent.addConstraintTableToList(agent.getCurrentTS());
+//			removeChildrenTableFromTableList(agent.getCurrentTS());
+//		}
 		
 		agent.setSimulatedTime(agent.getSimulatedTime()
 						+ agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
@@ -147,22 +160,27 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		else {System.out.println(agent.getIdStr() + ": I am internal node, my parent is " + agent.getParentAID().getLocalName());}
 		
 		if (agent.isLeaf()) {
-			leafDoUtilProcess();
-			if (agent.algorithm == DCOP.C_DPOP) System.out.println("leaf done");
+//			leafDoUtilProcess();
+		    leafDoFuncUtilProcess();
+			if (agent.algorithm == DCOP.DPOP) System.out.println("leaf done");
 		} 
 		else if (agent.isRoot()){
-			rootDoUtilProcess();
-			if (agent.algorithm == DCOP.REACT || agent.algorithm == DCOP.HYBRID) {
-				writeTimeToFile();
-			}
-			if (agent.algorithm == DCOP.FORWARD || agent.algorithm == DCOP.BACKWARD) {
-				if (agent.getCurrentTS() == agent.h)
-					Utilities.writeUtil_Time_FW_BW(agent);
-			}
+//			rootDoUtilProcess();
+		    rootFuncDoUtilProcess();
+			
+//			if (agent.algorithm == DCOP.REACT || agent.algorithm == DCOP.HYBRID) {
+//				writeTimeToFile();
+//			}
+//			if (agent.algorithm == DCOP.FORWARD || agent.algorithm == DCOP.BACKWARD) {
+//				if (agent.getCurrentTS() == agent.h)
+//					Utilities.writeUtil_Time_FW_BW(agent);
+//			}
 		}
 		else {
-			internalNodeDoUtilProcess();
-			if (agent.algorithm == DCOP.C_DPOP) System.out.println("internal node done");
+//			internalNodeDoUtilProcess();
+		    internalNodeFuncDoUtilProcess();
+			
+			if (agent.algorithm == DCOP.DPOP) System.out.println("internal node done");
 		}
 	}		
 	
@@ -171,17 +189,19 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		
 		//get the first table
 		Table combinedTable = agent.getCurrentTableListDPOP().get(0);
-		combinedTable.printDecVar();
+//		combinedTable.printDecVar();
 		//joining other tables with table 0
 		int currentTableListDPOPsize = agent.getCurrentTableListDPOP().size();
 		for (int index = 1; index<currentTableListDPOPsize; index++) {
 			Table pseudoParentTable = agent.getCurrentTableListDPOP().get(index);
-			pseudoParentTable.printDecVar();
+//			pseudoParentTable.printDecVar(); // KHOI PRINT
 			combinedTable = joinTable(combinedTable, pseudoParentTable);
 		}
 		
 		agent.setAgentViewTable(combinedTable);
-		Table projectedTable = projectOperator(combinedTable, agent.getLocalName());
+		Table projectedTable = projectOperator(combinedTable, Double.parseDouble(agent.getLocalName()));
+
+//        System.out.println("Projected table: " ); projectedTable.printDecVar();
 
 		agent.setSimulatedTime(agent.getSimulatedTime()
 					+ agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
@@ -190,21 +210,40 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 //		projectedTable.printDecVar();
 	}
 	
+    public void leafDoFuncUtilProcess() {
+        agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
+
+        PiecewiseFunction combinedFunction = agent.getFunctionList().get(0); 
+
+        agent.setAgentViewFunction(combinedFunction);
+        
+//        System.out.println("Combined function " + combinedFunction);
+
+        PiecewiseFunction projectedFunction = combinedFunction.project(DCOP_INFO.DISCRETIZED_VALUE);
+
+        agent.setSimulatedTime(
+                agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+        
+//        System.out.println("Projected function " + projectedFunction);
+
+        agent.sendObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
+    }
+	
+	
 	public void internalNodeDoUtilProcess() {			
 		ArrayList<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 			
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 		
 		Table combinedUtilAndConstraintTable = combineMessage(receivedUTILmsgList);
-
-
+	
 		for (Table pseudoParentTable:agent.getCurrentTableListDPOP()) {
 			combinedUtilAndConstraintTable = joinTable(combinedUtilAndConstraintTable, pseudoParentTable);
 		}
 
 		agent.setAgentViewTable(combinedUtilAndConstraintTable);
 
-		Table projectedTable = projectOperator(combinedUtilAndConstraintTable, agent.getLocalName());
+		Table projectedTable = projectOperator(combinedUtilAndConstraintTable, Double.parseDouble(agent.getLocalName()));
 		
 		agent.setSimulatedTime(agent.getSimulatedTime() +
 					agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
@@ -212,12 +251,59 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		agent.sendObjectMessageWithTime(agent.getParentAID(), projectedTable, DPOP_UTIL, agent.getSimulatedTime());
 	}
 	
-	public void rootDoUtilProcess() {
+    public void internalNodeFuncDoUtilProcess() {
+        ArrayList<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
+
+        agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
+
+        PiecewiseFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
+
+        for (PiecewiseFunction pseudoParentFunction : agent.getCurrentFunctionListDPOP()) {
+            combinedFunctionMessage = addPiecewiseFunction(combinedFunctionMessage, pseudoParentFunction);
+        }
+
+        agent.setAgentViewFunction(combinedFunctionMessage);
+
+        PiecewiseFunction projectedFunction = combinedFunctionMessage.project(DCOP_INFO.DISCRETIZED_VALUE);
+
+        agent.setSimulatedTime(
+                agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+
+        agent.sendObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
+    }
+	
+	public void rootFuncDoUtilProcess() {
+	    ArrayList<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
+	    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
+        PiecewiseFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
+        
+        System.out.println("COMBINED " + combinedFunctionMessage);
+        
+        for (PiecewiseFunction pseudoParentFunction : agent.getCurrentFunctionListDPOP()) {
+            combinedFunctionMessage = addPiecewiseFunction(combinedFunctionMessage, pseudoParentFunction);
+        }
+        
+        // choose the maximum
+        double argmax = -Double.MAX_VALUE;
+        double max = -Double.MAX_VALUE;
+        for (Function f : combinedFunctionMessage.getFunctionList()) {
+            if (Double.compare(((UnaryFunction) f).getMax(), max) > 0) {
+                max = ((UnaryFunction) f).getMax();
+                argmax = ((UnaryFunction) f).getArgMax();
+            }
+        }
+        
+        System.out.println("MAX VALUE IS " + max);
+        System.out.println("ARGMAX VALUE IS " + argmax);
+	}
+	   
+    public void rootDoUtilProcess() {
 		ArrayList<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 		
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-
+		
 		Table combinedUtilAndConstraintTable = combineMessage(receivedUTILmsgList);
+//		combinedUtilAndConstraintTable.printDecVar();
 		for (Table pseudoParentTable:agent.getCurrentTableListDPOP()) {
 			combinedUtilAndConstraintTable = joinTable(combinedUtilAndConstraintTable, pseudoParentTable);
 		}
@@ -225,8 +311,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		//pick value with smallest utility
 		//since agent 0 is always at the beginning of the row formatted: agent0,agent1,..,agentN -> utility
 		double maxUtility = Integer.MIN_VALUE;
-		System.err.println("Timestep " +  agent.getCurrentTS() + " Combined messages at root:");
-		combinedUtilAndConstraintTable.printDecVar();
+//		System.err.println("Timestep " +  agent.getCurrentTS() + " Combined messages at root:");
+//		combinedUtilAndConstraintTable.printDecVar();
 		for (Row row:combinedUtilAndConstraintTable.getTable()) {
 			if (row.getUtility() > maxUtility) {
 				maxUtility = row.getUtility();
@@ -236,85 +322,15 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 			
 		System.out.println("CHOSEN: " + agent.getChosenValue());
 		
-		//TODO: review this code for calculating utility
-//		if (algorithm == C_DPOP) {
-//			if (solveStableState)
-//				valueAtEachTSMap.put(stableTimeStep,chosenValue);
-//			totalGlobalUtility = maxUtility;
-//			System.out.println("C_DPOP - utility of this DCOP is " + maxUtility);
-//		}
-		//correct
-		if (agent.algorithm == DCOP.LS_SDPOP) {
-			//new code to recalculate SDPOP runtime
-			agent.setEndTime(System.currentTimeMillis());
-			agent.setOldLSRunningTime(agent.getEndTime() - agent.getStartTime());
-			//end new code
-			
-			agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
-			agent.setTotalGlobalUtility(agent.getTotalGlobalUtility() + maxUtility);
-			System.err.println("Agent " + agent.getIdStr() + " at time step "
-							+ agent.getCurrentTS() + " value: "+ agent.getChosenValue());
-			System.err.println("LS_SDPOP at time step " + agent.getCurrentTS() + " utility: " + maxUtility);
-			System.err.println("LS_SDPOP current aggregated utility: " + agent.getTotalGlobalUtility());
-		}
-		else if (agent.algorithm == DCOP.HYBRID) {
-			agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
-		}
-		else if (agent.algorithm == DCOP.REACT) {
-			agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
-			agent.setTotalGlobalUtility(agent.getTotalGlobalUtility() + maxUtility);
-			System.err.println("Agent " + agent.getIdStr() + " at time step "
-							+ agent.getCurrentTS() + " value: "+ agent.getChosenValue());
-			System.err.println("REACT at time step " + agent.getCurrentTS() + " utility: " + maxUtility);
-			System.err.println("REACT current aggregated utility: " + agent.getTotalGlobalUtility());
-		}
-		//TODO: to be completed
-		else if (agent.algorithm == DCOP.SDPOP) {
-//			agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
-//			agent.setTotalGlobalUtility(agent.getTotalGlobalUtility() + maxUtility);
-//			System.err.println("Agent " + agent.getIdStr() + " at time step "
-//							+ agent.getCurrentTS() + " value: "+ agent.getChosenValue());
-//			System.err.println("SDPOP at time step " + agent.getCurrentTS() + " utility: " + maxUtility);
-//			System.err.println("SDPOP current aggregated utility: " + agent.getTotalGlobalUtility());
-		}
-		//correct
-		else if (agent.algorithm == DCOP.FORWARD) {
-			//solutions of current time step
-			if (agent.getCurrentTS() < agent.h-1)
-				agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
-			//at h-1, solve problem at h, so the solution is at h
-			else if (agent.getCurrentTS() == agent.h-1)
-				agent.getValueAtEachTSMap().put(agent.h, agent.getChosenValue());
-			//at h, solve problem at h-1, so the solution is at h-1
-			else if (agent.getCurrentTS() == agent.h)
-				agent.getValueAtEachTSMap().put(agent.h-1, agent.getChosenValue());
 
-			agent.setTotalGlobalUtility(agent.getTotalGlobalUtility() + maxUtility);
-			
-			agent.setEndTime(System.currentTimeMillis());
-			System.err.println("Agent " + agent.getIdStr() + " at time step "
-							+ agent.getCurrentTS() + " value: "+ agent.getChosenValue());
-			System.err.println("FORWARD_DPOP at time step " + agent.getCurrentTS() 
-								+ " utility: " + maxUtility);
-			System.err.println("FORWARD_DPOP current aggregated utility: " + agent.getTotalGlobalUtility());
+		if (agent.algorithm == DCOP.LS_SDPOP) {
 		}
-		
-		else if (agent.algorithm == DCOP.BACKWARD) {
-			agent.getValueAtEachTSMap().put(agent.h - agent.getCurrentTS(), 
-										agent.getChosenValue());
-			agent.setTotalGlobalUtility(agent.getTotalGlobalUtility() + maxUtility);
-			
-			agent.setEndTime(System.currentTimeMillis());
-			System.err.println("Agent " + agent.getIdStr() + " at time step " + 
-					(agent.h - agent.getCurrentTS()) + " value: "+ agent.getChosenValue());
-			System.err.println("BACKWARD_DPOP at time step " + 
-					(agent.h - agent.getCurrentTS()) + " utility: " + maxUtility);
-			System.err.println("BACKWARD_DPOP current aggregated utility " + agent.getTotalGlobalUtility());
+		else if (agent.algorithm == DCOP.SDPOP) {
 		}
-		else if (agent.algorithm == DCOP.C_DPOP) {
+
+		else if (agent.algorithm == DCOP.DPOP) {
 			System.err.println("C_DPOP utility " + maxUtility);
 		}
-		//end of Todo
 		
 		agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime()
 							- agent.getCurrentStartTime());
@@ -372,6 +388,47 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		return messageList;
 	}
 	
+	
+	public void removeChildrenFunctionFromFunctionList(int currentTimeStep) {
+//	    /**Remove children and pseudoChildren constraint table*/
+//        ArrayList<AID> childAndPseudoChildrenAIDList = new ArrayList<AID>();
+//        childAndPseudoChildrenAIDList.addAll(agent.getChildrenAIDList());
+//        childAndPseudoChildrenAIDList.addAll(agent.getPseudoChildrenAIDList());
+//
+//        ArrayList<String> childAndPseudoChildrenStrList = new ArrayList<String>();
+//        for (AID pscChildrenAID:childAndPseudoChildrenAIDList) {
+//            childAndPseudoChildrenStrList.add(pscChildrenAID.getLocalName());
+//        }
+//        
+//        List<PiecewiseFunction> functionToBeRemove = new ArrayList<>();
+//        List<PiecewiseFunction> currentFunctionList = new ArrayList<>();
+//        for (PiecewiseFunction f : agent.getFunctionList()) {
+//            currentFunctionList.add(new PiecewiseFunction(f));
+//        }
+//        
+//        for (PiecewiseFunction pwf : currentFunctionList) {
+////            ArrayList<Double> decLabelList = pwf.get();
+//            double neighbor = pwf.getFunctionList().get(0).getOtherAgent();
+//            
+//            boolean hasChildren = false;
+//            for (String children:childAndPseudoChildrenStrList) {
+//                if (Double.compare(neighbor, Double.parseDouble(children)) == 0) {
+//                    hasChildren = true;
+//                    break;
+//                }
+//            }
+//            if (hasChildren)
+//                functionToBeRemove.add(pwf);
+//        }
+//        
+//        for (PiecewiseFunction removeFunction:functionToBeRemove) {
+//            currentFunctionList.remove(removeFunction);
+//        }
+//        
+//        agent.setCurrentFunctionListDPOP(currentFunctionList);
+	    agent.setCurrentFunctionListDPOP(agent.getFunctionList());
+	}
+	
 	//constraintTableAtEachTSMap is constructed in collapsing table (decision and random)
 	//get table lists from constraintTableAtEachTSMap at currentTS timeStep
 	//remove children tables from that list
@@ -390,13 +447,14 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		@SuppressWarnings("unchecked")
 		//get table list, then remove children table
 		ArrayList<Table> tableListAtCurrentTS = (ArrayList<Table>) agent.getConstraintTableAtEachTSMap().get(currentTimeStep).clone();
+		System.out.println("Agent " + agent.getIdStr() + " size" + agent.getConstraintTableAtEachTSMap().get(currentTimeStep).size());
 
 		//for (Table constraintTable:constraintTableAtEachTSMap.get(currentTS)) {
 		for (Table constraintTable:tableListAtCurrentTS) {
-			ArrayList<String> decLabelList = constraintTable.getDecVarLabel();
+			ArrayList<Double> decLabelList = constraintTable.getDecVarLabel();
 			boolean hasChildren = false;
 			for (String children:childAndPseudoChildrenStrList) {
-				if (decLabelList.contains(children)) {
+				if (decLabelList.contains(Double.parseDouble(children))) {
 					hasChildren = true;
 					break;
 				}
@@ -408,99 +466,129 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		for (Table removeTable:constraintTableToBeRemove) {
 			tableListAtCurrentTS.remove(removeTable);
 		}
-		agent.setCurrentTableListDPOP(tableListAtCurrentTS);		
+		
+		agent.setCurrentTableListDPOP(tableListAtCurrentTS);
+		
 	}
 	
-	void createCollapsedUnarySwitchingCostTable(int numberOfTimeStep) {
-		//loop over each decision variable
-		//for each decision variable,
-		
-		String decVar = agent.getIdStr();
-		ArrayList<String> newLabel = new ArrayList<String>();
-		newLabel.add(decVar);
-		agent.setCollapsedSwitchingCostTable(new Table(newLabel));
-		int domainSize = agent.getDecisionVariableDomainMap().get(decVar).size();
-		//0 -> numberOfTimeStep
-//		int noTimeStep = agent.solveTimeStep + 1;
-		int noTimeStep = numberOfTimeStep + 1;
-		int totalSize = (int) Math.pow(domainSize, noTimeStep);
-		//create all possible value tuple, calculate switching cost, add to row of switchingCostTable
-		for (int count=0; count<totalSize; count++) {
-			String valueTuple = "";
-			int quotient = count;
-			for (int tS=noTimeStep-1; tS>=0; tS--) {
-				int remainder = quotient%domainSize;
-				quotient = quotient/domainSize;
-				valueTuple = agent.getDecisionVariableDomainMap().get(decVar).get(remainder) + "," + valueTuple;
-			}
-			valueTuple = valueTuple.substring(0, valueTuple.length()-1);
-				
-			//create row and switchingCost
-			ArrayList<String> row = new ArrayList<String>();
-			row.add(valueTuple);
-			double sC = 0;
-			String[] valueList = valueTuple.split(",");
-			//consider case with h >= 1, so that there is switching cost
-			if (valueList.length != 1) {
-				for (int i=1; i<valueList.length; i++) {
-//					sC += swCost(valueList[i], valueList[i-1], agent.scType);
-					sC += agent.sc_func(valueList[i], valueList[i-1]);
-				}
-				//compare value at allowedTimeStep with valueAtStableState
-//				if (valueList[valueList.length-1].equals(valueAtStableState))
-//					sC += agent.switchingCost;
-			}
-	
-			agent.getCollapsedSwitchingCostTable().addRow(new Row(row, -sC));
-		}
-		
-		if (agent.algorithm == DCOP.C_DPOP)
-			agent.getCurrentTableListDPOP().add(agent.getCollapsedSwitchingCostTable());
-	}
+//	void createCollapsedUnarySwitchingCostTable(int numberOfTimeStep) {
+//		//loop over each decision variable
+//		//for each decision variable,
+//		
+//		String decVar = agent.getIdStr();
+//		ArrayList<String> newLabel = new ArrayList<String>();
+//		newLabel.add(decVar);
+//		agent.setCollapsedSwitchingCostTable(new Table(newLabel));
+//		int domainSize = agent.getDecisionVariableDomainMap().get(decVar).size();
+//		//0 -> numberOfTimeStep
+////		int noTimeStep = agent.solveTimeStep + 1;
+//		int noTimeStep = numberOfTimeStep + 1;
+//		int totalSize = (int) Math.pow(domainSize, noTimeStep);
+//		//create all possible value tuple, calculate switching cost, add to row of switchingCostTable
+//		for (int count=0; count<totalSize; count++) {
+//			String valueTuple = "";
+//			int quotient = count;
+//			for (int tS=noTimeStep-1; tS>=0; tS--) {
+//				int remainder = quotient%domainSize;
+//				quotient = quotient/domainSize;
+//				valueTuple = agent.getDecisionVariableDomainMap().get(decVar).get(remainder) + "," + valueTuple;
+//			}
+//			valueTuple = valueTuple.substring(0, valueTuple.length()-1);
+//				
+//			//create row and switchingCost
+//			ArrayList<String> row = new ArrayList<String>();
+//			row.add(valueTuple);
+//			double sC = 0;
+//			String[] valueList = valueTuple.split(",");
+//			//consider case with h >= 1, so that there is switching cost
+//			if (valueList.length != 1) {
+//				for (int i=1; i<valueList.length; i++) {
+////					sC += swCost(valueList[i], valueList[i-1], agent.scType);
+//					sC += agent.sc_func(valueList[i], valueList[i-1]);
+//				}
+//				//compare value at allowedTimeStep with valueAtStableState
+////				if (valueList[valueList.length-1].equals(valueAtStableState))
+////					sC += agent.switchingCost;
+//			}
+//	
+//			agent.getCollapsedSwitchingCostTable().addRow(new Row(row, -sC));
+//		}
+//		
+//		if (agent.algorithm == DCOP.C_DPOP)
+//			agent.getCurrentTableListDPOP().add(agent.getCollapsedSwitchingCostTable());
+//	}
 	
 	//compare values with next timeStep
-	void createUnarySwitchingCostTableAtATimeStep(int timeStep, boolean FWorBW) {
-		//correct
-		String valueToBeCompared = null;
-		//compare with previous time step
-		if (FWorBW == DCOP.FORWARD_BOOL)
-			valueToBeCompared = agent.getValueAtEachTSMap().get(timeStep-1);
-		//compare with next time step
-		else if (FWorBW == DCOP.BACKWARD_BOOL)
-			valueToBeCompared = agent.getValueAtEachTSMap().get(timeStep+1);
-		
-		ArrayList<String> newLabel = new ArrayList<String>();
-		newLabel.add(agent.getIdStr());
-		Table switchingCostTable = new Table(newLabel);
+//	void createUnarySwitchingCostTableAtATimeStep(int timeStep, boolean FWorBW) {
+//		//correct
+//		String valueToBeCompared = null;
+//		//compare with previous time step
+//		if (FWorBW == DCOP.FORWARD_BOOL)
+//			valueToBeCompared = agent.getValueAtEachTSMap().get(timeStep-1);
+//		//compare with next time step
+//		else if (FWorBW == DCOP.BACKWARD_BOOL)
+//			valueToBeCompared = agent.getValueAtEachTSMap().get(timeStep+1);
+//		
+//		ArrayList<String> newLabel = new ArrayList<String>();
+//		newLabel.add(agent.getIdStr());
+//		Table switchingCostTable = new Table(newLabel);
+//
+//		//traverse all value from domain, compare with valueToBeCompared
+//		for (String value:agent.getDecisionVariableDomainMap().get(agent.getIdStr())) {
+//			ArrayList<String> row = new ArrayList<String>();
+//			row.add(value);
+////			switchingCostTable.addRow(new Row(row, -swCost(value, valueToBeCompared, agent.scType)));
+//			switchingCostTable.addRow(new Row(row, -agent.sc_func(value, valueToBeCompared)));
+//		}
+////		switchingCostTable.printDecVar();
+//		agent.getCurrentTableListDPOP().add(switchingCostTable);
+//	}
+	
+	public PiecewiseFunction addPiecewiseFunction(PiecewiseFunction func1, PiecewiseFunction func2) {
+	    PiecewiseFunction pwFunc = new PiecewiseFunction(-1, -1);
+	    List<Function> functionList1 = func1.getFunctionList();
+	    List<Function> functionList2 = func2.getFunctionList();
+	    
+	    Set<Double> range1 = func1.getSegmentedRange();
+	    Set<Double> range2 = func2.getSegmentedRange();
+	    range1.addAll(range2);
+	    List<Double> rangeList = new ArrayList<>(range1);
+	    
+	    UnaryFunction f1 = new UnaryFunction(-1, -1);
+	    UnaryFunction f2 = new UnaryFunction(-1, -1);
+	    
+	    for (int i = 0; i < rangeList.size() - 1; i++) {
+	        double a = rangeList.get(i);
+	        double b = rangeList.get(i+1);
+	        for (Function f:functionList1) {
+	            if (((UnaryFunction) f).isInRange(a, b)) {
+	                f1 = (UnaryFunction) f;
+	                break;
+	            }
+	            f1 = null;
+	        }
+	        
+            for (Function f : functionList2) {
+                if (((UnaryFunction) f).isInRange(a, b)) {
+                    f2 = (UnaryFunction) f;
+                    break;
+                }
+                f2 = null;
+            }
 
-		//traverse all value from domain, compare with valueToBeCompared
-		for (String value:agent.getDecisionVariableDomainMap().get(agent.getIdStr())) {
-			ArrayList<String> row = new ArrayList<String>();
-			row.add(value);
-//			switchingCostTable.addRow(new Row(row, -swCost(value, valueToBeCompared, agent.scType)));
-			switchingCostTable.addRow(new Row(row, -agent.sc_func(value, valueToBeCompared)));
-		}
-//		switchingCostTable.printDecVar();
-		agent.getCurrentTableListDPOP().add(switchingCostTable);
+            UnaryFunction newFunction = new UnaryFunction(f1);
+            newFunction = newFunction.addNewUnaryFunction(f2, new Interval(a, b), f2.getSelfAgent(), -1);
+            pwFunc.addNewFunction(newFunction);
+	    }
+	    
+	    // given a range [a, b], check which function in that range in functionList1 and functionList2
+	    // to check a <= LB and UB <= b
+	    // then sum up two function
+	    
+	    return pwFunc;
 	}
 	
-	void createDoubleUnarySwitchingBeforeLastTimeStep(int timeStep) {
-		String valueToBeCompared_before = agent.getValueAtEachTSMap().get(timeStep - 1);
-		String valueToBeCompared_after = agent.getValueAtEachTSMap().get(timeStep + 1);
-		ArrayList<String> newLabel = new ArrayList<String>();
-		newLabel.add(agent.getIdStr());
-		Table switchingCostTable = new Table(newLabel);
-		
-		for (String value:agent.getDecisionVariableDomainMap().get(agent.getIdStr())) {
-			ArrayList<String> row = new ArrayList<String>();
-			row.add(value);
-//			switchingCostTable.addRow(new Row(row, -swCost(value, valueToBeCompared_before, agent.scType)
-//												   -swCost(value, valueToBeCompared_after, agent.scType)));
-			switchingCostTable.addRow(new Row(row, -agent.sc_func(value, valueToBeCompared_before)
-												   -agent.sc_func(value, valueToBeCompared_after)));
-		}
-		agent.getCurrentTableListDPOP().add(switchingCostTable);
-	}
+	
 	
 	//create indexList1
 	//la vi tri cua tung variable (tu nho den lon)
@@ -517,20 +605,31 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	//		join(row1, row2, indexList1, indexList2)
 	public Table joinTable(Table table1, Table table2) {
 		//get commonVariables
-		ArrayList<String> commonVariables = getCommonVariables(table1.getDecVarLabel(), table2.getDecVarLabel());
-		
+		ArrayList<Double> commonVariables = getCommonVariables(table1.getDecVarLabel(), table2.getDecVarLabel());
+				
 		//create indexList1, indexList2
 		//xet tung variable commonVariables
 		//add index of that variable to the indexList
 		ArrayList<Integer> indexContainedInCommonList1 = new ArrayList<Integer>();
 		ArrayList<Integer> indexContainedInCommonList2 = new ArrayList<Integer>();
-		for (String variable:commonVariables) {
+		for (Double variable:commonVariables) {
 			indexContainedInCommonList1.add(table1.getDecVarLabel().indexOf(variable));
 			indexContainedInCommonList2.add(table2.getDecVarLabel().indexOf(variable));
 		}
+		
+//		for (int i=0; i<table1.getDecVarLabel().size(); i++) {
+//			if (commonVariables.contains(table1.getDecVarLabel().get(i)))
+//				indexContainedInCommonList1.add(i);
+//		}
+//		
+//		for (int i=0; i<table2.getDecVarLabel().size(); i++) {
+//			if (commonVariables.contains(table2.getDecVarLabel().get(i)))
+//				indexContainedInCommonList2.add(i);
+//		}
+		
 		//create returnTable
 		//join label
-		ArrayList<String> joinedLabelTable1FirstThenTable2 = getJoinLabel(table1.getDecVarLabel(), table2.getDecVarLabel()
+		ArrayList<Double> joinedLabelTable1FirstThenTable2 = getJoinLabel(table1.getDecVarLabel(), table2.getDecVarLabel()
 																			,indexContainedInCommonList2);
 		
 		Table joinedTable = new Table(joinedLabelTable1FirstThenTable2);
@@ -546,18 +645,23 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		return joinedTable;
 	}
 	
-	ArrayList<String> getCommonVariables(ArrayList<String> variableList1, ArrayList<String> variableList2) {
-		ArrayList<String> commonVariableList = new ArrayList<String>();
+	ArrayList<Double> getCommonVariables(ArrayList<Double> variableList1, ArrayList<Double> variableList2) {
+//		ArrayList<String> commonVariableList = new ArrayList<String>();
+//		
+//		for (String variable1:variableList1)
+//			for (String variable2:variableList2) {
+//				//check if equal agents, and if list contains agent or not
+//				//if (variable1.equals(variable2) && isContainVariable(commonVariableList, variable1) == false)
+//				if (variable1.equals(variable2) && !commonVariableList.contains(variable1)) {	
+//					commonVariableList.add(variable1);
+//					break;
+//				}
+//			}
+//		
+//		return commonVariableList;
 		
-		for (String variable1:variableList1)
-			for (String variable2:variableList2) {
-				//check if equal agents, and if list contains agent or not
-				//if (variable1.equals(variable2) && isContainVariable(commonVariableList, variable1) == false)
-				if (variable1.equals(variable2) && !commonVariableList.contains(variable1)) {	
-					commonVariableList.add(variable1);
-					break;
-				}
-			}
+		ArrayList<Double> commonVariableList = new ArrayList<Double>(variableList1);
+		commonVariableList.retainAll(variableList2);
 		
 		return commonVariableList;
 	}
@@ -566,11 +670,11 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	//for variable2 from label2
 	//	if index not in indexContainedInCommonList2
 	//	then add to joinedLabel
-	public ArrayList<String> getJoinLabel(ArrayList<String> label1, ArrayList<String> label2,
+	public ArrayList<Double> getJoinLabel(ArrayList<Double> label1, ArrayList<Double> label2,
 											ArrayList<Integer> indexContainedInCommonList2) {
 												
-		ArrayList<String> joinedLabel = new ArrayList<String>();// (label1);
-		for (String variable1:label1) {
+		ArrayList<Double> joinedLabel = new ArrayList<>();// (label1);
+		for (Double variable1:label1) {
 			joinedLabel.add(variable1);
 		}
 		
@@ -585,7 +689,15 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	
 	public Row getJoinRow(Row row1, Row row2, ArrayList<Integer> indexList1, 
 			  ArrayList<Integer> indexList2) {
-		//check if same size
+//		if (!agent.isLeaf()) {
+//		    System.out.println(row1.getValueList());
+//	        System.out.println(indexList1);
+//            System.out.println(row2.getValueList());
+//            System.out.println(indexList2);
+//            System.out.println("====================");
+//		}
+	    
+	    //check if same size
 		if (indexList1.size() != indexList2.size()) {
 			System.err.println("Different size from indexList: " + indexList1.size() +
 										 " " + indexList2.size());
@@ -597,14 +709,14 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		for (int i=0; i<listSize; i++) {
 			if (row1.getValueList().get(indexList1.get(i)).equals
 			(row2.getValueList().get(indexList2.get(i))) == false) {
-				//System.out.println("Different values here!");
+//				System.out.println("Different values here!");
 				return null;
 			}
 		}
 		
 		//join two row
-		ArrayList<String> joinedValues = new ArrayList<String>();//(row1.getValueList());
-		for (String value1:row1.getValueList()) {
+		ArrayList<Double> joinedValues = new ArrayList<Double>();//(row1.getValueList());
+		for (Double value1:row1.getValueList()) {
 			joinedValues.add(value1);
 		}
 		
@@ -626,7 +738,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	//	for each tuple2:tuple1->end from the table
 	//		compare to the minimum , and update
 	//	add to new Table
-	public Table projectOperator(Table table, String variableToProject) {
+	public Table projectOperator(Table table, Double variableToProject) {
 		int indexEliminated = getIndexOfContainedVariable(table.getDecVarLabel(), variableToProject);
 		if (indexEliminated == -1) {
 			return null;
@@ -643,7 +755,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		ArrayList<Integer> checkedList = new ArrayList<Integer>();
 		
 		//create projectedLabel
-		ArrayList<String> projectedLabel = createTupleFromList(table.getDecVarLabel(), arrayIndex);
+		ArrayList<Double> projectedLabel = createTupleFromList(table.getDecVarLabel(), arrayIndex);
 		
 		//create projectedTable
 		Table projectTable = new Table(projectedLabel);
@@ -652,13 +764,13 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 				continue;
 			checkedList.add(i);
 			Row row1 = table.getTable().get(i);
-			ArrayList<String> tuple1 = createTupleFromRow(row1, arrayIndex);
+			ArrayList<Double> tuple1 = createTupleFromRow(row1, arrayIndex);
 			double maxUtility = row1.getUtility();
-			ArrayList<String> maxTuple = tuple1;
+			ArrayList<Double> maxTuple = tuple1;
 			
 			for (int j=i+1; j<table.getRowCount(); j++) {
 				Row row2 = table.getTable().get(j);
-				ArrayList<String> tuple2 = createTupleFromRow(row2, arrayIndex);
+				ArrayList<Double> tuple2 = createTupleFromRow(row2, arrayIndex);
 				double row2Utility = row2.getUtility();
 				if (isSameTuple(tuple1, tuple2) == true) {
 					checkedList.add(j);
@@ -676,18 +788,18 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		return projectTable;
 	}
 	
-	int getIndexOfContainedVariable(ArrayList<String> list, String input) {
+	int getIndexOfContainedVariable(ArrayList<Double> list, Double input) {
 		return list.indexOf(input);
 	}
 	
 	//create tuples from Row and arrayIndex
-	public ArrayList<String> createTupleFromList(ArrayList<String> list, ArrayList<Integer> arrayIndex) {
+	public ArrayList<Double> createTupleFromList(ArrayList<Double> list, ArrayList<Integer> arrayIndex) {
 		if (arrayIndex.size() >= list.size()) {
 //			System.err.println("Cannot create tuple with size: " + arrayIndex + " from Row size: " +
 //									list.size());
 			return null;
 		}
-		ArrayList<String> newTuple = new ArrayList<String>();
+		ArrayList<Double> newTuple = new ArrayList<>();
 		for (Integer index:arrayIndex) {
 			newTuple.add(list.get(index));
 		}
@@ -695,13 +807,13 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	}
 	
 	//create tuples from Row and arrayIndex
-	public ArrayList<String> createTupleFromRow(Row row, ArrayList<Integer> arrayIndex) {
+	public ArrayList<Double> createTupleFromRow(Row row, ArrayList<Integer> arrayIndex) {
 		if (arrayIndex.size() >= row.getVariableCount()) {
 //			System.err.println("Cannot create tuple with size: " + arrayIndex + " from Row size: " +
 //									row.variableCount);
 			return null;
 		}
-		ArrayList<String> newTuple = new ArrayList<String>();
+		ArrayList<Double> newTuple = new ArrayList<>();
 		for (Integer index:arrayIndex) {
 			newTuple.add(row.getValueAtPosition(index));
 		}
@@ -709,7 +821,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	}
 	
 	//check if two tuples has the same values
-	public boolean isSameTuple(ArrayList<String> tuple1, ArrayList<String> tuple2) {
+	public boolean isSameTuple(ArrayList<Double> tuple1, ArrayList<Double> tuple2) {
 		if (tuple1.size() != tuple2.size()) {
 			System.err.println("Different size from two tuples: " + tuple1.size() + " and "
 																	+ tuple2.size());
@@ -723,6 +835,9 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		}
 		return true;
 	}
+	
+	
+	
 	
 	//for each value of X
 	//for each message received from the children
@@ -747,32 +862,52 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		return table;
 	}
 	
-	public void writeTimeToFile() {
-		if (agent.algorithm != DCOP.REACT)
-			return;
-		
-		String line = "";
-		String alg = DCOP.algTypes[agent.algorithm];
-		if (agent.getCurrentTS() == 0)
-			line = line + alg + "\t" + agent.inputFileName + "\n";
-		
-		DecimalFormat df = new DecimalFormat("##.##");
-		df.setRoundingMode(RoundingMode.DOWN);
-		long runTime = System.currentTimeMillis() - agent.getCurrentUTILstartTime();
-		
-		line = line + "ts=" + agent.getCurrentTS() + "\t" + df.format(runTime) + " ms" + "\n";
+    PiecewiseFunction combineMessageToFunction(ArrayList<ACLMessage> list) {
+        List<PiecewiseFunction> listFunction = new ArrayList<>();
+        for (ACLMessage msg : list) {
+            try {
+                listFunction.add((PiecewiseFunction) msg.getContentObject());
+            } catch (UnreadableException e) {
+                e.printStackTrace();
+            }
+        }
 
-		String fileName = "id=" + agent.instanceD + "/sw=" + (int) agent.switchingCost + "/react_runtime.txt";
-		byte data[] = line.getBytes();
-	    Path p = Paths.get(fileName);
+        int size = listFunction.size();
+        PiecewiseFunction function = listFunction.get(0);
 
-	    try (OutputStream out = new BufferedOutputStream(
-	      Files.newOutputStream(p, CREATE, APPEND))) {
-	      out.write(data, 0, data.length);
-	    } catch (IOException x) {
-	      System.err.println(x);
-	    }
-	}
+        for (int i = 1; i < size; i++) {
+            function = addPiecewiseFunction(function, listFunction.get(i));
+        }
+
+        return function;
+    }
+	
+//	public void writeTimeToFile() {
+//		if (agent.algorithm != DCOP.REACT)
+//			return;
+//		
+//		String line = "";
+//		String alg = DCOP.algTypes[agent.algorithm];
+//		if (agent.getCurrentTS() == 0)
+//			line = line + alg + "\t" + agent.inputFileName + "\n";
+//		
+//		DecimalFormat df = new DecimalFormat("##.##");
+//		df.setRoundingMode(RoundingMode.DOWN);
+//		long runTime = System.currentTimeMillis() - agent.getCurrentUTILstartTime();
+//		
+//		line = line + "ts=" + agent.getCurrentTS() + "\t" + df.format(runTime) + " ms" + "\n";
+//
+//		String fileName = "id=" + agent.instanceD + "/sw=" + (int) agent.switchingCost + "/react_runtime.txt";
+//		byte data[] = line.getBytes();
+//	    Path p = Paths.get(fileName);
+//
+//	    try (OutputStream out = new BufferedOutputStream(
+//	      Files.newOutputStream(p, CREATE, APPEND))) {
+//	      out.write(data, 0, data.length);
+//	    } catch (IOException x) {
+//	      System.err.println(x);
+//	    }
+//	}
 	
 //	public double swCost(String curValue, String preValue, int typeOfFunction) {
 //		if (typeOfFunction == DCOP.CONSTANT)

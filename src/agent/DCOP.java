@@ -10,22 +10,32 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Random;
 
+import FIPA.AgentID;
 import behaviour.AGENT_TERMINATE;
 import behaviour.BROADCAST_RECEIVE_HEURISTIC_INFO;
 import behaviour.DPOP_UTIL;
 import behaviour.DPOP_VALUE;
+//import behaviour.DPOP_UTIL;
+//import behaviour.DPOP_VALUE;
 import behaviour.LS_RECEIVE_SEND_LS_UTIL;
 import behaviour.MESSAGE_TYPE;
-import behaviour.INIT_PROPAGATE_DPOP_VALUE;
+import behaviour.INIT_PROPAGATE_VALUE;
 import behaviour.PSEUDOTREE_GENERATION;
-import behaviour.RAND_PICK_VALUE;
-import behaviour.INIT_RECEIVE_DPOP_VALUE;
-import behaviour.RECEIVE_IMPROVE;
-import behaviour.INIT_RECEIVE_SEND_LS_UTIL;
+//import behaviour.RAND_PICK_VALUE;
+import behaviour.RECEIVE_DCSP_RESULT;
+//import behaviour.INIT_RECEIVE_VALUE;
+//import behaviour.RECEIVE_IMPROVE;
+//import behaviour.INIT_RECEIVE_SEND_LS_UTIL;
 import behaviour.RECEIVE_VALUE;
 import behaviour.SEARCH_NEIGHBORS;
-import behaviour.SEND_IMPROVE;
+import behaviour.SEND_DCSP_RESULT;
+import behaviour.SEND_IMPROVE_VALUE;
+import function.BinaryFunction;
+import function.Interval;
+import function.PiecewiseFunction;
 import table.Row;
 import table.Table;
 import transition.TransitionFunction;
@@ -73,13 +83,41 @@ public class DCOP extends Agent implements DCOP_INFO {
 	
     public int algorithm;
     public int h;   //timeStep where the Markov chain is converged
-    public double switchingCost;
     public String inputFileName;
-	public int hybridTS;
-	public int scExponentialBase = 2;
-	public int scType;
-	public int instanceD;
 	public String varDecisionFileName;
+	
+	public short phase;
+	public double L_in;
+	public double L_in_next;
+	public double L_in_further;
+	public double L_toProcess; 
+	public double L_processed;
+	public double L_toStore;
+	public double L_toProcessMax;
+	public double L_processedMax;
+	public short isSubscriber;
+	public short isNextSubscriber;
+	public short isFurtherSubscriber;
+	public double threshold_processing;
+	//first index is the current agent, second index is the next agent, third index is the next next agent
+	public ArrayList<Double> isSatisfiedPhase1List;
+	public ArrayList<Double> isSatisfiedPhase2List;
+
+	public ArrayList<Double> responseTimes;
+	public ArrayList<Double> DCSP_result_toSend;
+	public ArrayList<Double> processsedLoads;
+	private HashMap<String, ArrayList<Double>> bestValueMap;
+	private HashMap<String, ArrayList<Double>> agentView_DPOP_TSMap;
+	private ArrayList<Double> to_send_next;
+	private ArrayList<Double> to_send_further;
+	
+	public double bw_next;
+	public double bw_further;
+	
+	public double process_ratio;
+	
+	private Table nonProcessedTable;
+	private Table processedTable;
 
 	private String idStr;
 	private boolean isRoot;
@@ -92,44 +130,36 @@ public class DCOP extends Agent implements DCOP_INFO {
 	private ArrayList<AID> pseudoChildrenAIDList;
 	private ArrayList<String> parentAndPseudoStrList;
 	private ArrayList<String> neighborStrList;
-
 	
 	private ArrayList<Table> currentTableListDPOP;
 	private ArrayList<Table> constraintTableWithoutRandomList;
 	private ArrayList<Table> constraintTableWithRandomList;
 	private ArrayList<Table> organizedConstraintTableList;
-	private ArrayList<Table> organizedConstraintTableWithRandomList;
 	
 	private ArrayList<String> decisionVariableList;
-	private ArrayList<String> randomVariableList;
 	private HashMap<String, ArrayList<String>> decisionVariableDomainMap;
-	private HashMap<String, ArrayList<String>> randomVariableDomainMap;
+//	private HashMap<String, ArrayList<String>> randomVariableDomainMap;
 	//map TS -> constraint table list (if local_search)
 	//map TS -> 1 collapsed table list (if collapsed dpop)
 	private HashMap<Integer, ArrayList<Table>> constraintTableAtEachTSMap;
-	private HashMap<String, double[][]> probabilityAtEachTimeStepMap;
+//	private HashMap<String, double[][]> probabilityAtEachTimeStepMap;
 	private Table collapsedSwitchingCostTable;
 	
 	//VALUE phase
-	HashMap<String, String> valuesToSendInVALUEPhase;
+	HashMap<String, Double> valuesToSendInVALUEPhase;
 	
 	//used for LOCAL SEARCH
-	private HashMap<Integer, String> valueAtEachTSMap;
+	private HashMap<Integer, Double> valueAtEachTSMap;
 	//ArrayList<Double> utilityAtEachTSList;
 	//agent -> <values0, values1, ..., values_n>
-    private HashMap<String, HashMap<Integer, String>> agentView_DPOP_TSMap;
     private ArrayList<Double> currentGlobalUtilityList;
     private ArrayList<String> bestImproveValueList;
-    private ArrayList<Double> bestUtilityList;
-    private ArrayList<Double> bestImproveUtilityList;
     private double currentGlobalUtility;
     private double totalGlobalUtility;
     private double utilFromChildrenLS;
 		
-    private HashMap<String, ArrayList<Double>> initProabilityMap;
-    private HashMap<String, TransitionFunction> transitionFunctionMap;
     private Table agentViewTable;
-    private String chosenValue;
+    private Double chosenValue;
     private HashMap<Integer, String> pickedRandomMap;
 
 	private int currentTS;
@@ -158,6 +188,10 @@ public class DCOP extends Agent implements DCOP_INFO {
 	public int noAgent;
 	private double utilityAndCost;
 	private String lastLine;
+	
+	private List<PiecewiseFunction> functionList;
+	private PiecewiseFunction agentViewFunction;
+	private List<PiecewiseFunction> currentFunctionListDPOP;
 
 	public DCOP() {
 		initializeArguments();
@@ -167,98 +201,143 @@ public class DCOP extends Agent implements DCOP_INFO {
 		lsIteration = 0;
 		utilFromChildrenLS = 0;
 		currentTS = 0;
+		phase = FIRST_PHASE;
+		functionList = new ArrayList<>();
 	}
 	
 	//done with LS-RAND
 	public void readArguments() {
     	Object[] args = getArguments();
 		//parameters for running experiments
-		algorithm = 			Integer.valueOf((String) args[0]);
-		inputFileName = 		(String) args[1]; 					//rep_10_d14.dzn
-		h = 					Integer.valueOf((String) args[2]);
-		switchingCost = 		Integer.valueOf((String) args[3]);
+		algorithm = Integer.valueOf((String) args[0]);
+		inputFileName = "rep_0_d3.dzn";
+		
 		String a[] = inputFileName.replaceAll("rep_","").replaceAll(".dzn","").split("_d");
-		instanceD = Integer.valueOf(a[0]);
 		noAgent = Integer.valueOf(a[1]);
-		idStr = getLocalName();	
-		scType = DCOP.EXP_3;
+		idStr = getLocalName();
+		h = 0;
+		L_toProcess = 0;
+		L_processed = 0;
+		L_toStore = 0;
+		process_ratio = 10;
+	    threshold_processing = 3500000;
+		
+		agentView_DPOP_TSMap.put("next", new ArrayList<Double>());
+		agentView_DPOP_TSMap.put("further", new ArrayList<Double>());
 		
 		//can be done after getting the algorithm
-		if (algorithm == C_DPOP) {
-//			constraintTableAtEachTSMap.put(0, new ArrayList<Table>());
+		if (algorithm == DPOP) {
+			constraintTableAtEachTSMap.put(0, new ArrayList<Table>());
 		}
-		else
-			//SDPOP, LS_SDPOP, FORWARD, BACKWARD, HYBRID, REACTIVE, LS_RAND
-			for (int tS=0; tS<=h; tS++) {
-				constraintTableAtEachTSMap.put(tS, new ArrayList<Table>());
-			}
-		
-		varDecisionFileName = DCOP.algTypes[algorithm] + "_d=" + noAgent
-													+ "_sw=" + (int) switchingCost
-													+ "_h=" + h + ".txt";  
+		else if (algorithm == DSA) {
+			constraintTableAtEachTSMap.put(0, new ArrayList<Table>());
+		}
 	}
 	
     protected void setup() {
     	readArguments();
 		if (idStr.equals("1")) {
 			System.out.println("alg " + algorithm);
-			System.out.println("iter " + MAX_ITERATION);
+//			System.out.println("iter " + MAX_ITERATION);
 			System.out.println("input " + inputFileName);
 			System.out.println("ts " + h);
-			System.out.println("id " + instanceD);
+//			System.out.println("id " + instanceD);
+			isRoot = true;
+
 		}
 
-		readMinizincFileThenParseNeighborAndConstraintTable(inputFileName);
-		if (idStr.equals("1"))
-			isRoot = true;
-		
+		readMinizincFileThenParseNeighborAndConstraintTable(inputFileName);		
 		/***** START register neighbors with DF *****/ 
 		registerWithDF();
 		/***** END register neighbors with DF *****/ 
 
-		probabilityAtEachTimeStepMap.put(idStr, new double[h+1][domainSize]);
+//		probabilityAtEachTimeStepMap.put(idStr, new double[h+1][domainSize]);
 		
 		//create actual distribution based on previous observation
 		//REACT sample random values in DPOP_UTIL step
 		//HYRBID sample random values on the way
-		if (algorithm == HYBRID) {
-			for (int i=0; i<=h; i++) {
-				addPickedRandomMap(i, simulateRandom(i));
-				createProbabilityWithObservation(i);
-			}
-		}
-		//create distribution at each time step, and stationary distribution at h
-		else if (algorithm == FORWARD || algorithm == BACKWARD || algorithm == LS_SDPOP ||
-			     algorithm == LS_RAND ) {
-			//create actual distribution from 0 -> h-1
-			for (int i=0; i<=h-1; i++) {
-				createProbabilityAt(i);
-			}
-			//create stable distribution for time step h
-			createStableProbabilityForLastTimeStep();
-		}
-		//PD-DCOP algorithms, no need to consider stationary distribution
-		else if (algorithm != REACT) {
-			for (int i=0; i<=h; i++) {
-				createProbabilityAt(i);
-			}
-		}
+//		if (algorithm == HYBRID) {
+//			for (int i=0; i<=h; i++) {
+//				addPickedRandomMap(i, simulateRandom(i));
+//				createProbabilityWithObservation(i);
+//			}
+//		}
+//		//create distribution at each time step, and stationary distribution at h
+//		else if (algorithm == FORWARD || algorithm == BACKWARD || algorithm == LS_SDPOP ||
+//			     algorithm == LS_RAND ) {
+//			//create actual distribution from 0 -> h-1
+//			for (int i=0; i<=h-1; i++) {
+//				createProbabilityAt(i);
+//			}
+//			//create stable distribution for time step h
+//			createStableProbabilityForLastTimeStep();
+//		}
+//		//PD-DCOP algorithms, no need to consider stationary distribution
+//		else if (algorithm != REACT) {
+//			for (int i=0; i<=h; i++) {
+//				createProbabilityAt(i);
+//			}
+//		}
 		
-		reorganizeRandomTable();
+//		reorganizeRandomTable();
+		
+		// add constraints table FROM constraintTableWithoutRandomList TO organizedConstraintTableList
 		reorganizeConstaintTable();
-		//different from different algorithms
-		//initialize the tableMap
 		
-		if (algorithm == LS_RAND)
-			for (int ts=0; ts<=h; ts++) {
-				addExpectedRandomTableToList(ts);
-				addConstraintTableToList(ts);
-			}
+		if (algorithm == DSA) {
+//		    createNonProcessTable();
+//		    createProcessedTable();
+		}
 		
-//		if (algorithm == C_DPOP) {
+		Interval interval = new Interval(1, 1000);
+		
+		// HARD-CODED binary function
+		if (idStr.equals("1")) {
+//		    BinaryFunction func1 = new BinaryFunction(1, 2, 3, 4, 5, 6, Double.valueOf(idStr), 2.0);
+//	        BinaryFunction func2 = new BinaryFunction(1, 3, 5, 7, 9, 11, Double.valueOf(idStr), 3.0);
+//
+//		    PiecewiseFunction pwFunc = new PiecewiseFunction(1.0, 2.0);
+//		    pwFunc.addNewFunction(func1);
+//	        pwFunc.addNewFunction(func2);
+//		    functionList.add(pwFunc);
+		}
+		if (idStr.equals("2")) {
+		    BinaryFunction func = new BinaryFunction(-1, 20, -3, 40, -2, 6, Double.valueOf(idStr), 1.0);
+		    func.setSelfInterval(interval);
+	        func.setOtherInterval(interval);
+            PiecewiseFunction pwFunc = new PiecewiseFunction(2.0, 1.0);
+            pwFunc.addNewFunction(func);
+            functionList.add(pwFunc);		
+        }
+        if (idStr.equals("3")) {
+            BinaryFunction func = new BinaryFunction(-1, 20, -3, 40, -2, 6, Double.valueOf(idStr), 1.0);
+            func.setSelfInterval(interval);
+            func.setOtherInterval(interval);
+            PiecewiseFunction pwFunc = new PiecewiseFunction(2.0, 1.0);
+            pwFunc.addNewFunction(func);
+            functionList.add(pwFunc);
+        }
+		
+		if (isRoot) {
+			System.out.println("========SUBSCRIBE: " + isSubscriber);
+			System.out.println("========SUBSCRIBE: " + isNextSubscriber);
+			System.out.println("========SUBSCRIBE: " + isFurtherSubscriber);
+		}
+		
+//		if (algorithm == LS_RAND)
+//			for (int ts=0; ts<=h; ts++) {
+//				addExpectedRandomTableToList(ts);
+//				addConstraintTableToList(ts);
+//			}
+
+		if (algorithm == DPOP) {
 //			addExpectedRandomTableToListAllTS();
 //			addConstraintTableToListAllTS();
-//		}		
+		}		
+		else if (algorithm == DSA) {
+			addConstraintTableToListAllTS();
+		}
+		
 
 		startTime = System.currentTimeMillis();
 		bean = ManagementFactory.getThreadMXBean();
@@ -270,41 +349,62 @@ public class DCOP extends Agent implements DCOP_INFO {
 		mainSequentialBehaviourList.addSubBehaviour(new PSEUDOTREE_GENERATION(this));
 		
 		//run DPOP multi-step
-		if (algorithm == C_DPOP) {
+		if (algorithm == DPOP) {
 			mainSequentialBehaviourList.addSubBehaviour(new DPOP_UTIL(this));
-			mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
+//			mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
+		}
+		
+		if (algorithm == DSA) {
+//			mainSequentialBehaviourList.addSubBehaviour(new RAND_PICK_VALUE(this));
+//			mainSequentialBehaviourList.addSubBehaviour(new INIT_PROPAGATE_VALUE(this));
+//			mainSequentialBehaviourList.addSubBehaviour(new INIT_RECEIVE_VALUE(this));
+//			mainSequentialBehaviourList.addSubBehaviour(new INIT_RECEIVE_SEND_LS_UTIL(this));
+//			//second phase
+//			mainSequentialBehaviourList.addSubBehaviour(new RAND_PICK_VALUE(this));
+//			mainSequentialBehaviourList.addSubBehaviour(new INIT_PROPAGATE_VALUE(this));
+//			mainSequentialBehaviourList.addSubBehaviour(new INIT_RECEIVE_VALUE(this));
+//			mainSequentialBehaviourList.addSubBehaviour(new INIT_RECEIVE_SEND_LS_UTIL(this));	
+		}
+		
+		if (algorithm == DSA) {
+			mainSequentialBehaviourList.addSubBehaviour(new SEND_IMPROVE_VALUE(this));
+			ParallelBehaviour localSearch = new ParallelBehaviour(); 
+			localSearch.addSubBehaviour(new RECEIVE_VALUE(this));
+			localSearch.addSubBehaviour(new SEND_DCSP_RESULT(this));
+			localSearch.addSubBehaviour(new RECEIVE_DCSP_RESULT(this));
+			mainSequentialBehaviourList.addSubBehaviour(localSearch);
 		}
 		
 		//correct
-		if (algorithm == FORWARD || algorithm == BACKWARD ||
-			algorithm == LS_SDPOP     || algorithm == REACT || algorithm == HYBRID) {
-			for (int i=0; i<=h; i++) {
-				mainSequentialBehaviourList.addSubBehaviour(new DPOP_UTIL(this));
-				mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
-			}
-		}
+//		if (algorithm == FORWARD || algorithm == BACKWARD ||
+//			algorithm == LS_SDPOP     || algorithm == REACT || algorithm == HYBRID) {
+//			for (int i=0; i<=h; i++) {
+//				mainSequentialBehaviourList.addSubBehaviour(new DPOP_UTIL(this));
+//				mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
+//			}
+//		}
 		
 		/*** LOCAL SEARCH ***/
 		//pick values randomly
-		if (algorithm == LS_RAND) {
-			mainSequentialBehaviourList.addSubBehaviour(new RAND_PICK_VALUE(this));
-		}
+//		if (algorithm == LS_RAND) {
+//			mainSequentialBehaviourList.addSubBehaviour(new RAND_PICK_VALUE(this));
+//		}
 		
 		//sending and receiving values from neighbors
-		if (algorithm == LS_SDPOP || algorithm == LS_RAND) {
-			mainSequentialBehaviourList.addSubBehaviour(new INIT_PROPAGATE_DPOP_VALUE(this));
-			mainSequentialBehaviourList.addSubBehaviour(new INIT_RECEIVE_DPOP_VALUE(this));
-			mainSequentialBehaviourList.addSubBehaviour(new INIT_RECEIVE_SEND_LS_UTIL(this));
-		}
-		
-		if (algorithm == LS_SDPOP || algorithm == LS_RAND) {
-			mainSequentialBehaviourList.addSubBehaviour(new SEND_IMPROVE(this));
-			ParallelBehaviour localSearch = new ParallelBehaviour(); 
-			localSearch.addSubBehaviour(new RECEIVE_IMPROVE(this));
-			localSearch.addSubBehaviour(new RECEIVE_VALUE(this));
-			localSearch.addSubBehaviour(new LS_RECEIVE_SEND_LS_UTIL(this));
-			mainSequentialBehaviourList.addSubBehaviour(localSearch);
-		}
+//		if (algorithm == LS_SDPOP || algorithm == LS_RAND) {
+//			mainSequentialBehaviourList.addSubBehaviour(new INIT_PROPAGATE_DPOP_VALUE(this));
+//			mainSequentialBehaviourList.addSubBehaviour(new INIT_RECEIVE_DPOP_VALUE(this));
+//			mainSequentialBehaviourList.addSubBehaviour(new INIT_RECEIVE_SEND_LS_UTIL(this));
+//		}
+//		
+//		if (algorithm == LS_SDPOP || algorithm == LS_RAND) {
+//			mainSequentialBehaviourList.addSubBehaviour(new SEND_IMPROVE(this));
+//			ParallelBehaviour localSearch = new ParallelBehaviour(); 
+//			localSearch.addSubBehaviour(new RECEIVE_IMPROVE(this));
+//			localSearch.addSubBehaviour(new RECEIVE_VALUE(this));
+//			localSearch.addSubBehaviour(new LS_RECEIVE_SEND_LS_UTIL(this));
+//			mainSequentialBehaviourList.addSubBehaviour(localSearch);
+//		}
 		
 		mainSequentialBehaviourList.addSubBehaviour(new AGENT_TERMINATE(this));
 		addBehaviour(mainSequentialBehaviourList); 
@@ -337,273 +437,467 @@ public class DCOP extends Agent implements DCOP_INFO {
 		constraintTableWithoutRandomList = new ArrayList<Table>();
 		constraintTableWithRandomList = new ArrayList<Table>();
 		organizedConstraintTableList = new ArrayList<Table>();
-		organizedConstraintTableWithRandomList = new ArrayList<Table>();
+//		organizedConstraintTableWithRandomList = new ArrayList<Table>();
 		decisionVariableList = new ArrayList<String>();
 		decisionVariableDomainMap = new HashMap<String, ArrayList<String>>();
-		randomVariableList = new ArrayList<String>();
-		randomVariableDomainMap = new HashMap<String, ArrayList<String>>();
-		initProabilityMap = new HashMap<String, ArrayList<Double>>();
-		transitionFunctionMap = new HashMap<String, TransitionFunction>();
-		probabilityAtEachTimeStepMap = new HashMap<String, double[][]>();
+//		randomVariableList = new ArrayList<String>();
+//		randomVariableDomainMap = new HashMap<String, ArrayList<String>>();
+//		initProabilityMap = new HashMap<String, ArrayList<Double>>();
+//		transitionFunctionMap = new HashMap<String, TransitionFunction>();
+//		probabilityAtEachTimeStepMap = new HashMap<String, double[][]>();
 		constraintTableAtEachTSMap = new HashMap<Integer, ArrayList<Table>>();
-		valueAtEachTSMap = new HashMap<Integer, String>();
-		agentView_DPOP_TSMap = new HashMap<String, HashMap<Integer, String>>();
+		valueAtEachTSMap = new HashMap<Integer, Double>();
+
+		bestValueMap = new HashMap<String, ArrayList<Double>>();
+		bestValueMap.put("next", new ArrayList<Double>());
+		bestValueMap.put("further", new ArrayList<Double>());
+		agentView_DPOP_TSMap = new HashMap<String, ArrayList<Double>>();
+		to_send_next = new ArrayList<Double>();
+		to_send_further = new ArrayList<Double>();
+
 		currentGlobalUtilityList = new ArrayList<Double>();
 		bestImproveValueList = new ArrayList<String>();
-		bestUtilityList = new ArrayList<Double>();
-		bestImproveUtilityList = new ArrayList<Double>();
+//		bestUtilityList = new ArrayList<Double>();
 		constraintInfoMap = new HashMap<AID, Integer>();
-		valuesToSendInVALUEPhase = new HashMap<String, String>();
+		valuesToSendInVALUEPhase = new HashMap<String, Double>();
 		pickedRandomMap = new HashMap<Integer, String>();
 		lastLine = "";
+	    isSatisfiedPhase1List = new ArrayList<Double>(Collections.nCopies(3, 0.0));
+	    isSatisfiedPhase2List = new ArrayList<Double>(Collections.nCopies(3, 0.0));
+
+	    responseTimes = new ArrayList<Double>(Collections.nCopies(3, 0.0));
+	    processsedLoads = new ArrayList<Double>(Collections.nCopies(3, 0.0));
+	    DCSP_result_toSend = new ArrayList<Double>(Collections.nCopies(4, 0.0));
 	}
 	
-	public void sendImprove() {
+	public void sendImproveValue() {
 		currentStartTime = bean.getCurrentThreadUserTime();
 		
-		ArrayList<Double> currentUtilityList = utilityMinusCostOverTS(valueAtEachTSMap);
-
-		double maxUtility = Integer.MIN_VALUE;
-
-		ArrayList<String> domain = decisionVariableDomainMap.get(idStr);
-		int domainSize = domain.size();
-		int totalSize = (int) Math.pow(domainSize, h + 1);
+		/**TODO: Find improved values here, send them to the other agents with probability*/
 		
-		for (int index = 0; index < totalSize; index++) {
-			// a list of values at every time step
-			ArrayList<String> valueListTS = new ArrayList<String>();
-			int temp = index;
-			for (int k = 0; k <= h; k++) {
-				valueListTS.add(domain.get(temp % domainSize));
-				temp = temp / domainSize;
-			}
-			// Collections.reverse(valueListTS);
-
-			double evaluation = utilityMinusSwitchingCost(valueListTS);
-			if (evaluation > maxUtility) {
-				maxUtility = evaluation;
-				bestImproveValueList = valueListTS;
-			}
-		}
-
-		bestImproveUtilityList = new ArrayList<Double>();
-		if (maxUtility != Integer.MIN_VALUE) {
-			bestUtilityList = utilityMinusCostOverTSList(bestImproveValueList);
-			//if (idStr.equals("1")) System.err.println("best " + bestUtilityList);
-			for (int i=0; i<=h; i++) {
-				bestImproveUtilityList.add(bestUtilityList.get(i) - currentUtilityList.get(i));
-			}
-		}
-
 		simulatedTime += bean.getCurrentThreadUserTime() - currentStartTime;
 		
-		//send IMPROVE messages
-		for (AID neighbor:neighborAIDList) {
-			sendObjectMessageWithTime(neighbor, bestImproveUtilityList, MESSAGE_TYPE.LS_IMPROVE, simulatedTime);
-		}
-	}
-	
-	double utilityMinusSwitchingCost(ArrayList<String> valuesOverTS) {
-		double sumUtility = 0;
-		double sumCost = 0;
-		for (int ts=0; ts<=h; ts++) {
-			ArrayList<Table> tableList = constraintTableAtEachTSMap.get(ts);
-	    	for (Table constraintTable:tableList) {
-				ArrayList<String> decVarList = constraintTable.getDecVarLabel();
-				ArrayList<String> decValueList = new ArrayList<String>();
-				//get value from agentView
-				//add value to decValue -> getUtility
-				for (String neighbor:decVarList) {
-					if (neighbor.equals(idStr))
-						decValueList.add(valuesOverTS.get(ts));
-					else
-						decValueList.add(agentView_DPOP_TSMap.get(neighbor).get(ts));
+		//first iterations
+		Random rdn = new Random();
+
+		if (lsIteration == 0) {
+			int random_index = new Random().nextInt(nonProcessedTable.getRowCount());
+			Row chosenRow = nonProcessedTable.getTable().get(random_index);
+			to_send_next = bestValueMap.get("next");
+			to_send_further = bestValueMap.get("further");
+			to_send_next.add(chosenRow.getValueList().get(0)); //send raw load
+			to_send_next.add(chosenRow.getValueList().get(1)); //receive raw load
+			to_send_further.add(chosenRow.getValueList().get(2)); //send raw load
+			to_send_further.add(chosenRow.getValueList().get(3)); //receive raw load
+			
+			
+			L_toProcess = chosenRow.getValueList().get(4);
+			L_processed = L_toProcess / process_ratio;
+			processsedLoads.set(0, L_processed);
+			
+			//how to choose a row in processedTable
+//			double nonProcessedLoad = chosenRow.getValueList().get(4);
+			random_index = new Random().nextInt(processedTable.getRowCount());
+//			Row chosenProcessedRow = randomChoose(processedTable, L_processed);
+			Row chosenProcessedRow = processedTable.getTable().get(random_index);
+			to_send_next.add(chosenProcessedRow.getValueList().get(0));
+			to_send_next.add(chosenProcessedRow.getValueList().get(1));
+			to_send_further.add(chosenProcessedRow.getValueList().get(2));
+			to_send_further.add(chosenProcessedRow.getValueList().get(3));
+			
+			L_toStore = chosenProcessedRow.getValueList().get(5);
+			responseTimes.set(0, chosenProcessedRow.getUtility());
+			
+			bestValueMap.put("next", to_send_next);
+			bestValueMap.put("further", to_send_further);
+						
+			//send IMPROVED VALUEs messages
+			for (AID neighbor:neighborAIDList) {
+				if (isNextAgent(neighbor.getLocalName())) {
+					sendObjectMessageWithTime(neighbor, to_send_next, MESSAGE_TYPE.LS_VALUE, simulatedTime);
+					System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() + " sends "
+							 + to_send_next.toString()	+ " loads to " + neighbor.getLocalName());
 				}
-				sumUtility += constraintTable.getUtilityGivenDecValueList(decValueList);
+				else {
+					sendObjectMessageWithTime(neighbor, to_send_further, MESSAGE_TYPE.LS_VALUE, simulatedTime);
+					System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() + " sends "
+							 + to_send_further.toString()	+ " loads to " + neighbor.getLocalName());
+				}
+			}
+		}	
+		// not the first iteration, do improve here
+		else {
+			/* Reduce response time with probability p (search with for loop, if cannot find -> satisfy)
+			 * Satisfy constraints Phase 2 with probability (1-p)
+			 * From L_s -> LpA -> LA
+			 * Until L_A is in non-processed tables, get a set of rows => find a row that satisfy most
+			 */
+			to_send_next = bestValueMap.get("next");
+			to_send_further = bestValueMap.get("further");
+
+			double p = rdn.nextDouble();
+			double p_load = rdn.nextDouble();
+			boolean toSatisfy = false;
+			double processedLoadsToSatisfy = L_processedMax - processsedLoads.get(1) - processsedLoads.get(2);
+			if (p_load < PROBABILITY_LOAD || Double.compare(processedLoadsToSatisfy, 0.0) < 0) {
+				processedLoadsToSatisfy = L_processedMax / rdn.nextInt(10);
+			}
+			System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() 
+				+ " has processed loads to satisfy: " + processedLoadsToSatisfy);							
+
+			// Reduce the response time
+			if (Double.compare(p, PROBABILITY) > 0) {
+//				Set<Double> responseTimeList = processedTable.getKeyMap().keySet();
+//				//if responseTimes.get(0) is not smallest then
+//					//random search for smaller response time
+//				//else if (cannot find)
+//					//				
+				
+//				double load_to_satisfy = L_processedMax - ()
+				for (int i=0; i<processedTable.getRowCount(); i++) {
+					//find a row with smaller response time
+					Row tempRow = processedTable.getTable().get(i);
+					if (tempRow.getUtility() != 0.0 && tempRow.getUtility() < responseTimes.get(0)
+							&& Double.compare(tempRow.getValueList().get(4), processedLoadsToSatisfy) == 0) {						
+						System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() 
+								+ " finds a row with smaller time: " + tempRow.getDecVar());							
+						
+						to_send_next.set(2, tempRow.getValueList().get(0)); //send raw load
+						to_send_next.set(3, tempRow.getValueList().get(1)); //receive raw load
+						to_send_further.set(2, tempRow.getValueList().get(2)); //send raw load
+						to_send_further.set(3, tempRow.getValueList().get(3)); //receive raw load
+
+						L_processed = tempRow.getValueList().get(4);
+						L_toStore = tempRow.getValueList().get(5);
+						L_toProcess = L_processed * process_ratio;
+						processsedLoads.set(0, L_processed);
+						responseTimes.set(0, tempRow.getUtility());
+					}
+				}				
+				//cannot find a lower response time
+				System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() 
+					+ " CANNOT find a row with smaller time");							
+
+				toSatisfy = true;
+			}
+			else if (Double.compare(p, PROBABILITY) <= 0 || toSatisfy == true) {
+				//write a function to find a row that equals L_toProcess that satisfy as much constraints as possible
+				Row chosenProcessedRow = getRowWithMostSatisfiable(PROCESSED, 0, processedTable, agentView_DPOP_TSMap, processedLoadsToSatisfy);
+				
+				if (chosenProcessedRow != null) {
+					System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() 
+							+ " finds a row satisfying phase 2: " + chosenProcessedRow.getDecVar());
+	//				chosenProcessedRow.printDecVar();
+					
+					
+//					to_send_next = bestValueMap.get("next");
+//					to_send_further = bestValueMap.get("further");
+					to_send_next.set(2, chosenProcessedRow.getValueList().get(0));
+					to_send_next.set(3, chosenProcessedRow.getValueList().get(1));
+					to_send_further.set(2, chosenProcessedRow.getValueList().get(2));
+					to_send_further.set(3, chosenProcessedRow.getValueList().get(3));
+			
+					L_processed = chosenProcessedRow.getValueList().get(4);
+					L_toStore = chosenProcessedRow.getValueList().get(5);
+					L_toProcess = L_processed * process_ratio;
+					processsedLoads.set(0, L_processed);
+					responseTimes.set(0, chosenProcessedRow.getUtility());
+				}
+				else {
+					System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() 
+					+ " CANNOT find a row satisfying phase 2");
+
+				}
+			}
+			
+			Row chosenNonProcessedRow = getRowWithMostSatisfiable(NON_PROCESSED, L_toProcess, nonProcessedTable, agentView_DPOP_TSMap, 0);
+			if (chosenNonProcessedRow != null) {				
+				System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() 
+						+ " finds a row satisfying phase 1 with " + L_toProcess + " :"+ chosenNonProcessedRow.getDecVar());
+//				chosenNonProcessedRow.printDecVar();
+						
+				
+				to_send_next.set(0, chosenNonProcessedRow.getValueList().get(0)); //send raw load
+				to_send_next.set(1, chosenNonProcessedRow.getValueList().get(1)); //receive raw load
+				to_send_further.set(0, chosenNonProcessedRow.getValueList().get(2)); //send raw load
+				to_send_further.set(1, chosenNonProcessedRow.getValueList().get(3)); //receive raw load
+			}
+			else {
+				System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() 
+				+ " CANNOT find a row satisfying phase 1 with " + L_toProcess);
+			}
+
+			bestValueMap.put("next", to_send_next);
+			bestValueMap.put("further", to_send_further);
+
+			//send IMPROVED VALUEs messages
+			for (AID neighbor:neighborAIDList) {
+				if (isNextAgent(neighbor.getLocalName())) {
+					sendObjectMessageWithTime(neighbor, to_send_next, MESSAGE_TYPE.LS_VALUE, simulatedTime);
+					System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() + " sends "
+							 + to_send_next.toString()	+ " loads to " + neighbor.getLocalName());
+				}
+				else {
+					sendObjectMessageWithTime(neighbor, to_send_further, MESSAGE_TYPE.LS_VALUE, simulatedTime);
+					System.out.println("===ITERATION " + getLsIteration() + ": Agent " + getIdStr() + " sends "
+							 + to_send_further.toString()	+ " loads to " + neighbor.getLocalName());
+				}
 			}
 		}
 		
-		for (int i=1; i<valuesOverTS.size(); i++) {
-//			sumCost += valuesOverTS.get(i).equals(valuesOverTS.get(i-1)) ? 0
-//										: switchingCost * Math.pow(discountFactor, i-1);
-//			sumCost += valuesOverTS.get(i).equals(valuesOverTS.get(i-1)) ? 0
-//					: switchingCost;
-			sumCost += sc_func(valuesOverTS.get(i), valuesOverTS.get(i-1));
-		}
-		return sumUtility - sumCost;
 	}
 	
-	ArrayList<Double> utilityMinusCostOverTS(HashMap<Integer,String> valuesOverTS) {
-		ArrayList<Double> utilityList = new ArrayList<Double>();
-		for (int ts=0; ts<=h; ts++) {
-			double sc = 0;
-			double utility = 0;
-			if (ts==0)
-//				sc = (valuesOverTS.get(0).equals(valuesOverTS.get(1))
-//						? 0 : switchingCost);
-				sc = sc_func(valuesOverTS.get(0), valuesOverTS.get(1));
-			else if (ts==h) 
-//				sc = (valuesOverTS.get(h).equals(valuesOverTS.get(h-1))
-//				? 0 : switchingCost);
-				sc = sc_func(valuesOverTS.get(h), valuesOverTS.get(h-1));
-			else
-//				sc = (valuesOverTS.get(ts-1).equals(valuesOverTS.get(ts)) ? 0 : switchingCost)
-//				   + (valuesOverTS.get(ts).equals(valuesOverTS.get(ts+1)) ? 0 : switchingCost);
-				sc = sc_func(valuesOverTS.get(ts-1), valuesOverTS.get(ts))
-				   + sc_func(valuesOverTS.get(ts), valuesOverTS.get(ts+1));
-			//from each utility constraint with neighbors at a timeStep
-			//get names -> get values from agent_view
-			//from neighbors' values, current value -> get utility from constraint table
-			ArrayList<Table> tableList = constraintTableAtEachTSMap.get(ts);
-//		    System.err.println("Agent " + idStr + " size " + tableList.size());
-	    	for (Table constraintTable:tableList) {
-				ArrayList<String> decVarList = constraintTable.getDecVarLabel();
-				ArrayList<String> decValueList = new ArrayList<String>();
-				//get value from agentView
-				//add value to decValue -> getUtility
-				for (String neighbor:decVarList) {
-					if (neighbor.equals(idStr))
-						decValueList.add(valuesOverTS.get(ts));
-					else
-						decValueList.add(agentView_DPOP_TSMap.get(neighbor).get(ts));
-				}
-				utility += constraintTable.getUtilityGivenDecValueList(decValueList);
+	public Row getRowWithMostSatisfiable(boolean isProcess, double loadToProcess, Table table, 
+					HashMap<String, ArrayList<Double>> agentView, double processToSatisfy) {
+//		if (isRoot) {
+//			System.out.println("AGENT VIEW CHOOSING ROW NEXT: " + agentView.get("next").toString());
+//			System.out.println("AGENT VIEW CHOOSING ROW FURTHER: " + agentView.get("further").toString());
+//		}
+		
+		int minViolatedConstraint = Integer.MAX_VALUE;
+		Row chosenRow = null;
+		ArrayList<Row> rowList = null;
+		rowList = (isProcess == NON_PROCESSED) ? nonProcessedTable.getRowListFromKey(loadToProcess)
+											: table.getTable();
+		
+//		rowList = table.getTable();
+		if (rowList == null) return null;
+		
+		for (int i=0; i<rowList.size(); i++) {
+			Row row = rowList.get(i);
+			if (isProcess == PROCESSED && Double.compare(row.getValueList().get(4), processToSatisfy) != 0)
+				continue;
+			
+			int count = countViolated(isProcess, IS_NEXT, row, agentView.get("next")) +
+						countViolated(isProcess, IS_FURTHER, row, agentView.get("further"));
+			
+//			System.out.println("Agent " + idStr + " SEARCHING FOR ROW: ");
+//			rowList.get(i).printDecVar();
+			
+			if (count < minViolatedConstraint) {
+				minViolatedConstraint = count;
+				chosenRow = rowList.get(i);
 			}
-	    	
-	    	utilityList.add(utility - sc);
 		}
-		return utilityList;
+
+		return chosenRow;
 	}
+	
+	// Whether Row from Processed or Non Processed is inputed from the caller
+	public int countViolated(boolean isProcess, boolean isNext, Row row, ArrayList<Double> agent_view) {
+		int count = 0;
+		int index_agentView = (isProcess == NON_PROCESSED) ? 0 : 2;
+		int index_row = (isNext == IS_NEXT) ? 0 : 2;
+		
+		ArrayList<Double> rowValueList = row.getValueList();
+
+		if (Double.compare(rowValueList.get(index_row), agent_view.get(index_agentView+1)) != 0) count++;
+		if (Double.compare(rowValueList.get(index_row+1), agent_view.get(index_agentView)) != 0) count++;
+		
+		return count;
+	}
+	
+//	double utilityMinusSwitchingCost(ArrayList<String> valuesOverTS) {
+//		double sumUtility = 0;
+//		double sumCost = 0;
+//		for (int ts=0; ts<=h; ts++) {
+//			ArrayList<Table> tableList = constraintTableAtEachTSMap.get(ts);
+//	    	for (Table constraintTable:tableList) {
+//				ArrayList<String> decVarList = constraintTable.getDecVarLabel();
+//				ArrayList<String> decValueList = new ArrayList<String>();
+//				//get value from agentView
+//				//add value to decValue -> getUtility
+//				for (String neighbor:decVarList) {
+//					if (neighbor.equals(idStr))
+//						decValueList.add(valuesOverTS.get(ts));
+//					else
+//						decValueList.add(agentView_DPOP_TSMap.get(neighbor).get(ts));
+//				}
+//				sumUtility += constraintTable.getUtilityGivenDecValueList(decValueList);
+//			}
+//		}
+//		
+//		for (int i=1; i<valuesOverTS.size(); i++) {
+////			sumCost += valuesOverTS.get(i).equals(valuesOverTS.get(i-1)) ? 0
+////										: switchingCost * Math.pow(discountFactor, i-1);
+////			sumCost += valuesOverTS.get(i).equals(valuesOverTS.get(i-1)) ? 0
+////					: switchingCost;
+//			sumCost += sc_func(valuesOverTS.get(i), valuesOverTS.get(i-1));
+//		}
+//		return sumUtility - sumCost;
+//	}
+	
+//	ArrayList<Double> utilityMinusCostOverTS(HashMap<Integer,String> valuesOverTS) {
+//		ArrayList<Double> utilityList = new ArrayList<Double>();
+//		for (int ts=0; ts<=h; ts++) {
+//			double sc = 0;
+//			double utility = 0;
+//			if (ts==0)
+////				sc = (valuesOverTS.get(0).equals(valuesOverTS.get(1))
+////						? 0 : switchingCost);
+//				sc = sc_func(valuesOverTS.get(0), valuesOverTS.get(1));
+//			else if (ts==h) 
+////				sc = (valuesOverTS.get(h).equals(valuesOverTS.get(h-1))
+////				? 0 : switchingCost);
+//				sc = sc_func(valuesOverTS.get(h), valuesOverTS.get(h-1));
+//			else
+////				sc = (valuesOverTS.get(ts-1).equals(valuesOverTS.get(ts)) ? 0 : switchingCost)
+////				   + (valuesOverTS.get(ts).equals(valuesOverTS.get(ts+1)) ? 0 : switchingCost);
+//				sc = sc_func(valuesOverTS.get(ts-1), valuesOverTS.get(ts))
+//				   + sc_func(valuesOverTS.get(ts), valuesOverTS.get(ts+1));
+//			//from each utility constraint with neighbors at a timeStep
+//			//get names -> get values from agent_view
+//			//from neighbors' values, current value -> get utility from constraint table
+//			ArrayList<Table> tableList = constraintTableAtEachTSMap.get(ts);
+////		    System.err.println("Agent " + idStr + " size " + tableList.size());
+//	    	for (Table constraintTable:tableList) {
+//				ArrayList<String> decVarList = constraintTable.getDecVarLabel();
+//				ArrayList<String> decValueList = new ArrayList<String>();
+//				//get value from agentView
+//				//add value to decValue -> getUtility
+//				for (String neighbor:decVarList) {
+//					if (neighbor.equals(idStr))
+//						decValueList.add(valuesOverTS.get(ts));
+//					else
+//						decValueList.add(agentView_DPOP_TSMap.get(neighbor).get(ts));
+//				}
+//				utility += constraintTable.getUtilityGivenDecValueList(decValueList);
+//			}
+//	    	
+//	    	utilityList.add(utility - sc);
+//		}
+//		return utilityList;
+//	}
 	
 	//utilityMinusCostOverTSList
-	ArrayList<Double> utilityMinusCostOverTSList(ArrayList<String> valuesOverTS) {
-		ArrayList<Double> utilityList = new ArrayList<Double>();
-		for (int ts=0; ts<=h; ts++) {
-			double sc = 0;
-			double utility = 0;
-			if (ts==0)
-//				sc = (valuesOverTS.get(0).equals(valuesOverTS.get(1))
-//						? 0 : switchingCost);
-				sc = sc_func(valuesOverTS.get(0), valuesOverTS.get(1));
-			else if (ts==h) 
-//				sc = (valuesOverTS.get(h).equals(valuesOverTS.get(h-1))
-//						? 0 : switchingCost);
-				sc = sc_func(valuesOverTS.get(h), valuesOverTS.get(h-1));
-			else
-//				sc = (valuesOverTS.get(ts-1).equals(valuesOverTS.get(ts))
-//						? 0 : switchingCost)
-//				   + (valuesOverTS.get(ts).equals(valuesOverTS.get(ts+1))
-//						? 0 : switchingCost);
-				sc = sc_func(valuesOverTS.get(ts-1), valuesOverTS.get(ts))
-				   + sc_func(valuesOverTS.get(ts), valuesOverTS.get(ts+1));
-			
-			//from each utility constraint with neighbors at a timeStep
-			//get names -> get values from agent_view
-			//from neighbors' values, current value -> get utility from constraint table
-			ArrayList<Table> tableList = constraintTableAtEachTSMap.get(ts);
-//		    System.err.println("Agent " + idStr + " size " + tableList.size());
-	    	for (Table constraintTable:tableList) {
-				ArrayList<String> decVarList = constraintTable.getDecVarLabel();
-				ArrayList<String> decValueList = new ArrayList<String>();
-				//get value from agentView
-				//add value to decValue -> getUtility
-				for (String neighbor:decVarList) {
-					if (neighbor.equals(idStr))
-						decValueList.add(valuesOverTS.get(ts));
-					else
-						decValueList.add(agentView_DPOP_TSMap.get(neighbor).get(ts));
-				}
-				utility += constraintTable.getUtilityGivenDecValueList(decValueList);
-			}
-	    	
-	    	utilityList.add(utility - sc);
-		}
-		return utilityList;
-	}
+//	ArrayList<Double> utilityMinusCostOverTSList(ArrayList<String> valuesOverTS) {
+//		ArrayList<Double> utilityList = new ArrayList<Double>();
+//		for (int ts=0; ts<=h; ts++) {
+//			double sc = 0;
+//			double utility = 0;
+//			if (ts==0)
+////				sc = (valuesOverTS.get(0).equals(valuesOverTS.get(1))
+////						? 0 : switchingCost);
+//				sc = sc_func(valuesOverTS.get(0), valuesOverTS.get(1));
+//			else if (ts==h) 
+////				sc = (valuesOverTS.get(h).equals(valuesOverTS.get(h-1))
+////						? 0 : switchingCost);
+//				sc = sc_func(valuesOverTS.get(h), valuesOverTS.get(h-1));
+//			else
+////				sc = (valuesOverTS.get(ts-1).equals(valuesOverTS.get(ts))
+////						? 0 : switchingCost)
+////				   + (valuesOverTS.get(ts).equals(valuesOverTS.get(ts+1))
+////						? 0 : switchingCost);
+//				sc = sc_func(valuesOverTS.get(ts-1), valuesOverTS.get(ts))
+//				   + sc_func(valuesOverTS.get(ts), valuesOverTS.get(ts+1));
+//			
+//			//from each utility constraint with neighbors at a timeStep
+//			//get names -> get values from agent_view
+//			//from neighbors' values, current value -> get utility from constraint table
+//			ArrayList<Table> tableList = constraintTableAtEachTSMap.get(ts);
+////		    System.err.println("Agent " + idStr + " size " + tableList.size());
+//	    	for (Table constraintTable:tableList) {
+//				ArrayList<String> decVarList = constraintTable.getDecVarLabel();
+//				ArrayList<String> decValueList = new ArrayList<String>();
+//				//get value from agentView
+//				//add value to decValue -> getUtility
+//				for (String neighbor:decVarList) {
+//					if (neighbor.equals(idStr))
+//						decValueList.add(valuesOverTS.get(ts));
+//					else
+//						decValueList.add(agentView_DPOP_TSMap.get(neighbor).get(ts));
+//				}
+//				utility += constraintTable.getUtilityGivenDecValueList(decValueList);
+//			}
+//	    	
+//	    	utilityList.add(utility - sc);
+//		}
+//		return utilityList;
+//	}
 	
-	public void createProbabilityWithObservation(int timeStep) {
-		if (timeStep == 0) {
-			createProbabilityAt(0);
-			return ;
-		}
-		for (String randVariable:randomVariableList) {
-			double distribution[] = toArray(transitionFunctionMap.get
-						(randVariable).getTransitionOf(pickedRandomMap.get(timeStep-1)));
-			probabilityAtEachTimeStepMap.get(randVariable)[timeStep] = distribution;
-		}
-	}
+//	public void createProbabilityWithObservation(int timeStep) {
+//		if (timeStep == 0) {
+//			createProbabilityAt(0);
+//			return ;
+//		}
+//		for (String randVariable:randomVariableList) {
+//			double distribution[] = toArray(transitionFunctionMap.get
+//						(randVariable).getTransitionOf(pickedRandomMap.get(timeStep-1)));
+//			probabilityAtEachTimeStepMap.get(randVariable)[timeStep] = distribution;
+//		}
+//	}
 	
-	public void createProbabilityAt(int timeStep) {
-		for (String randVariable:randomVariableList) {
-			int size = randomVariableDomainMap.get(randVariable).size();
-			if (timeStep == 0) {
-				ArrayList<Double> initProbList = initProabilityMap.get(randVariable);
-				for (int i=0; i<size; i++) {
-					probabilityAtEachTimeStepMap.get(randVariable)[0][i] = initProbList.get(i);
-				}
-			}
-			else {
-				double[] prevDistribution = probabilityAtEachTimeStepMap.get(randVariable)[timeStep-1];
-				double[] currDistribution = multiply(prevDistribution, transitionFunctionMap.get(randVariable));
-				probabilityAtEachTimeStepMap.get(randVariable)[timeStep] = currDistribution;
-			}
-		}	
-	}
+//	public void createProbabilityAt(int timeStep) {
+//		for (String randVariable:randomVariableList) {
+//			int size = randomVariableDomainMap.get(randVariable).size();
+//			if (timeStep == 0) {
+//				ArrayList<Double> initProbList = initProabilityMap.get(randVariable);
+//				for (int i=0; i<size; i++) {
+//					probabilityAtEachTimeStepMap.get(randVariable)[0][i] = initProbList.get(i);
+//				}
+//			}
+//			else {
+//				double[] prevDistribution = probabilityAtEachTimeStepMap.get(randVariable)[timeStep-1];
+//				double[] currDistribution = multiply(prevDistribution, transitionFunctionMap.get(randVariable));
+//				probabilityAtEachTimeStepMap.get(randVariable)[timeStep] = currDistribution;
+//			}
+//		}	
+//	}
 	
-	public void createStableProbabilityForLastTimeStep() {
-		//for each random variables
-		for (String randVariable:randomVariableList) {
-			double distribution[] = probabilityAtEachTimeStepMap.get(randVariable)[0];
-			//multiply to get stable distribution
-			for (int i=0; i<=DCOP.stableTimeStep; i++) {
-				distribution = multiply(distribution, transitionFunctionMap.get(randVariable));
-			}
-			probabilityAtEachTimeStepMap.get(randVariable)[h] = distribution;
-		}
-	}
+//	public void createStableProbabilityForLastTimeStep() {
+//		//for each random variables
+//		for (String randVariable:randomVariableList) {
+//			double distribution[] = probabilityAtEachTimeStepMap.get(randVariable)[0];
+//			//multiply to get stable distribution
+//			for (int i=0; i<=DCOP.stableTimeStep; i++) {
+//				distribution = multiply(distribution, transitionFunctionMap.get(randVariable));
+//			}
+//			probabilityAtEachTimeStepMap.get(randVariable)[h] = distribution;
+//		}
+//	}
 	
 	//for each agent, create probability for valueList at each timeStep of each randomVariable
 	//add to probabilityAtEachTimeStepMap
-	public void createAndAddProbabilityAtEachTimeStep() {
-		//get each random Variable from randomVariableList
-		//add to probabilityAtEachTimeStepMap
-		//int columnNo = timeStepAllowed + 1;
-		int columnNo = h + 1;
-		for (int randVarIndex=0; randVarIndex<randomVariableList.size(); randVarIndex++) {
-			String randVariable = randomVariableList.get(randVarIndex);
-			int domainSize = randomVariableDomainMap.get(randVariable).size();
-			//each row is a timeStep from 0 to finalTimeStep
-			//each column is a value from domain
-			double[][] probAtEachTS = new double[columnNo][domainSize];
-			TransitionFunction transMatrix = transitionFunctionMap.get(randVariable);
-			for (int row=0; row<columnNo; row++) {
-				if (row==0) {
-					ArrayList<Double> initProbList = initProabilityMap.get(randVariable);
-					for (int col=0; col<domainSize; col++) {
-						probAtEachTS[row][col] = initProbList.get(col); 
-					}
-					continue;						
-				}
-				for (int col=0; col<domainSize; col++) {
-					double probabilityAtATime = 0;
-					for (int upperCol=0; upperCol<domainSize; upperCol++) {
-						probabilityAtATime += probAtEachTS[row-1][upperCol] * 
-								transMatrix.getProbByIndex(upperCol, col); 
-					}
-					probAtEachTS[row][col] = probabilityAtATime;
-				}
-			}
-			probabilityAtEachTimeStepMap.put(randVariable, probAtEachTS);
-		}
-	}
+//	public void createAndAddProbabilityAtEachTimeStep() {
+//		//get each random Variable from randomVariableList
+//		//add to probabilityAtEachTimeStepMap
+//		//int columnNo = timeStepAllowed + 1;
+//		int columnNo = h + 1;
+//		for (int randVarIndex=0; randVarIndex<randomVariableList.size(); randVarIndex++) {
+//			String randVariable = randomVariableList.get(randVarIndex);
+//			int domainSize = randomVariableDomainMap.get(randVariable).size();
+//			//each row is a timeStep from 0 to finalTimeStep
+//			//each column is a value from domain
+//			double[][] probAtEachTS = new double[columnNo][domainSize];
+//			TransitionFunction transMatrix = transitionFunctionMap.get(randVariable);
+//			for (int row=0; row<columnNo; row++) {
+//				if (row==0) {
+//					ArrayList<Double> initProbList = initProabilityMap.get(randVariable);
+//					for (int col=0; col<domainSize; col++) {
+//						probAtEachTS[row][col] = initProbList.get(col); 
+//					}
+//					continue;						
+//				}
+//				for (int col=0; col<domainSize; col++) {
+//					double probabilityAtATime = 0;
+//					for (int upperCol=0; upperCol<domainSize; upperCol++) {
+//						probabilityAtATime += probAtEachTS[row-1][upperCol] * 
+//								transMatrix.getProbByIndex(upperCol, col); 
+//					}
+//					probAtEachTS[row][col] = probabilityAtATime;
+//				}
+//			}
+//			probabilityAtEachTimeStepMap.put(randVariable, probAtEachTS);
+//		}
+//	}
 	
-	void reorganizeRandomTable() {
-		//traverse each constraint table in constrainTableList
-		//create new constraintTableList
-		for (Table constraintRandTable:constraintTableWithRandomList) {
-			organizedConstraintTableWithRandomList.add(constraintRandTable);
-		}			
-	}
+//	void reorganizeRandomTable() {
+//		//traverse each constraint table in constrainTableList
+//		//create new constraintTableList
+//		for (Table constraintRandTable:constraintTableWithRandomList) {
+//			organizedConstraintTableWithRandomList.add(constraintRandTable);
+//		}			
+//	}
 	
 	ArrayList<ArrayList<String>> getAllTupleValueOfGivenLabel(ArrayList<String> varLabel, boolean isDecVar) {
 		ArrayList<ArrayList<String>> allTuple = new ArrayList<ArrayList<String>>();
@@ -615,8 +909,8 @@ public class DCOP extends Agent implements DCOP_INFO {
 			if (isDecVar) {
 				domainSize = decisionVariableDomainMap.get(randVar).size();
 			}
-			else
-				domainSize = randomVariableDomainMap.get(randVar).size();
+//			else
+//				domainSize = randomVariableDomainMap.get(randVar).size();
 			sizeDomainList.add(domainSize);
 			totalSize *= domainSize;
 		}
@@ -633,8 +927,8 @@ public class DCOP extends Agent implements DCOP_INFO {
 				quotient = quotient/sizeDomainList.get(varIndex);
 				if (isDecVar)
 					valueTuple.add(decisionVariableDomainMap.get(varLabel.get(varIndex)).get(remainder));
-				else 
-					valueTuple.add(randomVariableDomainMap.get(varLabel.get(varIndex)).get(remainder));
+//				else 
+//					valueTuple.add(randomVariableDomainMap.get(varLabel.get(varIndex)).get(remainder));
 			}
 			Collections.reverse(valueTuple);
 			allTuple.add(valueTuple);
@@ -661,7 +955,7 @@ public class DCOP extends Agent implements DCOP_INFO {
 	public void addConstraintTableToList(int timeStep) {
 		// traverse table in organizedConstraintTableList
 		for (Table decTable : organizedConstraintTableList) {
-			ArrayList<String> decLabel = decTable.getDecVarLabel();
+			ArrayList<Double> decLabel = decTable.getDecVarLabel();
 			// for each table, run time step from 0 to allowed
 			// for (int tS=0; tS<=solveTimeStep; tS++) {
 			Table newTable = new Table(decLabel);
@@ -679,7 +973,7 @@ public class DCOP extends Agent implements DCOP_INFO {
 		//traverse table in organizedConstraintTableList
 		for (Table decTable:organizedConstraintTableList) {
 			ArrayList<Table> tableAtTSList = new ArrayList<Table>();
-			ArrayList<String> decLabel = decTable.getDecVarLabel();
+			ArrayList<Double> decLabel = decTable.getDecVarLabel();
 			//for each table, run time step from 0 to allowed
 			for (int tS=0; tS<=h; tS++) {
 				Table newTable = new Table(decLabel);
@@ -690,158 +984,162 @@ public class DCOP extends Agent implements DCOP_INFO {
 					updatedUtility = row.getUtility();
 					newTable.addRow(new Row(row.getValueList(), updatedUtility));
 				}
-				if (algorithm == C_DPOP) {
+				if (algorithm == DPOP) {
 					tableAtTSList.add(newTable);
 				}
-				else if (algorithm == LS_RAND) { 
+				else if (algorithm == DSA) {
 					constraintTableAtEachTSMap.get(tS).add(newTable);
 				}
+//				else if (algorithm == LS_RAND) { 
+//					constraintTableAtEachTSMap.get(tS).add(newTable);
+//				}
 			}
-			if (algorithm == C_DPOP) {
-				constraintTableAtEachTSMap.get(0).add(joinConstraintTable(tableAtTSList));
+			if (algorithm == DPOP) {
+//				constraintTableAtEachTSMap.get(0).add(joinConstraintTable(tableAtTSList));
+                constraintTableAtEachTSMap.get(0).add(tableAtTSList.get(0));
 			}
 		}
 	}
 	
 	//they have the same entry, only different utility
-	public Table joinConstraintTable(ArrayList<Table> tableList) {
-		if (tableList.size() == 0) return null;
-		Table joinedTable = new Table(tableList.get(0).getDecVarLabel());
-		int noVar = tableList.get(0).getDecVarLabel().size();
-		int entryNumber = tableList.get(0).getRowCount();
-		int noTable = tableList.size();
-		int totalSize = (int) Math.pow(entryNumber, noTable);
-		
-		for (int count=0; count<totalSize; count++) {
-			ArrayList<String> valueTuple = new ArrayList<String>(noVar);
-			for (int i=0; i<noVar; i++) valueTuple.add("");
-			double sumUtility = 0;
-			int quotient = count;
-			//for each table count, decide the index of each column, then add to the tuple
-			for (int tableIndex = noTable-1; tableIndex>=0; tableIndex--) {
-				int remainder = quotient%entryNumber;
-				quotient = quotient/entryNumber;
-				Row row = tableList.get(tableIndex).getTable().get(remainder);
-				sumUtility += row.getUtility();
-				ArrayList<String> valueList = row.getValueList();
-				for (int idx=0; idx<valueList.size(); idx++) {
-					valueTuple.set(idx, valueList.get(idx) + "," + valueTuple.get(idx));
-				}
-			}
-			for (int idx=0; idx<valueTuple.size(); idx++) {
-				valueTuple.set(idx, valueTuple.get(idx).substring(0, valueTuple.get(idx).length()-1));
-			}
-			joinedTable.addRow(new Row(valueTuple, sumUtility));
-		}
-	
-		return joinedTable;
-	}
+//	public Table joinConstraintTable(ArrayList<Table> tableList) {
+//		if (tableList.size() == 0) return null;
+//		Table joinedTable = new Table(tableList.get(0).getDecVarLabel());
+//		int noVar = tableList.get(0).getDecVarLabel().size();
+//		int entryNumber = tableList.get(0).getRowCount();
+//		int noTable = tableList.size();
+//		int totalSize = (int) Math.pow(entryNumber, noTable);
+//		
+//		for (int count=0; count<totalSize; count++) {
+//			ArrayList<Double> valueTuple = new ArrayList<Double>(noVar);
+//			for (int i=0; i<noVar; i++) valueTuple.add("");
+//			double sumUtility = 0;
+//			int quotient = count;
+//			//for each table count, decide the index of each column, then add to the tuple
+//			for (int tableIndex = noTable-1; tableIndex>=0; tableIndex--) {
+//				int remainder = quotient%entryNumber;
+//				quotient = quotient/entryNumber;
+//				Row row = tableList.get(tableIndex).getTable().get(remainder);
+//				sumUtility += row.getUtility();
+//				ArrayList<Double> valueList = row.getValueList();
+//				for (int idx=0; idx<valueList.size(); idx++) {
+//					valueTuple.set(idx, valueList.get(idx) + "," + valueTuple.get(idx));
+//				}
+//			}
+//			for (int idx=0; idx<valueTuple.size(); idx++) {
+//				valueTuple.set(idx, valueTuple.get(idx).substring(0, valueTuple.get(idx).length()-1));
+//			}
+//			joinedTable.addRow(new Row(valueTuple, sumUtility));
+//		}
+//	
+//		return joinedTable;
+//	}
 
-	public void addExpectedRandomTableToList(int timeStep) {
-		//loop over number of each organized constraint random table
-		for (Table randTable:organizedConstraintTableWithRandomList) {
-			ArrayList<String> decLabel = randTable.getDecVarLabel();
-			ArrayList<String> randLabel = randTable.getRandVarLabel();
-			
-			int randDomainSize = 1;
-			for (String randVar:randLabel) {
-				randDomainSize *= randomVariableDomainMap.get(randVar).size();
-			}
-							
-			Table tempTable;				
-			tempTable = randTable;
-			Table newTable = new Table(decLabel);
-			double expectedUtility = 0;
-			//traverse rows
-			for (int index=0; index<tempTable.getRowCount(); index++) {
-				Row row = tempTable.getTable().get(index);
-				ArrayList<String> decValueList = row.getValueList();
-				ArrayList<String> randValueList = row.getRandomList();
-				double initProb = 1;
-				for (int idx=0; idx<randLabel.size(); idx++) {
-					String rand = randLabel.get(idx);
-					initProb *= probabilityAtEachTimeStepMap.
-							get(rand)[timeStep][randomVariableDomainMap.get(rand).
-										  indexOf(randValueList.get(idx))];
-				}
-				expectedUtility += initProb*row.getUtility();
-				
-				//last turn
-				if (index%randDomainSize == randDomainSize-1) {
-					Row newRow = null;
-					newRow = new Row(decValueList, expectedUtility);
-					newTable.addRow(newRow);
-					expectedUtility = 0;
-				}
-			//end of traversing row
-			}
-			constraintTableAtEachTSMap.get(timeStep).add(newTable);
-		//end of traversing random table
-		}
-	
-	}
+//	public void addExpectedRandomTableToList(int timeStep) {
+//		//loop over number of each organized constraint random table
+//		for (Table randTable:organizedConstraintTableWithRandomList) {
+//			ArrayList<String> decLabel = randTable.getDecVarLabel();
+//			ArrayList<String> randLabel = randTable.getRandVarLabel();
+//			
+//			int randDomainSize = 1;
+//			for (String randVar:randLabel) {
+//				randDomainSize *= randomVariableDomainMap.get(randVar).size();
+//			}
+//							
+//			Table tempTable;				
+//			tempTable = randTable;
+//			Table newTable = new Table(decLabel);
+//			double expectedUtility = 0;
+//			//traverse rows
+//			for (int index=0; index<tempTable.getRowCount(); index++) {
+//				Row row = tempTable.getTable().get(index);
+//				ArrayList<String> decValueList = row.getValueList();
+//				ArrayList<String> randValueList = row.getRandomList();
+//				double initProb = 1;
+//				for (int idx=0; idx<randLabel.size(); idx++) {
+//					String rand = randLabel.get(idx);
+//					initProb *= probabilityAtEachTimeStepMap.
+//							get(rand)[timeStep][randomVariableDomainMap.get(rand).
+//										  indexOf(randValueList.get(idx))];
+//				}
+//				expectedUtility += initProb*row.getUtility();
+//				
+//				//last turn
+//				if (index%randDomainSize == randDomainSize-1) {
+//					Row newRow = null;
+//					newRow = new Row(decValueList, expectedUtility);
+//					newTable.addRow(newRow);
+//					expectedUtility = 0;
+//				}
+//			//end of traversing row
+//			}
+//			constraintTableAtEachTSMap.get(timeStep).add(newTable);
+//		//end of traversing random table
+//		}
+//	
+//	}
 	
 	//initializing constraintTableAtEachTimeStepMap(timeStep, listOfTables)
 	//calculate expected utility, and eliminate random variables
-	public void addExpectedRandomTableToListAllTS() {		
-		//loop over number of each organized constraint random table
-		for (Table randTable:organizedConstraintTableWithRandomList) {
-			ArrayList<Table> tableAtTSList = new ArrayList<Table>();
-			ArrayList<String> decLabel = randTable.getDecVarLabel();
-			ArrayList<String> randLabel = randTable.getRandVarLabel();
-			
-			int randDomainSize = 1;
-			for (String randVar:randLabel) {
-				randDomainSize *= randomVariableDomainMap.get(randVar).size();
-			}
-			
-			//loop over timeStep -> timeStepAllow-1
-			for (int tS=0; tS<=h; tS++) {				
-				Table tempTable;				
-				tempTable = randTable;
-				Table newTable = new Table(decLabel);
-				double expectedUtility = 0;
-				//traverse rows
-				for (int index=0; index<tempTable.getRowCount(); index++) {
-					Row row = tempTable.getTable().get(index);
-					ArrayList<String> decValueList = row.getValueList();
-					ArrayList<String> randValueList = row.getRandomList();
-					double initProb = 1;
-					for (int idx=0; idx<randLabel.size(); idx++) {
-						String rand = randLabel.get(idx);
-						initProb *= probabilityAtEachTimeStepMap.
-								get(rand)[tS][randomVariableDomainMap.get(rand).
-											  indexOf(randValueList.get(idx))];
-					}
-					expectedUtility += initProb*row.getUtility();
-					
-					//last turn
-					if (index%randDomainSize == randDomainSize-1) {
-						Row newRow = null;
-						newRow = new Row(decValueList, expectedUtility);
-						newTable.addRow(newRow);
-						expectedUtility = 0;
-					}
-				//end of traversing row
-				}
-				if (algorithm == C_DPOP) {
-					//add table to tableAtTSList to be joined later
-					tableAtTSList.add(newTable);
-				}
-				else if (algorithm == LS_RAND) { 
-					constraintTableAtEachTSMap.get(tS).add(newTable);
-				}
-				//end of loop timeStep
-			}
-			//at the end of traversing timeStep from 0 -> stableTimeStep,
-			//join all of expected table, and add the joinedTable to timeStep 0
-			//tables at last stableTimeStep been added to last time step
-			if (algorithm == C_DPOP) {
-				constraintTableAtEachTSMap.get(0).add(joinConstraintTable(tableAtTSList));
-			}			
-		//end of traversing random table
-		}
-	}
+//	public void addExpectedRandomTableToListAllTS() {		
+//		//loop over number of each organized constraint random table
+//		for (Table randTable:organizedConstraintTableWithRandomList) {
+//			ArrayList<Table> tableAtTSList = new ArrayList<Table>();
+//			ArrayList<String> decLabel = randTable.getDecVarLabel();
+//			ArrayList<String> randLabel = randTable.getRandVarLabel();
+//			
+//			int randDomainSize = 1;
+//			for (String randVar:randLabel) {
+//				randDomainSize *= randomVariableDomainMap.get(randVar).size();
+//			}
+//			
+//			//loop over timeStep -> timeStepAllow-1
+//			for (int tS=0; tS<=h; tS++) {				
+//				Table tempTable;				
+//				tempTable = randTable;
+//				Table newTable = new Table(decLabel);
+//				double expectedUtility = 0;
+//				//traverse rows
+//				for (int index=0; index<tempTable.getRowCount(); index++) {
+//					Row row = tempTable.getTable().get(index);
+//					ArrayList<String> decValueList = row.getValueList();
+//					ArrayList<String> randValueList = row.getRandomList();
+//					double initProb = 1;
+//					for (int idx=0; idx<randLabel.size(); idx++) {
+//						String rand = randLabel.get(idx);
+//						initProb *= probabilityAtEachTimeStepMap.
+//								get(rand)[tS][randomVariableDomainMap.get(rand).
+//											  indexOf(randValueList.get(idx))];
+//					}
+//					expectedUtility += initProb*row.getUtility();
+//					
+//					//last turn
+//					if (index%randDomainSize == randDomainSize-1) {
+//						Row newRow = null;
+//						newRow = new Row(decValueList, expectedUtility);
+//						newTable.addRow(newRow);
+//						expectedUtility = 0;
+//					}
+//				//end of traversing row
+//				}
+//				if (algorithm == C_DPOP) {
+//					//add table to tableAtTSList to be joined later
+//					tableAtTSList.add(newTable);
+//				}
+//				else if (algorithm == LS_RAND) { 
+//					constraintTableAtEachTSMap.get(tS).add(newTable);
+//				}
+//				//end of loop timeStep
+//			}
+//			//at the end of traversing timeStep from 0 -> stableTimeStep,
+//			//join all of expected table, and add the joinedTable to timeStep 0
+//			//tables at last stableTimeStep been added to last time step
+//			if (algorithm == C_DPOP) {
+//				constraintTableAtEachTSMap.get(0).add(joinConstraintTable(tableAtTSList));
+//			}			
+//		//end of traversing random table
+//		}
+//	}
 	
 //	public Table collapseGivenRandomTable(Table tableWithRandom) {		
 //		Table newlyCreatedTable;
@@ -945,13 +1243,13 @@ public class DCOP extends Agent implements DCOP_INFO {
 		return false;
 	}
 
-	double getUtilityFromTableGivenDecAndRand(Table table, ArrayList<String> decValueList, ArrayList<String> randIterationValue) {
+	double getUtilityFromTableGivenDecAndRand(Table table, ArrayList<Double> decValueList, ArrayList<Double> randIterationValue) {
 		ArrayList<Row> tableToTraversed = table.getTable();
 		for (Row row:tableToTraversed) {
 			boolean isRowFound = true;
 			//System.err.println("Utility of this row " + row.getUtility());
-			ArrayList<String> rowValueList = row.getValueList();
-			ArrayList<String> rowRandomList= row.getRandomList();
+			ArrayList<Double> rowValueList = row.getValueList();
+			ArrayList<Double> rowRandomList= row.getRandomList();
 
 			if (rowValueList.size() != decValueList.size() || rowRandomList.size() != randIterationValue.size()) {
 				System.err.println("!!!!!!Different size!!!!!!!!!");
@@ -1086,11 +1384,11 @@ public class DCOP extends Agent implements DCOP_INFO {
 	}
 	
 	public void readMinizincFileThenParseNeighborAndConstraintTable(String inputFileName) {
-		final String RANDOM_VARIABLE = "random";
 		final String DECISION_VARIABLE = "decision";
 		final String REWARD_TABLE_PREFIX = "rewardTable";
-		final String TRANS_FUNC_PREFIX = "transition";
-		final String INIT_PROB_PREFIX = "initProbability";
+		final String INCOMING_LOAD = "Lin";
+		final String SUBSCRIBER = "subscriber";
+		final String BANDWIDTH = "bw";
 		
 		try (BufferedReader br = new BufferedReader(new FileReader(
 				System.getProperty("user.dir") + '/' + inputFileName))) {
@@ -1122,6 +1420,60 @@ public class DCOP extends Agent implements DCOP_INFO {
 				String nameMzn = lineWithSemiColon.split("=")[0];
 				String valueMzn = lineWithSemiColon.split("=")[1];
 				
+				/**INCOMING LOAD*/
+				if (nameMzn.contains(INCOMING_LOAD)) {
+					if (idStr.equals("1")) {
+						if (nameMzn.endsWith("A")) L_in = Double.parseDouble(valueMzn);
+						if (nameMzn.endsWith("B")) L_in_next = Double.parseDouble(valueMzn);
+						if (nameMzn.endsWith("C")) L_in_further = Double.parseDouble(valueMzn);
+					}
+					else if (idStr.equals("2")) {
+						if (nameMzn.endsWith("A")) L_in_further = Double.parseDouble(valueMzn);
+						if (nameMzn.endsWith("B")) L_in = Double.parseDouble(valueMzn);
+						if (nameMzn.endsWith("C")) L_in_next = Double.parseDouble(valueMzn);
+					}
+					else if (idStr.equals("3")) {
+						if (nameMzn.endsWith("A")) L_in_next = Double.parseDouble(valueMzn);
+						if (nameMzn.endsWith("B")) L_in_further = Double.parseDouble(valueMzn);
+						if (nameMzn.endsWith("C")) L_in = Double.parseDouble(valueMzn);
+					}
+				}
+				
+				/**SUBCRIBER*/
+				if (nameMzn.contains(SUBSCRIBER)) {
+					if (idStr.equals("1")) {
+						if (nameMzn.endsWith("A")) isSubscriber = Short.parseShort(valueMzn);
+						if (nameMzn.endsWith("B")) isNextSubscriber = Short.parseShort(valueMzn);
+						if (nameMzn.endsWith("C")) isFurtherSubscriber = Short.parseShort(valueMzn);
+					}
+					else if (idStr.equals("2")) {
+						if (nameMzn.endsWith("A")) isFurtherSubscriber = Short.parseShort(valueMzn);
+						if (nameMzn.endsWith("B")) isSubscriber = Short.parseShort(valueMzn);
+						if (nameMzn.endsWith("C")) isNextSubscriber = Short.parseShort(valueMzn);
+					}
+					else if (idStr.equals("3")) {
+						if (nameMzn.endsWith("A")) isNextSubscriber  = Short.parseShort(valueMzn);
+						if (nameMzn.endsWith("B")) isFurtherSubscriber = Short.parseShort(valueMzn);
+						if (nameMzn.endsWith("C")) isSubscriber  = Short.parseShort(valueMzn);
+					}
+				}
+				
+				/**BANDWIDTH*/
+				if (nameMzn.contains(BANDWIDTH)) {
+					if (idStr.equals("1")) {
+						if (nameMzn.endsWith("AB")) bw_next = Double.parseDouble(valueMzn);
+						if (nameMzn.endsWith("AC")) bw_further = Double.parseDouble(valueMzn);
+					}
+					else if (idStr.equals("2")) {
+						if (nameMzn.endsWith("BC")) bw_next = Double.parseDouble(valueMzn);
+						if (nameMzn.endsWith("AB")) bw_further = Double.parseDouble(valueMzn);
+					}
+					else if (idStr.equals("3")) {
+						if (nameMzn.endsWith("AC")) bw_next = Double.parseDouble(valueMzn);
+						if (nameMzn.endsWith("BC")) bw_further = Double.parseDouble(valueMzn);
+					}
+				}
+				
 				/**DISCOUNT_FACTOR*/
 //				if (nameMzn.contains(DISCOUNT_FACTOR)) {
 //					discountFactor = Double.parseDouble(valueMzn);
@@ -1135,57 +1487,57 @@ public class DCOP extends Agent implements DCOP_INFO {
 //					switchingCost = Double.parseDouble(valueMzn);			
 //				}
 				/**TRANS_FUNC_PREFIX*/
-				if (nameMzn.contains(TRANS_FUNC_PREFIX)) {
-					String randomVariable;
-					ArrayList<ArrayList<Double>> newTransitionMatrix;
-			
-					nameMzn = nameMzn.replaceAll(TRANS_FUNC_PREFIX, "");
-					randomVariable = nameMzn;
-					
-					//TODO: read variable with idString only
-					if (randomVariable.equals(idStr) == false) continue;
-
-					/**create transition function**/
-					newTransitionMatrix = new ArrayList<ArrayList<Double>>();
-					ArrayList<String> listOfRow;
-					/**process table values**/
-					valueMzn = valueMzn.replace("[", "");
-					valueMzn = valueMzn.replace("]", "");
-					valueMzn = valueMzn.substring(1, valueMzn.length()-1);
-					listOfRow = new ArrayList<String>(Arrays.asList(valueMzn.split("\\|")));
-					for (String oneRow:listOfRow) {
-						ArrayList<String> valueStrList = new ArrayList<String>(Arrays.asList(oneRow.split(",")));
-						ArrayList<Double> valueDoubleList = new ArrayList<Double>();
-						
-						for (String valueStr:valueStrList) {
-							valueDoubleList.add(Double.parseDouble(valueStr));
-						}
-						newTransitionMatrix.add(valueDoubleList);
-					}
-					TransitionFunction newTransitionFunction = new TransitionFunction(
-							randomVariableDomainMap.get(randomVariable), newTransitionMatrix);
-					transitionFunctionMap.put(randomVariable, newTransitionFunction);
-				}
+//				if (nameMzn.contains(TRANS_FUNC_PREFIX)) {
+//					String randomVariable;
+//					ArrayList<ArrayList<Double>> newTransitionMatrix;
+//			
+//					nameMzn = nameMzn.replaceAll(TRANS_FUNC_PREFIX, "");
+//					randomVariable = nameMzn;
+//					
+//					//TODO: read variable with idString only
+//					if (randomVariable.equals(idStr) == false) continue;
+//
+//					/**create transition function**/
+//					newTransitionMatrix = new ArrayList<ArrayList<Double>>();
+//					ArrayList<String> listOfRow;
+//					/**process table values**/
+//					valueMzn = valueMzn.replace("[", "");
+//					valueMzn = valueMzn.replace("]", "");
+//					valueMzn = valueMzn.substring(1, valueMzn.length()-1);
+//					listOfRow = new ArrayList<String>(Arrays.asList(valueMzn.split("\\|")));
+//					for (String oneRow:listOfRow) {
+//						ArrayList<String> valueStrList = new ArrayList<String>(Arrays.asList(oneRow.split(",")));
+//						ArrayList<Double> valueDoubleList = new ArrayList<Double>();
+//						
+//						for (String valueStr:valueStrList) {
+//							valueDoubleList.add(Double.parseDouble(valueStr));
+//						}
+//						newTransitionMatrix.add(valueDoubleList);
+//					}
+//					TransitionFunction newTransitionFunction = new TransitionFunction(
+//							randomVariableDomainMap.get(randomVariable), newTransitionMatrix);
+//					transitionFunctionMap.put(randomVariable, newTransitionFunction);
+//				}
 				/**INIT_PROB_PREFIX*/
-				if (nameMzn.contains(INIT_PROB_PREFIX)) {
-					String randomVariable;
-					ArrayList<String> initProbabilityStrList;
-					ArrayList<Double> initProbabilityDoubleList = new ArrayList<Double>();
-					nameMzn = nameMzn.replace(INIT_PROB_PREFIX, "");
-					randomVariable = nameMzn;
-					
-					//TODO: read variable with idString only
-					if (randomVariable.equals(idStr) == false) continue;
-					
-					//process values
-					valueMzn = valueMzn.replace("[", "");
-					valueMzn = valueMzn.replace("]", "");
-					initProbabilityStrList = new ArrayList<String>(Arrays.asList(valueMzn.split(",")));
-					for (String strValue:initProbabilityStrList) {
-						initProbabilityDoubleList.add(Double.parseDouble(strValue));
-					}
-					initProabilityMap.put(randomVariable, initProbabilityDoubleList);
-				}
+//				if (nameMzn.contains(INIT_PROB_PREFIX)) {
+//					String randomVariable;
+//					ArrayList<String> initProbabilityStrList;
+//					ArrayList<Double> initProbabilityDoubleList = new ArrayList<Double>();
+//					nameMzn = nameMzn.replace(INIT_PROB_PREFIX, "");
+//					randomVariable = nameMzn;
+//					
+//					//TODO: read variable with idString only
+//					if (randomVariable.equals(idStr) == false) continue;
+//					
+//					//process values
+//					valueMzn = valueMzn.replace("[", "");
+//					valueMzn = valueMzn.replace("]", "");
+//					initProbabilityStrList = new ArrayList<String>(Arrays.asList(valueMzn.split(",")));
+//					for (String strValue:initProbabilityStrList) {
+//						initProbabilityDoubleList.add(Double.parseDouble(strValue));
+//					}
+//					initProabilityMap.put(randomVariable, initProbabilityDoubleList);
+//				}
 				/**DECISION_VARIABLE*/
 				//read decision variable domain
 				if (nameMzn.contains(DECISION_VARIABLE)) {
@@ -1205,23 +1557,23 @@ public class DCOP extends Agent implements DCOP_INFO {
 				}
 				/**RANDOM_VARIABLE*/
 				//read random variable domain
-				if (nameMzn.contains(RANDOM_VARIABLE)) {
-					//process name
-					String randomVariable;
-					ArrayList<String> valueOfRandomVariableList;
-					nameMzn = nameMzn.replace(RANDOM_VARIABLE, "");
-					randomVariable = nameMzn;
-					
-					//TODO: read variable with idString only
-					if (randomVariable.equals(idStr) == false) continue;
-					
-					//process values
-					valueMzn = valueMzn.replace("[", "");
-					valueMzn = valueMzn.replace("]", "");
-					valueOfRandomVariableList = new ArrayList<String>(Arrays.asList(valueMzn.split(",")));
-					randomVariableList.add(randomVariable);
-					randomVariableDomainMap.put(randomVariable, valueOfRandomVariableList);
-				}
+//				if (nameMzn.contains(RANDOM_VARIABLE)) {
+//					//process name
+//					String randomVariable;
+//					ArrayList<String> valueOfRandomVariableList;
+//					nameMzn = nameMzn.replace(RANDOM_VARIABLE, "");
+//					randomVariable = nameMzn;
+//					
+//					//TODO: read variable with idString only
+//					if (randomVariable.equals(idStr) == false) continue;
+//					
+//					//process values
+//					valueMzn = valueMzn.replace("[", "");
+//					valueMzn = valueMzn.replace("]", "");
+//					valueOfRandomVariableList = new ArrayList<String>(Arrays.asList(valueMzn.split(",")));
+//					randomVariableList.add(randomVariable);
+//					randomVariableDomainMap.put(randomVariable, valueOfRandomVariableList);
+//				}
 				/**REWARD_TABLE_PREFIX*/
 				/**process name of constraint table, create table with the corresponding name**/
 				if (nameMzn.contains(REWARD_TABLE_PREFIX)) {
@@ -1245,13 +1597,13 @@ public class DCOP extends Agent implements DCOP_INFO {
 					}
 					if (notContainRandom == true) {
 						/**add variable to neighborList**/
-						ArrayList<String> variableLabel_new = new ArrayList<>();
+						ArrayList<Double> variableLabel_new = new ArrayList<>();
 						for (String var:variableLabel) {
 							/*add to neighbor list*/
 							var = var.replace("d", "");
 							if (!var.equals(idStr) && !neighborStrList.contains(var))
 								neighborStrList.add(var);
-							variableLabel_new.add(var);
+							variableLabel_new.add(Double.parseDouble(var));
 						}
 						/**create Table**/
 						newRewardTable = new Table(variableLabel_new);
@@ -1264,61 +1616,66 @@ public class DCOP extends Agent implements DCOP_INFO {
 						
 						for (String oneRow:listOfRow) {
 							ArrayList<String> valueList = new ArrayList<String>(Arrays.asList(oneRow.split(",")));
+							ArrayList<Double> doubleValueList = new ArrayList<Double>();
+							for (String value:valueList)
+								doubleValueList.add(Double.valueOf(value));
 							double utility = Double.parseDouble(valueList.get(valueList.size()-1));
-							valueList.remove(valueList.size()-1);
-							Row newRow = new Row(valueList,utility);
+//							valueList.remove(valueList.size()-1);
+							doubleValueList.remove(doubleValueList.size()-1);
+							
+							Row newRow = new Row(doubleValueList,utility);
 							newRewardTable.addRow(newRow);
 						}
 						constraintTableWithoutRandomList.add(newRewardTable);
 					}
-					/****WITH random variable**********/
-					else {
-						/**Process nameMzn*/
-						int decisionVarCount = 0;
-						ArrayList<String> decVarLabel = new ArrayList<String>();
-						ArrayList<String> randVarLabel = new ArrayList<String>();
-						for (String var:variableLabel) {
-							if (var.startsWith("d")) {
-								decisionVarCount++;
-								decVarLabel.add(var.replace("d", ""));
-							}
-							else if (var.startsWith("r")) {
-								randVarLabel.add(var.replace("r", ""));
-							}
-						}
-						/**add variable to neighborList**/
-						for (String var:decVarLabel) {
-							/*add to neighbor list*/
-							if (!neighborStrList.contains(var) && !var.equals(idStr)) {
-								neighborStrList.add(var);
-							}
-						}
-						/**create Table**/
-						//System.out.println("!" + decVarLabel + " " + randVarLabel);
-						newRewardTable = new Table(decVarLabel, randVarLabel);
-						
-						/**process table values**/
-						valueMzn = valueMzn.replace("[", "");
-						valueMzn = valueMzn.replace("]", "");
-						valueMzn = valueMzn.substring(1, valueMzn.length()-1);
-						listOfRow = new ArrayList<String>(Arrays.asList(valueMzn.split("\\|")));
-						for (String oneRow:listOfRow) {
-							ArrayList<String> decAndRandValueList = new ArrayList<String>(Arrays.asList(oneRow.split(",")));
-							ArrayList<String> decValueList = new ArrayList<String>();
-							ArrayList<String> randValueList = new ArrayList<String>();
-							double utility = Double.parseDouble(decAndRandValueList.get(decAndRandValueList.size()-1));
-							decAndRandValueList.remove(decAndRandValueList.size()-1);
-							for (int i = 0; i < decisionVarCount; i++) {
-								decValueList.add(decAndRandValueList.get(i));
-							}
-							for (int i = decisionVarCount; i<decAndRandValueList.size(); i++) {
-								randValueList.add(decAndRandValueList.get(i));
-							}
-							Row newRow = new Row(decValueList, randValueList, utility);
-							newRewardTable.addRow(newRow);
-						}
-						constraintTableWithRandomList.add(newRewardTable);
-					}
+//					/****WITH random variable**********/
+//					else {
+//						/**Process nameMzn*/
+//						int decisionVarCount = 0;
+//						ArrayList<String> decVarLabel = new ArrayList<String>();
+//						ArrayList<String> randVarLabel = new ArrayList<String>();
+//						for (String var:variableLabel) {
+//							if (var.startsWith("d")) {
+//								decisionVarCount++;
+//								decVarLabel.add(var.replace("d", ""));
+//							}
+//							else if (var.startsWith("r")) {
+//								randVarLabel.add(var.replace("r", ""));
+//							}
+//						}
+//						/**add variable to neighborList**/
+//						for (String var:decVarLabel) {
+//							/*add to neighbor list*/
+//							if (!neighborStrList.contains(var) && !var.equals(idStr)) {
+//								neighborStrList.add(var);
+//							}
+//						}
+//						/**create Table**/
+//						//System.out.println("!" + decVarLabel + " " + randVarLabel);
+//						newRewardTable = new Table(decVarLabel, randVarLabel);
+//						
+//						/**process table values**/
+//						valueMzn = valueMzn.replace("[", "");
+//						valueMzn = valueMzn.replace("]", "");
+//						valueMzn = valueMzn.substring(1, valueMzn.length()-1);
+//						listOfRow = new ArrayList<String>(Arrays.asList(valueMzn.split("\\|")));
+//						for (String oneRow:listOfRow) {
+//							ArrayList<String> decAndRandValueList = new ArrayList<String>(Arrays.asList(oneRow.split(",")));
+//							ArrayList<String> decValueList = new ArrayList<String>();
+//							ArrayList<String> randValueList = new ArrayList<String>();
+//							double utility = Double.parseDouble(decAndRandValueList.get(decAndRandValueList.size()-1));
+//							decAndRandValueList.remove(decAndRandValueList.size()-1);
+//							for (int i = 0; i < decisionVarCount; i++) {
+//								decValueList.add(decAndRandValueList.get(i));
+//							}
+//							for (int i = decisionVarCount; i<decAndRandValueList.size(); i++) {
+//								randValueList.add(decAndRandValueList.get(i));
+//							}
+//							Row newRow = new Row(decValueList, randValueList, utility);
+//							newRewardTable.addRow(newRow);
+//						}
+//						constraintTableWithRandomList.add(newRewardTable);
+//					}
 				}
 			}
 			
@@ -1349,52 +1706,52 @@ public class DCOP extends Agent implements DCOP_INFO {
 	
 	//get utility with parents, pseudoparents
 	//then add its switching cost
-	public double utilityWithParentAndPseudoAndUnary() {
-		double sumUtility = 0;
-
-		for (int ts=0; ts<=h; ts++) {
-			ArrayList<Table> tableList = constraintTableAtEachTSMap.get(ts);
-	    	for (Table constraintTable:tableList) {
-				ArrayList<String> decVarList = constraintTable.getDecVarLabel();
-				ArrayList<String> decValueList = new ArrayList<String>();
-				
-				//chi gui với constraint voi parent and pseudoparents
-				boolean notInParentList = false;
-				for (String var:decVarList) {
-					if (var.equals(idStr))
-						continue;
-					if (parentAndPseudoStrList.contains(var) == false) {
-						notInParentList = true;
-						break;
-					}
-				}
-				
-				if (notInParentList)
-					continue;
-				
-				for (String agentInList:decVarList) {
-					if (agentInList.equals(idStr))
-						decValueList.add(valueAtEachTSMap.get(ts));
-					else
-						decValueList.add(agentView_DPOP_TSMap.get(agentInList).get(ts));
-				}
-				sumUtility += constraintTable.getUtilityGivenDecValueList(decValueList);
-			}
-		}
-		return sumUtility;
-	}
+//	public double utilityWithParentAndPseudoAndUnary() {
+//		double sumUtility = 0;
+//
+////		for (int ts=0; ts<=h; ts++) {
+//			ArrayList<Table> tableList = constraintTableAtEachTSMap.get(0);
+//	    	for (Table constraintTable:tableList) {
+//				ArrayList<String> decVarList = constraintTable.getDecVarLabel();
+//				ArrayList<String> decValueList = new ArrayList<String>();
+//				
+//				//chi gui với constraint voi parent and pseudoparents
+//				boolean notInParentList = false;
+//				for (String var:decVarList) {
+//					if (var.equals(idStr))
+//						continue;
+//					if (parentAndPseudoStrList.contains(var) == false) {
+//						notInParentList = true;
+//						break;
+//					}
+//				}
+//				
+//				if (notInParentList)
+//					continue;
+//				
+//				for (String agentInList:decVarList) {
+//					if (agentInList.equals(idStr))
+//						decValueList.add(valueAtEachTSMap.get(0));
+//					else
+//						decValueList.add(agentView_DPOP_TSMap.get(agentInList).get(0));
+//				}
+//				sumUtility += constraintTable.getUtilityGivenDecValueList(decValueList);
+//			}
+////		}
+//		return sumUtility;
+//	}
 	
-	public double calculcatingSwitchingCost() {
-		double sC = 0;
-		if (getValueAtEachTSMap().size() == 1) return 0;
-		for (int i=1; i<getValueAtEachTSMap().size(); i++) {
-//			if (getValueAtEachTSMap().get(i).equals(getValueAtEachTSMap().get(i-1)) == false)
-//				sC += switchingCost;
-			
-			sC += sc_func(getValueAtEachTSMap().get(i), getValueAtEachTSMap().get(i-1));
-		}
-		return sC;
-	}
+//	public double calculcatingSwitchingCost() {
+//		double sC = 0;
+//		if (getValueAtEachTSMap().size() == 1) return 0;
+//		for (int i=1; i<getValueAtEachTSMap().size(); i++) {
+////			if (getValueAtEachTSMap().get(i).equals(getValueAtEachTSMap().get(i-1)) == false)
+////				sC += switchingCost;
+//			
+//			sC += sc_func(getValueAtEachTSMap().get(i), getValueAtEachTSMap().get(i-1));
+//		}
+//		return sC;
+//	}
 
 	public String getIdStr() {
 		return idStr;
@@ -1517,11 +1874,11 @@ public class DCOP extends Agent implements DCOP_INFO {
 		this.decisionVariableDomainMap = decisionVariableDomainMap;
 	}
 
-	public HashMap<Integer, String> getValueAtEachTSMap() {
+	public HashMap<Integer, Double> getValueAtEachTSMap() {
 		return valueAtEachTSMap;
 	}
 
-	public void setValueAtEachTSMap(HashMap<Integer, String> valueAtEachTSMap) {
+	public void setValueAtEachTSMap(HashMap<Integer, Double> valueAtEachTSMap) {
 		this.valueAtEachTSMap = valueAtEachTSMap;
 	}
 
@@ -1582,11 +1939,11 @@ public class DCOP extends Agent implements DCOP_INFO {
 		this.agentViewTable = agentViewTable;
 	}
 
-	public String getChosenValue() {
+	public double getChosenValue() {
 		return chosenValue;
 	}
 
-	public void setChosenValue(String chosenValue) {
+	public void setChosenValue(double chosenValue) {
 		this.chosenValue = chosenValue;
 	}
 
@@ -1635,12 +1992,12 @@ public class DCOP extends Agent implements DCOP_INFO {
 		this.utilFromChildrenLS += util;
 	}
 
-	public HashMap<String, HashMap<Integer, String>> getAgentView_DPOP_TSMap() {
+	public HashMap<String, ArrayList<Double>> getAgentView_DPOP_TSMap() {
 		return agentView_DPOP_TSMap;
 	}
 
 	public void setAgentView_DPOP_TSMap(
-			HashMap<String, HashMap<Integer, String>> agentView_DPOP_TSMap) {
+			HashMap<String, ArrayList<Double>> agentView_DPOP_TSMap) {
 		this.agentView_DPOP_TSMap = agentView_DPOP_TSMap;
 	}
 
@@ -1670,14 +2027,6 @@ public class DCOP extends Agent implements DCOP_INFO {
 	
 	public void incrementLsIteration() {
 		this.lsIteration++;
-	}
-
-	public ArrayList<Double> getBestImproveUtilityList() {
-		return bestImproveUtilityList;
-	}
-
-	public void setBestImproveUtilityList(ArrayList<Double> bestImproveUtilityList) {
-		this.bestImproveUtilityList = bestImproveUtilityList;
 	}
 
 	public ArrayList<String> getBestImproveValueList() {
@@ -1720,16 +2069,16 @@ public class DCOP extends Agent implements DCOP_INFO {
 		this.utilityAndCost = utilityAndCost;
 	}
 	
-	public HashMap<String, String> getValuesToSendInVALUEPhase() {
+	public HashMap<String, Double> getValuesToSendInVALUEPhase() {
 		return valuesToSendInVALUEPhase;
 	}
 
 	public void setValuesToSendInVALUEPhase(
-			HashMap<String, String> valuesToSendInVALUEPhase) {
+			HashMap<String, Double> valuesToSendInVALUEPhase) {
 		this.valuesToSendInVALUEPhase = valuesToSendInVALUEPhase;
 	}
 	
-	public void addValuesToSendInValuePhase(String agent, String value) {
+	public void addValuesToSendInValuePhase(String agent, Double value) {
 		this.valuesToSendInVALUEPhase.put(agent, value);
 	}
 	
@@ -1764,6 +2113,78 @@ public class DCOP extends Agent implements DCOP_INFO {
 	public void setLastLine(String lastLine) {
 		this.lastLine = lastLine;
 	}
+
+	public ArrayList<Double> getResponseTimes() {
+		return responseTimes;
+	}
+
+	public void setResponseTimes(ArrayList<Double> responseTimes) {
+		this.responseTimes = responseTimes;
+	}
+
+	public ArrayList<Double> getDCSP_result_toSend() {
+		return DCSP_result_toSend;
+	}
+
+	public void setDCSP_result_toSend(ArrayList<Double> DCSP_result_toSend) {
+		this.DCSP_result_toSend = DCSP_result_toSend;
+	}
+
+	public double getL_processed() {
+		return L_processed;
+	}
+
+	public void setL_processed(double l_processed) {
+		L_processed = l_processed;
+	}
+	
+    public HashMap<String, ArrayList<Double>> getBestValueMap() {
+		return bestValueMap;
+	}
+
+	public void setBestValueMap(HashMap<String, ArrayList<Double>> bestValueMap) {
+		this.bestValueMap = bestValueMap;
+	}
+
+	public ArrayList<Double> getTo_send_further() {
+		return to_send_further;
+	}
+
+	public void setTo_send_further(ArrayList<Double> to_send_further) {
+		this.to_send_further = to_send_further;
+	}
+
+	public ArrayList<Double> getTo_send_next() {
+		return to_send_next;
+	}
+
+	public void setTo_send_next(ArrayList<Double> to_send_next) {
+		this.to_send_next = to_send_next;
+	}
+	
+	public ArrayList<Double> getIsSatisfiedPhase1List() {
+		return isSatisfiedPhase1List;
+	}
+
+	public void setIsSatisfiedPhase1List(ArrayList<Double> isSatisfiedPhase1List) {
+		this.isSatisfiedPhase1List = isSatisfiedPhase1List;
+	}
+
+	public ArrayList<Double> getIsSatisfiedPhase2List() {
+		return isSatisfiedPhase2List;
+	}
+
+	public void setIsSatisfiedPhase2List(ArrayList<Double> isSatisfiedPhase2List) {
+		this.isSatisfiedPhase2List = isSatisfiedPhase2List;
+	}
+	
+    public ArrayList<Double> getProcesssedLoads() {
+		return processsedLoads;
+	}
+
+	public void setProcesssedLoads(ArrayList<Double> processsedLoads) {
+		this.processsedLoads = processsedLoads;
+	}
 	
 	public double[] toArray(ArrayList<Double> arrayList) {
 		int arrSize = arrayList.size();
@@ -1776,47 +2197,47 @@ public class DCOP extends Agent implements DCOP_INFO {
 	
 	//each row is a timeStep from 0 to finalTimeStep
 	//each column is a value from domain
-	public String simulateRandom(int currentTimeStep) {
-		//randomVar is the same as decisionVar string
-		String randomVar = idStr;
-		double distribution[] = null;
-		//if currentTimeStep = 0 -> get from initial distribution
-		if (currentTimeStep == 0) {
-			distribution = toArray(initProabilityMap.get(randomVar));
-		}
-		//get distribution from transition function, from the previous random values
-		else {
-			String previousRandValue = getPickedRandomAt(currentTimeStep-1);
-			distribution = toArray(transitionFunctionMap.get(randomVar).getTransitionOf(previousRandValue));
-		}
-
-		double rand = Math.random();
-		double accumualatedProbability = 0;
-		for (int i=0; i<distribution.length; i++) {
-			accumualatedProbability += distribution[i];
-			if (rand < accumualatedProbability)
-				return randomVariableDomainMap.get(randomVar).get(i);
-		}
-		return null;
-	}
+//	public String simulateRandom(int currentTimeStep) {
+//		//randomVar is the same as decisionVar string
+//		String randomVar = idStr;
+//		double distribution[] = null;
+//		//if currentTimeStep = 0 -> get from initial distribution
+//		if (currentTimeStep == 0) {
+//			distribution = toArray(initProabilityMap.get(randomVar));
+//		}
+//		//get distribution from transition function, from the previous random values
+//		else {
+//			String previousRandValue = getPickedRandomAt(currentTimeStep-1);
+//			distribution = toArray(transitionFunctionMap.get(randomVar).getTransitionOf(previousRandValue));
+//		}
+//
+//		double rand = Math.random();
+//		double accumualatedProbability = 0;
+//		for (int i=0; i<distribution.length; i++) {
+//			accumualatedProbability += distribution[i];
+//			if (rand < accumualatedProbability)
+//				return randomVariableDomainMap.get(randomVar).get(i);
+//		}
+//		return null;
+//	}
 	
-	public void addReactRandomTableToList(int timeStep) {
-		//traverse to each random table
-		for (Table randTable:organizedConstraintTableWithRandomList) {
-			ArrayList<String> decLabel = randTable.getDecVarLabel();
-			//at current time step, create a new table, simulate the random, and add the corresponding random values
-			
-			Table newTable = new Table(decLabel);
-			String simulatedRandomValues = simulateRandom(timeStep);
-			addPickedRandomMap(timeStep, simulatedRandomValues);
-			
-			for (Row row:randTable.getTable()) {
-				if (row.getRandomList().get(0).equals(simulatedRandomValues))
-					newTable.addRow(new Row(row.getValueList(), row.getUtility()));
-			}
-			constraintTableAtEachTSMap.get(timeStep).add(newTable);
-		}
-	}
+//	public void addReactRandomTableToList(int timeStep) {
+//		//traverse to each random table
+//		for (Table randTable:organizedConstraintTableWithRandomList) {
+//			ArrayList<String> decLabel = randTable.getDecVarLabel();
+//			//at current time step, create a new table, simulate the random, and add the corresponding random values
+//			
+//			Table newTable = new Table(decLabel);
+//			String simulatedRandomValues = simulateRandom(timeStep);
+//			addPickedRandomMap(timeStep, simulatedRandomValues);
+//			
+//			for (Row row:randTable.getTable()) {
+//				if (row.getRandomList().get(0).equals(simulatedRandomValues))
+//					newTable.addRow(new Row(row.getValueList(), row.getUtility()));
+//			}
+//			constraintTableAtEachTSMap.get(timeStep).add(newTable);
+//		}
+//	}
 	
 	public static double[] multiply(double[] vector, TransitionFunction transFunc) {
 		int size = vector.length;
@@ -1835,24 +2256,185 @@ public class DCOP extends Agent implements DCOP_INFO {
 		return resultVector;
 	}
 	
-	public double sc_func(String oldValue, String newValue) {
-		boolean equal = oldValue.equals(newValue); 
-		double difference = Math.abs(Double.parseDouble(oldValue) - Double.parseDouble(newValue));
+//	public double sc_func(String oldValue, String newValue) {
+//		boolean equal = oldValue.equals(newValue); 
+//		double difference = Math.abs(Double.parseDouble(oldValue) - Double.parseDouble(newValue));
+//		
+//		switch (scType) {
+//		case CONSTANT:
+//			return equal ? 0 : switchingCost;
+//		case LINEAR:
+//			return equal ? 0 : switchingCost * difference;
+//		case QUAD:
+//			return equal ? 0 : switchingCost * Math.pow(difference, 2);
+//		case EXP_2:
+//			return equal ? 0 : switchingCost * Math.pow(2, difference);
+//		case EXP_3:
+//			return equal ? 0 : switchingCost * Math.pow(3, difference);
+//		}
+//		
+//		return -Double.MAX_VALUE;
+//			
+//	}
+	
+	public boolean isNextAgent(String agentLocalName) {
+		if (Integer.valueOf(idStr) % 3 + 1 == Integer.valueOf(agentLocalName))
+			return true;
 		
-		switch (scType) {
-		case CONSTANT:
-			return equal ? 0 : switchingCost;
-		case LINEAR:
-			return equal ? 0 : switchingCost * difference;
-		case QUAD:
-			return equal ? 0 : switchingCost * Math.pow(difference, 2);
-		case EXP_2:
-			return equal ? 0 : switchingCost * Math.pow(2, difference);
-		case EXP_3:
-			return equal ? 0 : switchingCost * Math.pow(3, difference);
-		}
-		
-		return -Double.MAX_VALUE;
-			
+		return false;
 	}
+	
+	public double processingTime(double loadKept, double loadFromNext, double loadFromFurther) {		
+//		System.out.println("Agent " + idStr + " " + loadKept);
+//		System.out.println("Agent " + idStr + " " + loadFromNext);
+//		System.out.println("Agent " + idStr + " " + loadFromFurther);
+
+		return loadKept * 28800 / 5 + Math.max(loadFromNext * bw_next, loadFromFurther * bw_further);		
+	}
+	
+	public double calculateResponseTime(double loadStored) {	
+		return loadStored * (bw_next * isNextSubscriber + bw_further * isFurtherSubscriber) 
+				/ (isSubscriber + isNextSubscriber + isFurtherSubscriber);
+	}
+	
+	/**L_s_AB <= L_in_A ~ send_next
+	 * L_s_AC <= L_in_A ~ send_further
+	 * L_r_BA <= L_in_B
+	 * L_r_CA <= L_in_C
+	 * L_A = L_in - (L_s_AB + L_s_AC) + (L_r_BA + L_r_CA)
+	 * time(L_r_AB, L_r_AC, L_A) <= threshold_processing
+	 */
+//	public void createNonProcessTable() {
+//		L_toProcessMax = L_in + L_in_next + L_in_further;
+//		System.out.println(idStr + " CREATING NON PROCESSED TABLE...");
+//		nonProcessedTable = new Table(new ArrayList<String>(
+//			Arrays.asList("send_next", "receive_next", "send_further", "receive_further", "to_process")));
+//		
+//		double send_next = 0;
+//		double receive_next = 0;
+//		double send_further = 0;
+//		double receive_further = 0;
+//		
+//		for (send_next = 0; send_next <= L_in; send_next += DISCRETE_TICK) {
+//			for (send_further = 0; send_further <= L_in; send_further += DISCRETE_TICK)
+//				addToNonProcess(send_next, receive_next, send_further, receive_further);
+//			send_further = 0;
+//			for (receive_further = 0; receive_further <= L_in_further; receive_further += DISCRETE_TICK)
+//				addToNonProcess(send_next, receive_next, send_further, receive_further);
+//			receive_further = 0;
+//		}
+//		
+//		send_next = 0;		
+//		for (receive_next = 0; receive_next <= L_in_next; receive_next += DISCRETE_TICK) {
+//			for (send_further = 0; send_further <= L_in; send_further += DISCRETE_TICK)
+//				addToNonProcess(send_next, receive_next, send_further, receive_further);
+//			send_further = 0;
+//			for (receive_further = 0; receive_further <= L_in_further; receive_further += DISCRETE_TICK)
+//				addToNonProcess(send_next, receive_next, send_further, receive_further);
+//			receive_further = 0;
+//		}
+//		receive_next = 0;
+//	}
+	
+	public void addToNonProcess(double send_next, double receive_next, double send_further, double receive_further) {
+		if (send_next == 0 && receive_next == 0 && send_further == 0 && receive_further == 0)
+			return;
+		
+		double L_toProcess_temp = L_in - (send_next + send_further) + (receive_next + receive_further);
+		double processingTime = processingTime(L_toProcess_temp, receive_next, receive_further);
+		if (L_toProcess_temp >= 0 && processingTime <= threshold_processing) {
+			Row newRow = new Row(new ArrayList<Double>(
+			Arrays.asList(send_next, receive_next, send_further, receive_further, L_toProcess_temp)), 0);
+			nonProcessedTable.addRow(newRow, L_toProcess_temp);
+		}
+	}
+	
+	public void addToProcessed(double send_next, double receive_next, double send_further, double receive_further, double processed) {
+		if (send_next == 0 && receive_next == 0 && send_further == 0 && receive_further == 0)
+			return;
+		
+		double L_toStore_temp = processed - (send_next + send_further) + (receive_next + receive_further);
+		if (L_toStore_temp >= 0) {
+			double responseTime = calculateResponseTime(L_toStore_temp);
+			Row newRow = new Row(new ArrayList<Double>(
+			Arrays.asList(send_next, receive_next, send_further, receive_further, processed, L_toStore_temp)), responseTime);
+			processedTable.addRow(newRow, responseTime);
+		}
+	}
+	
+//	public void createProcessedTable() {
+//		L_processedMax = L_toProcessMax / process_ratio;
+//		
+//		System.out.println(idStr + " CREATING PROCESSED TABLE...");
+//		processedTable = new Table(new ArrayList<String>(
+//			Arrays.asList("send_next", "receive_next", "send_further", "receive_further", "processed", "to_stored")));
+//		
+//		double send_next = 0;
+//		double receive_next = 0;
+//		double send_further = 0;
+//		double receive_further = 0;
+//		
+//		//start processed from 1 to avoid cannot find a row in non_processing_processing table
+//		for (double processed = 1; processed <= L_toProcessMax; processed += 1) {
+//			for (send_next = 0; send_next <= L_processedMax; send_next += DISCRETE_P_TICK) {
+//				for (send_further = 0; send_further <= L_processedMax; send_further += DISCRETE_P_TICK)
+//					addToProcessed(send_next, receive_next, send_further, receive_further, processed);
+//				send_further = 0;
+//				for (receive_further = 0; receive_further <= L_processedMax; receive_further += DISCRETE_P_TICK)
+//					addToProcessed(send_next, receive_next, send_further, receive_further, processed);
+//				receive_further = 0;
+//			}
+//			send_next = 0;
+//			for (receive_next = 0; receive_next <= L_processedMax; receive_next += DISCRETE_P_TICK) {
+//				for (send_further = 0; send_further <= L_processedMax; send_further += DISCRETE_P_TICK)
+//					addToProcessed(send_next, receive_next, send_further, receive_further, processed);
+//				send_further = 0;
+//				for (receive_further = 0; receive_further <= L_processedMax; receive_further += DISCRETE_P_TICK)
+//					addToProcessed(send_next, receive_next, send_further, receive_further, processed);
+//				receive_further = 0;
+//			}
+//			receive_next = 0;
+//		}
+//	}
+	
+	public Row randomChoose(Table table, double reponseTime) {
+		double chosenProcessLoad = -Double.MAX_VALUE;
+		Random rand = new Random();
+		Row chosenRow = null;
+//		System.out.println("=========SIZE " + table.getLoadMap().keySet().size());
+		int size = table.getRowListFromKey(reponseTime).size();
+		do {
+			int random = rand.nextInt(size);
+			chosenRow = table.getRowListFromKey(reponseTime).get(random);
+			chosenProcessLoad = chosenRow.getValueList().get(4);
+		}
+		while (chosenProcessLoad != reponseTime);
+				
+		return chosenRow;
+		
+	}
+
+    public List<PiecewiseFunction> getFunctionList() {
+        return functionList;
+    }
+
+    public void setFunctionList(List<PiecewiseFunction> functionList) {
+        this.functionList = functionList;
+    }
+
+    public PiecewiseFunction getAgentViewFunction() {
+        return agentViewFunction;
+    }
+
+    public void setAgentViewFunction(PiecewiseFunction agentViewFunction) {
+        this.agentViewFunction = agentViewFunction;
+    }
+
+    public List<PiecewiseFunction> getCurrentFunctionListDPOP() {
+        return currentFunctionListDPOP;
+    }
+
+    public void setCurrentFunctionListDPOP(List<PiecewiseFunction> currentFunctionListDPOP) {
+        this.currentFunctionListDPOP = currentFunctionListDPOP;
+    }
 }	

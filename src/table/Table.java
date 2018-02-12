@@ -1,7 +1,11 @@
 package table;
 
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Set;
 
 public class Table implements Serializable {
 	
@@ -15,17 +19,19 @@ public class Table implements Serializable {
 	int variableCount;
 	int randomCount;
 	ArrayList<Row> table;
-	ArrayList<String> decVarLabel;
-	ArrayList<String> randVarLabel;
+	ArrayList<Double> decVarLabel;
+	ArrayList<Double> randVarLabel;
+//	HashMap<Double, ArrayList<Row>> loadMap;
+	HashMap<Double, ArrayList<Row>> keyMap;
 
 	public Table(Table anotherTable) {
 		this.rowCount = anotherTable.rowCount;
 		this.variableCount = anotherTable.variableCount;
 		this.table = new ArrayList<Row>();
 //		this.decVarLabel = (ArrayList<String>) anotherTable.decVarLabel.clone();
-		this.decVarLabel = new ArrayList<String>();
-		ArrayList<String> anotherTableDecVarLabel = anotherTable.getDecVarLabel();
-		for (String label:anotherTableDecVarLabel) {
+		this.decVarLabel = new ArrayList<>();
+		ArrayList<Double> anotherTableDecVarLabel = anotherTable.getDecVarLabel();
+		for (Double label:anotherTableDecVarLabel) {
 			this.decVarLabel.add(label);
 		}
 
@@ -47,7 +53,7 @@ public class Table implements Serializable {
 		return true;
 	}
 	
-	public double getUtilityGivenDecValueList(ArrayList<String> decValueList) {
+	public double getUtilityGivenDecValueList(ArrayList<Double> decValueList) {
 		for (int index=0; index<table.size(); index++) {
 			if (equalArray(table.get(index).getValueList(), decValueList))
 				return table.get(index).getUtility();
@@ -55,7 +61,7 @@ public class Table implements Serializable {
 		return Integer.MIN_VALUE;
 	}
 	
-	public double getUtilityGivenDecAndRandValueList(ArrayList<String> decValueList, ArrayList<String> randValueList) {
+	public double getUtilityGivenDecAndRandValueList(ArrayList<Double> decValueList, ArrayList<Double> randValueList) {
 		for (int index=0; index<table.size(); index++) {
 			if (equalArray(table.get(index).getValueList(), decValueList)
 			&& equalArray(table.get(index).getRandomList(), randValueList))
@@ -85,13 +91,14 @@ public class Table implements Serializable {
 //        	&&	castedTypeTable.decVarLabel == this.decVarLabel;
 //	}
 	
-	public Table(ArrayList<String> newLabel) {
+	public Table(ArrayList<Double> newLabel) {
 		table = new ArrayList<Row>();
-		decVarLabel = new ArrayList<String>();
-		for (String variable:newLabel)
+		decVarLabel = new ArrayList<>();
+		for (Double variable:newLabel)
 			decVarLabel.add(variable);
 		variableCount = decVarLabel.size();
 		rowCount = 0;
+		keyMap = new HashMap<Double, ArrayList<Row>>();
 	}
 	
 //	public Table(ArrayList<String> newLabel, int randType) {
@@ -99,7 +106,7 @@ public class Table implements Serializable {
 //		this.randType = randType;
 //	}
 	
-	public Table(ArrayList<String> decVarList, ArrayList<String> randVarList) {
+	public Table(ArrayList<Double> decVarList, ArrayList<Double> randVarList) {
 		table = new ArrayList<Row>();
 		decVarLabel = decVarList;
 		randVarLabel = randVarList;
@@ -116,13 +123,34 @@ public class Table implements Serializable {
 		this.rowCount++;
 	}
 	
+	public void addRow(Row newRow, double key) {
+		this.table.add(newRow);
+		this.rowCount++;
+		
+		Set<Double> currentLoadSet = keyMap.keySet();
+		if (currentLoadSet.contains(key)) {
+			ArrayList<Row> rowList = keyMap.get(key);
+			rowList.add(newRow);
+			keyMap.put(key, rowList);
+		}
+		else {
+			ArrayList<Row> rowList = new ArrayList<Row>();
+			rowList.add(newRow);
+			keyMap.put(key, rowList);
+		}
+	}
+	
+	public ArrayList<Row> getRowListFromKey(double key) {
+		return keyMap.get(key);
+	}
+	
 	//tao 1 array chua values cua 1 bien
 	//chay tung dong cua vector
 	//kiem tra gia tri cua bien, co trong listValues chua
 	//neu chua thi them vao
 	//tra ve danh sach tat ca gia tri cua 1 bien, khong bi duplicate
-	ArrayList<String> listValuesOfVariable(int index) {
-		ArrayList<String> listValues = new ArrayList<String>();
+	ArrayList<Double> listValuesOfVariable(int index) {
+		ArrayList<Double> listValues = new ArrayList<Double>();
 		for (Row row: table) {			
 			if (listValues.contains(row.getValueAtPosition(index)) == false)
 				listValues.add(row.getValueAtPosition(index));
@@ -142,7 +170,7 @@ public class Table implements Serializable {
 	
 	public void printDecVar() {
 		System.out.println("Dec lable list: ");
-		for (String variable:decVarLabel)
+		for (Double variable:decVarLabel)
 			System.out.print(variable + " ");
 		System.out.println();
 		
@@ -153,7 +181,7 @@ public class Table implements Serializable {
 	
 	public void printRandVar() {
 		System.out.println("Rand lable list: ");
-		for (String variable:randVarLabel)
+		for (Double variable:randVarLabel)
 			System.out.print(variable + " ");
 		System.out.println();
 		
@@ -162,12 +190,24 @@ public class Table implements Serializable {
 		}
 	}
 	
+	public void writeDecVarToFile(String filename) {
+		try {
+		    PrintWriter writer = new PrintWriter(filename, "UTF-8");
+		    for (Row row:table)
+		    	writer.println(row.getDecVar());
+
+		    writer.close();
+		} catch (IOException e) {
+		   // do something
+		}
+	}
+	
 	public void printDecAndRandVar() {
 		System.out.println("Dec and Rand lable list: ");
-		for (String variable:decVarLabel)
+		for (Double variable:decVarLabel)
 			System.out.print(variable + " ");
 		System.out.print("y ");
-		for (String variable:randVarLabel)
+		for (Double variable:randVarLabel)
 			System.out.print(variable + " ");
 		
 		System.out.println();
@@ -188,13 +228,19 @@ public class Table implements Serializable {
 		return table;
 	}
 
-	public ArrayList<String> getDecVarLabel() {
+	public ArrayList<Double> getDecVarLabel() {
 		return decVarLabel;
 	}
 
-	public ArrayList<String> getRandVarLabel() {
+	public ArrayList<Double> getRandVarLabel() {
 		return randVarLabel;
 	}
 	
-	
+	public HashMap<Double, ArrayList<Row>> getKeyMap() {
+		return keyMap;
+	}
+
+	public void setLoadMap(HashMap<Double, ArrayList<Row>> keyMap) {
+		this.keyMap = keyMap;
+	}
 }

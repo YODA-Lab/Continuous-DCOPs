@@ -10,36 +10,35 @@ public class Row implements Serializable {
 	 */
 	private static final long serialVersionUID = -7773374424812673056L;
 	int variableCount;
-	ArrayList<String> valueList;
+	ArrayList<Double> valueList;
 	int randomCount;
-	ArrayList<String> randomList;
+	ArrayList<Double> randomList;
 	double utility;
 	
 	public Row() {
-		valueList = new ArrayList<String>();
-		randomList = new ArrayList<String>();
+		valueList = new ArrayList<Double>();
+		randomList = new ArrayList<Double>();
 	}
-	
 
 	public Row(Row newRow) {
 		this.variableCount = newRow.variableCount;
 		this.utility = newRow.utility;
 		//copy value list from newRow
-		this.valueList = new ArrayList<String>();
-		for (String value:newRow.getValueList()) {
-			this.valueList.add(new String(value));
+		this.valueList = new ArrayList<Double>();
+		for (Double value:newRow.getValueList()) {
+			this.valueList.add(new Double(value));
 		}
 	}
 	
 	//input: X1, X2, X3,...,Xn
 	//input utility
-	public Row(ArrayList<String> input, double utility) {
+	public Row(ArrayList<Double> input, double utility) {
 		this.valueList = input;
 		this.variableCount = input.size();
 		this.utility = utility;
 	}
 	
-	public Row(ArrayList<String> decisionVariableList, ArrayList<String> randVariableList, double utility) {
+	public Row(ArrayList<Double> decisionVariableList, ArrayList<Double> randVariableList, double utility) {
 		this.valueList = decisionVariableList;
 		this.randomList = randVariableList;
 		this.variableCount = decisionVariableList.size();
@@ -47,7 +46,7 @@ public class Row implements Serializable {
 		this.utility = utility;
 	}
 	
-	public Row(ArrayList<String> decisionAndRandomList, int noDecision, double utility) {
+	public Row(ArrayList<Double> decisionAndRandomList, int noDecision, double utility) {
 		for (int i = 0; i < noDecision; i++) {
 			this.valueList.add(decisionAndRandomList.get(i));
 		}
@@ -61,7 +60,7 @@ public class Row implements Serializable {
 		this.utility = utility;
 	}
 	
-	public String getValueAtPosition(int index) {
+	public Double getValueAtPosition(int index) {
 		if (index >= variableCount) {
 			System.err.println("Index out of bounds: " + index);
 			System.err.println("Size:" +  variableCount);
@@ -70,22 +69,31 @@ public class Row implements Serializable {
 	}
 
 	public void printDecVar() {
-		for (String value:valueList)
+		for (Double value:valueList)
 			System.out.print(value + " ");
 		System.out.println("utility " + utility);
 	}
 	
+	public String getDecVar() {
+		String row = "";
+		for (Double value:valueList)
+			row += Double.toString(value) + " ";
+		row += "utility " + utility;
+		
+		return row;
+	}
+	
 	public void printRandVar() {
-		for (String value:randomList)
+		for (Double value:randomList)
 			System.out.print(value + " ");
 		System.out.println("utility " + utility);
 	}
 	
 	public void printBoth() {
-		for (String value:valueList)
+		for (Double value:valueList)
 			System.out.print(value + " ");
 		System.out.print("y ");
-		for (String value:randomList)
+		for (Double value:randomList)
 			System.out.print(value + " ");
 		System.out.println("utility " + utility);
 	}
@@ -136,7 +144,7 @@ public class Row implements Serializable {
 		return variableCount;
 	}
 
-	public ArrayList<String> getValueList() {
+	public ArrayList<Double> getValueList() {
 		return valueList;
 	}
 
@@ -144,7 +152,7 @@ public class Row implements Serializable {
 		return randomCount;
 	}
 
-	public ArrayList<String> getRandomList() {
+	public ArrayList<Double> getRandomList() {
 		return randomList;
 	}
 

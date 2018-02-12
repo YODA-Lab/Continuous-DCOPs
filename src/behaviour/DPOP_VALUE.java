@@ -47,10 +47,10 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 	@SuppressWarnings("unchecked")
 	@Override
 	public void action() {
-		agent.setValuesToSendInVALUEPhase(new HashMap<String, String>());
+		agent.setValuesToSendInVALUEPhase(new HashMap<String, Double>());
 		if (agent.isRoot()) {
 			agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-			if (agent.algorithm == DCOP.C_DPOP) {
+			if (agent.algorithm == DCOP.DPOP) {
 				System.out.println(agent.getIdStr() + " choose value " + agent.getChosenValue());
 			}
 			
@@ -65,10 +65,10 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 			ACLMessage receivedMessage = waitingForValuesInItsAgentViewFromParent(DPOP_VALUE);
 			agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 			
-			HashMap<Integer, String> variableAgentViewIndexValueMap = new HashMap<Integer, String>();
-			HashMap<String, String> valuesFromParent = new HashMap<String, String>();
+			HashMap<Integer, Double> variableAgentViewIndexValueMap = new HashMap<Integer, Double>();
+			HashMap<String, Double> valuesFromParent = new HashMap<String, Double>();
 			try {
-				valuesFromParent = (HashMap<String, String>) receivedMessage.getContentObject();
+				valuesFromParent = (HashMap<String, Double>) receivedMessage.getContentObject();
 			} catch (UnreadableException e) {
 				e.printStackTrace();
 			}
@@ -82,7 +82,7 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 				variableAgentViewIndexValueMap.put(positionInParentMessage						
 											,valuesFromParent.get(agentKey));
 			}
-			int agentIndex = agent.getAgentViewTable().getDecVarLabel().indexOf(agent.getIdStr());
+			int agentIndex = agent.getAgentViewTable().getDecVarLabel().indexOf(Double.valueOf(agent.getIdStr()));
 
 			Row chosenRow = new Row();
 			double maxUtility = Integer.MIN_VALUE;
@@ -111,7 +111,7 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 			//add its chosen value to the map to send to its children
 			agent.addValuesToSendInValuePhase(agent.getIdStr(), agent.getChosenValue());			
 			
-			if (agent.algorithm == DCOP.C_DPOP) {
+			if (agent.algorithm == DCOP.DPOP) {
 				System.out.println("Chosen value is " + agent.getChosenValue());
 			}
 			//correct
@@ -125,32 +125,32 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 				agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
 			}
 			//correct
-			else if (agent.algorithm == DCOP.FORWARD) {
-				//solution at current time step
-				if (agent.getCurrentTS() < agent.h-1)
-					agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
-				//solution at h because we solve h before h-1
-				else if (agent.getCurrentTS() == agent.h-1)
-					agent.getValueAtEachTSMap().put(agent.h, agent.getChosenValue());
-				//solution at h-1
-				else if (agent.getCurrentTS() == agent.h)
-					agent.getValueAtEachTSMap().put(agent.h-1, agent.getChosenValue());
-
-			}
-			else if (agent.algorithm == DCOP.BACKWARD) {
-				agent.getValueAtEachTSMap().put(agent.h - agent.getCurrentTS(), agent.getChosenValue());
-			}
+//			else if (agent.algorithm == DCOP.FORWARD) {
+//				//solution at current time step
+//				if (agent.getCurrentTS() < agent.h-1)
+//					agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
+//				//solution at h because we solve h before h-1
+//				else if (agent.getCurrentTS() == agent.h-1)
+//					agent.getValueAtEachTSMap().put(agent.h, agent.getChosenValue());
+//				//solution at h-1
+//				else if (agent.getCurrentTS() == agent.h)
+//					agent.getValueAtEachTSMap().put(agent.h-1, agent.getChosenValue());
+//
+//			}
+//			else if (agent.algorithm == DCOP.BACKWARD) {
+//				agent.getValueAtEachTSMap().put(agent.h - agent.getCurrentTS(), agent.getChosenValue());
+//			}
 			
 			agent.addupSimulatedTime(agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 			
 			if (agent.isLeaf() == false) {
-				ArrayList<String> agent_value = new ArrayList<String>();
-				agent_value.add(agent.getIdStr());
-				agent_value.add(agent.getChosenValue());
-				if (agent.algorithm == DCOP.C_DPOP) {
+				ArrayList<Double> agent_value = new ArrayList<>();
+//				agent_value.add(agent.getIdStr());
+//				agent_value.add(agent.getChosenValue());
+				if (agent.algorithm == DCOP.DPOP) {
 					System.out.println("Chosen value is " + agent.getChosenValue());
 				}
-				agent_value.add(String.valueOf(agent.getCurrentGlobalUtility()));
+//				agent_value.add(String.valueOf(agent.getCurrentGlobalUtility()));
 				
 				for (AID children:agent.getChildrenAIDList()) {
 					agent.sendObjectMessageWithTime(children, agent.getValuesToSendInVALUEPhase()
@@ -198,131 +198,131 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 		return receivedMessage;
 	}
 	
-	public void writeChosenValueToFile_Not_FW() {
-		String algName = null;
-		if (agent.algorithm == DCOP.REACT)
-			algName = "react";
-		else if (agent.algorithm == DCOP.HYBRID)
-			algName = "hybrid";
-		
-		String line = "";
-		String alg = DCOP.algTypes[agent.algorithm];
-		String scType = (agent.scType == DCOP.CONSTANT) ? "constant" : "linear";
-		if (agent.getCurrentTS() == 0)
-			line = line + alg + "\t" + agent.inputFileName + "\t" + "sCost=" + agent.switchingCost
-			+ "\t" + "scType=" + scType + "\n";
-			
-		line = line + "ts=" + agent.getCurrentTS()
-					+ "\t" + "x=" + agent.getValueAtEachTSMap().get(agent.getCurrentTS())
-					+ "\t" + "y=" + agent.getPickedRandomAt(agent.getCurrentTS());
-		
-		//write switching cost after y (react/hybrid) or x (forward)
-		String switchOrNot = null;
-		if (agent.getCurrentTS() == 0)
-			switchOrNot = DCOP.switchNo;
-		else {
-			if (agent.getValueAtEachTSMap().get(agent.getCurrentTS()).equals
-					(agent.getValueAtEachTSMap().get(agent.getCurrentTS()-1)) == true) {
-				switchOrNot = DCOP.switchNo;
-			}
-			else {
-				switchOrNot = DCOP.switchYes;
-			}
-		}
-		
-		line = line + "\t" + "sw=" + switchOrNot + "\n";	
+//	public void writeChosenValueToFile_Not_FW() {
+//		String algName = null;
+//		if (agent.algorithm == DCOP.REACT)
+//			algName = "react";
+//		else if (agent.algorithm == DCOP.HYBRID)
+//			algName = "hybrid";
+//		
+//		String line = "";
+//		String alg = DCOP.algTypes[agent.algorithm];
+//		String scType = (agent.scType == DCOP.CONSTANT) ? "constant" : "linear";
+//		if (agent.getCurrentTS() == 0)
+//			line = line + alg + "\t" + agent.inputFileName + "\t" + "sCost=" + agent.switchingCost
+//			+ "\t" + "scType=" + scType + "\n";
+//			
+//		line = line + "ts=" + agent.getCurrentTS()
+//					+ "\t" + "x=" + agent.getValueAtEachTSMap().get(agent.getCurrentTS())
+//					+ "\t" + "y=" + agent.getPickedRandomAt(agent.getCurrentTS());
+//		
+//		//write switching cost after y (react/hybrid) or x (forward)
+//		String switchOrNot = null;
+//		if (agent.getCurrentTS() == 0)
+//			switchOrNot = DCOP.switchNo;
+//		else {
+//			if (agent.getValueAtEachTSMap().get(agent.getCurrentTS()).equals
+//					(agent.getValueAtEachTSMap().get(agent.getCurrentTS()-1)) == true) {
+//				switchOrNot = DCOP.switchNo;
+//			}
+//			else {
+//				switchOrNot = DCOP.switchYes;
+//			}
+//		}
+//		
+//		line = line + "\t" + "sw=" + switchOrNot + "\n";	
+//	
+//		String fileName = "id=" + agent.instanceD + "/sw=" + (int) agent.switchingCost + "/" + algName + "_" + agent.getIdStr() + ".txt";
+//		byte data[] = line.getBytes();
+//	    Path p = Paths.get(fileName);
+//
+//		try (OutputStream out = new BufferedOutputStream(
+//			Files.newOutputStream(p, CREATE, APPEND))) {
+//			out.write(data, 0, data.length);
+//			out.flush();
+//			out.close();
+//		} catch (IOException x) {
+//			System.err.println(x);
+//		}
+//	}
 	
-		String fileName = "id=" + agent.instanceD + "/sw=" + (int) agent.switchingCost + "/" + algName + "_" + agent.getIdStr() + ".txt";
-		byte data[] = line.getBytes();
-	    Path p = Paths.get(fileName);
-
-		try (OutputStream out = new BufferedOutputStream(
-			Files.newOutputStream(p, CREATE, APPEND))) {
-			out.write(data, 0, data.length);
-			out.flush();
-			out.close();
-		} catch (IOException x) {
-			System.err.println(x);
-		}
-	}
-	
-	public void writeChosenValueToFileFW() {
-		String algName = "forward";
-		
-		String line = "";
-		String alg = DCOP.algTypes[agent.algorithm];
-		String scType = (agent.scType == DCOP.CONSTANT) ? "constant" : "linear";
-		if (agent.getCurrentTS() == 0)
-			line = line + alg + "\t" + agent.inputFileName + "\t" + "sCost=" + agent.switchingCost
-			+ "\t" + "scType=" + scType + "\n";
-				
-		//write switching cost after x (forward)
-		String switchOrNot = null;
-		if (agent.getCurrentTS() == 0) {
-			switchOrNot = DCOP.switchNo;
-			line = line + "ts=" + agent.getCurrentTS()
-			 		+ "\t" + "x=" + agent.getValueAtEachTSMap().get(agent.getCurrentTS())
-					+ "\t" + "sw=" + switchOrNot + "\n";
-		}
-		else if (agent.getCurrentTS() == agent.h-1) {
-			//no switching cost for now, wait for
-			line = line + "ts=" + agent.h
-			 		+ "\t" + "x=" + agent.getValueAtEachTSMap().get(agent.h);
-			agent.setLastLine(line);
-		}
-		else if (agent.getCurrentTS() == agent.h) {
-			line = line + "ts=" + (agent.h-1)
-	 					+ "\t" + "x=" + agent.getValueAtEachTSMap().get(agent.h-1);
-			
-			//compare value at h-1 with h-2
-			if (agent.getValueAtEachTSMap().get(agent.h-1).equals
-					(agent.getValueAtEachTSMap().get(agent.h-2)) == true) {
-				switchOrNot = DCOP.switchNo;
-			}
-			else {
-				switchOrNot = DCOP.switchYes;
-			}
-			
-			line = line + "\t" + "sw=" + switchOrNot + "\n" + agent.getLastLine();
-			
-			if (agent.getValueAtEachTSMap().get(agent.h).equals
-					(agent.getValueAtEachTSMap().get(agent.h-1)) == true) {
-				switchOrNot = DCOP.switchNo;
-			}
-			else {
-				switchOrNot = DCOP.switchYes;
-			}
-			
-			line = line + "\t" + "sw=" + switchOrNot + "\n";
-		}
-		else {
-			line = line + "ts=" + agent.getCurrentTS()
-	 					+ "\t" + "x=" + agent.getValueAtEachTSMap().get(agent.getCurrentTS());
-			if (agent.getValueAtEachTSMap().get(agent.getCurrentTS()).equals
-					(agent.getValueAtEachTSMap().get(agent.getCurrentTS()-1)) == true) {
-				switchOrNot = DCOP.switchNo;
-			}
-			else {
-				switchOrNot = DCOP.switchYes;
-			}
-			
-			line = line + "\t" + "sw=" + switchOrNot + "\n";
-		}
-				
-		//forward: at h-1, solve h, so not writing at all to wait for h (solve h-1, then write 2 at a time)
-		if (agent.getCurrentTS() != agent.h-1) {
-			String fileName = "id=" + agent.instanceD + "/sw=" + (int) agent.switchingCost + "/" + algName + "_" + agent.getIdStr() + ".txt";
-			byte data[] = line.getBytes();
-		    Path p = Paths.get(fileName);
-	
-			try (OutputStream out = new BufferedOutputStream(
-				Files.newOutputStream(p, CREATE, APPEND))) {
-				out.write(data, 0, data.length);
-				out.flush();
-				out.close();
-			} catch (IOException x) {
-				System.err.println(x);
-			}
-		}
-	}
+//	public void writeChosenValueToFileFW() {
+//		String algName = "forward";
+//		
+//		String line = "";
+//		String alg = DCOP.algTypes[agent.algorithm];
+//		String scType = (agent.scType == DCOP.CONSTANT) ? "constant" : "linear";
+//		if (agent.getCurrentTS() == 0)
+//			line = line + alg + "\t" + agent.inputFileName + "\t" + "sCost=" + agent.switchingCost
+//			+ "\t" + "scType=" + scType + "\n";
+//				
+//		//write switching cost after x (forward)
+//		String switchOrNot = null;
+//		if (agent.getCurrentTS() == 0) {
+//			switchOrNot = DCOP.switchNo;
+//			line = line + "ts=" + agent.getCurrentTS()
+//			 		+ "\t" + "x=" + agent.getValueAtEachTSMap().get(agent.getCurrentTS())
+//					+ "\t" + "sw=" + switchOrNot + "\n";
+//		}
+//		else if (agent.getCurrentTS() == agent.h-1) {
+//			//no switching cost for now, wait for
+//			line = line + "ts=" + agent.h
+//			 		+ "\t" + "x=" + agent.getValueAtEachTSMap().get(agent.h);
+//			agent.setLastLine(line);
+//		}
+//		else if (agent.getCurrentTS() == agent.h) {
+//			line = line + "ts=" + (agent.h-1)
+//	 					+ "\t" + "x=" + agent.getValueAtEachTSMap().get(agent.h-1);
+//			
+//			//compare value at h-1 with h-2
+//			if (agent.getValueAtEachTSMap().get(agent.h-1).equals
+//					(agent.getValueAtEachTSMap().get(agent.h-2)) == true) {
+//				switchOrNot = DCOP.switchNo;
+//			}
+//			else {
+//				switchOrNot = DCOP.switchYes;
+//			}
+//			
+//			line = line + "\t" + "sw=" + switchOrNot + "\n" + agent.getLastLine();
+//			
+//			if (agent.getValueAtEachTSMap().get(agent.h).equals
+//					(agent.getValueAtEachTSMap().get(agent.h-1)) == true) {
+//				switchOrNot = DCOP.switchNo;
+//			}
+//			else {
+//				switchOrNot = DCOP.switchYes;
+//			}
+//			
+//			line = line + "\t" + "sw=" + switchOrNot + "\n";
+//		}
+//		else {
+//			line = line + "ts=" + agent.getCurrentTS()
+//	 					+ "\t" + "x=" + agent.getValueAtEachTSMap().get(agent.getCurrentTS());
+//			if (agent.getValueAtEachTSMap().get(agent.getCurrentTS()).equals
+//					(agent.getValueAtEachTSMap().get(agent.getCurrentTS()-1)) == true) {
+//				switchOrNot = DCOP.switchNo;
+//			}
+//			else {
+//				switchOrNot = DCOP.switchYes;
+//			}
+//			
+//			line = line + "\t" + "sw=" + switchOrNot + "\n";
+//		}
+//				
+//		//forward: at h-1, solve h, so not writing at all to wait for h (solve h-1, then write 2 at a time)
+//		if (agent.getCurrentTS() != agent.h-1) {
+//			String fileName = "id=" + agent.instanceD + "/sw=" + (int) agent.switchingCost + "/" + algName + "_" + agent.getIdStr() + ".txt";
+//			byte data[] = line.getBytes();
+//		    Path p = Paths.get(fileName);
+//	
+//			try (OutputStream out = new BufferedOutputStream(
+//				Files.newOutputStream(p, CREATE, APPEND))) {
+//				out.write(data, 0, data.length);
+//				out.flush();
+//				out.close();
+//			} catch (IOException x) {
+//				System.err.println(x);
+//			}
+//		}
+//	}
 }

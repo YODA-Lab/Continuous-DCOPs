@@ -4,13 +4,13 @@ import agent.DCOP;
 import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
 
-public class INIT_PROPAGATE_DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
+public class INIT_PROPAGATE_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 
 	private static final long serialVersionUID = -9137969826179481705L;
 
 	DCOP agent;
 	
-	public INIT_PROPAGATE_DPOP_VALUE(DCOP agent) {
+	public INIT_PROPAGATE_VALUE(DCOP agent) {
 		super(agent);
 		this.agent = agent;
 	}

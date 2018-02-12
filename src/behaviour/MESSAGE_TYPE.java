@@ -13,8 +13,9 @@ public interface MESSAGE_TYPE {
 	public static final int PSEUDOTREE = 9;
 	public static final int INFO = 10;
 	public static final int INIT_LS_UTIL = 11;
+	public static final int DCSP_RESULT = 12;
 	public static final String msgTypes[] = {"DPOP_UTIL", "DPOP_VALUE", "PROPAGATE_DPOP_VALUE", "SWICHING_COST",
 										"LS_IMPROVE", "LS_VALUE", "LS_UTIL", "RAND_VALUE", "LS_ITERATION_DONE",
-										"PSEUDOTREE" , "INFO", "INIT_LS_UTIL"};
+										"PSEUDOTREE" , "INFO", "INIT_LS_UTIL", "DCSP_RESULT"};	
 	
 }
