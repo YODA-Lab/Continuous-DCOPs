@@ -24,7 +24,7 @@ public class SEARCH_NEIGHBORS extends OneShotBehaviour implements MESSAGE_TYPE {
 		ServiceDescription serviceDescription = new ServiceDescription();
 		serviceDescription.setType(agent.getIdStr());
 		templateDF.addServices(serviceDescription);
-		
+				
 		while (agent.getNeighborAIDList().size() < agent.getNeighborStrList().size()) {
 			try {
 				DFAgentDescription[] foundAgentList = DFService.search(myAgent, templateDF);

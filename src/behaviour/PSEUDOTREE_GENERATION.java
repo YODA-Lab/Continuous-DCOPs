@@ -173,6 +173,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 	
 		for (AID pseudo_parent:agent.getPseudoParentAIDList())
 			agent.getParentAndPseudoStrList().add(pseudo_parent.getLocalName());
+		
 		if (agent.isRoot() == false)
 			agent.getParentAndPseudoStrList().add(agent.getParentAID().getLocalName());
 	}

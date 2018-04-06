@@ -1,19 +1,11 @@
 package behaviour;
 
-import static java.nio.file.StandardOpenOption.APPEND;
-import static java.nio.file.StandardOpenOption.CREATE;
 import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
 
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -144,7 +136,7 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 			agent.addupSimulatedTime(agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 			
 			if (agent.isLeaf() == false) {
-				ArrayList<Double> agent_value = new ArrayList<>();
+//				ArrayList<Double> agent_value = new ArrayList<>();
 //				agent_value.add(agent.getIdStr());
 //				agent_value.add(agent.getChosenValue());
 				if (agent.algorithm == DCOP.DPOP) {

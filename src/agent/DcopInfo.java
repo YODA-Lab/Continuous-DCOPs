@@ -1,9 +1,11 @@
 package agent;
 
-public interface DCOP_INFO {
-	public static final boolean FINISHED = true;
-	public static final boolean NOT_FINSHED = false;
-	public static final boolean WAITING_FOR_MSG = true;
+/**
+ * @author khoihd
+ *
+ */
+public interface DcopInfo {
+    public static final boolean WAITING_FOR_MSG = true;
 	public static final int DPOP = 0;
 	public static final int LS_SDPOP = 1;
 	public static final int LS_RAND = 2;
@@ -52,4 +54,7 @@ public interface DCOP_INFO {
     public static final boolean IS_FURTHER = false;
     
     public static final double DISCRETIZED_VALUE = 0.5;
+    public static final int NUMBER_OF_INTERVALS = 25;
+    
+    public static enum SolvingType {APPROXIMATE, ANALYTICALLY};
 }

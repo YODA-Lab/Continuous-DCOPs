@@ -1,27 +1,18 @@
 package behaviour;
 
-import static java.nio.file.StandardOpenOption.APPEND;
-import static java.nio.file.StandardOpenOption.CREATE;
 import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
 
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.math.RoundingMode;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import agent.DCOP;
-import agent.DCOP_INFO;
+import agent.DcopInfo;
+import agent.DcopInfo.SolvingType;
 import function.BinaryFunction;
 import function.Function;
 import function.Interval;
@@ -29,8 +20,6 @@ import function.PiecewiseFunction;
 import function.UnaryFunction;
 import table.Row;
 import table.Table;
-import utilities.Utilities;
-
 
 /*
  * This is UTIL phrase of DTREE
@@ -67,10 +56,12 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	private static final long serialVersionUID = -2438558665331658059L;
 
 	DCOP agent;
+	DcopInfo.SolvingType solvingType;
 	
 	public DPOP_UTIL(DCOP agent) {
 		super(agent);
 		this.agent = agent;
+		solvingType = SolvingType.ANALYTICALLY;
 	}
 	
 	@Override
@@ -78,81 +69,11 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 		agent.setCurrentUTILstartTime(System.currentTimeMillis());
 		agent.setCurrentTableListDPOP(null);
-		//TODO: adjust remove children table
-		//TODO: join all tables at once, instead of pair-wise
 		
 		if (agent.algorithm == DCOP.DPOP) {
-			removeChildrenTableFromTableList(0);
 			removeChildrenFunctionFromFunctionList(0);
-//			createCollapsedUnarySwitchingCostTable(agent.h);
 		}
-		else if (agent.algorithm == DCOP.DSA) {
-			removeChildrenTableFromTableList(0);
-			System.out.println("DSA fix this error here!!!");
-		}
-//		else if (agent.algorithm == DCOP.HYBRID) {
-//			agent.addExpectedRandomTableToList(agent.getCurrentTS());
-//			agent.addConstraintTableToList(agent.getCurrentTS());
-//			removeChildrenTableFromTableList(agent.getCurrentTS());
-//			if (agent.getCurrentTS() != 0)
-//				createUnarySwitchingCostTableAtATimeStep(agent.getCurrentTS(), DCOP.FORWARD_BOOL);
-//		}
-//		else if (agent.algorithm == DCOP.MULTI_CDPOP) {
-//			removeChildrenTableFromTableList(agent.getCurrentTS());
-//			createCollapsedUnarySwitchingCostTable(agent.hybridTS);
-//			//consider with previous solution
-//		}
-//		//Done: forward is correct
-//		else if (agent.algorithm == DCOP.FORWARD) {
-//			//solve at currentTS with actual distribution
-//			if (agent.getCurrentTS() < agent.h -1) {
-//				agent.addExpectedRandomTableToList(agent.getCurrentTS());
-//				agent.addConstraintTableToList(agent.getCurrentTS());
-//				removeChildrenTableFromTableList(agent.getCurrentTS());
-//				if (agent.getCurrentTS() != 0)
-//					createUnarySwitchingCostTableAtATimeStep(agent.getCurrentTS(), DCOP.FORWARD_BOOL);
-//			}
-//			//when t = h-1, solve h first
-//			//no switching cost
-//			else if (agent.getCurrentTS() == agent.h-1) {
-//				agent.addExpectedRandomTableToList(agent.h);
-//				agent.addConstraintTableToList(agent.h);
-//				removeChildrenTableFromTableList(agent.h);
-//			}
-//			//when t = h, solve h-1 with 2 switching cost
-//			else if (agent.getCurrentTS() == agent.h) {
-//				agent.addExpectedRandomTableToList(agent.h-1);
-//				agent.addConstraintTableToList(agent.h-1);
-//				removeChildrenTableFromTableList(agent.h-1);
-//				createDoubleUnarySwitchingBeforeLastTimeStep(agent.h-1);
-//			}
-//		}
-//		else if (agent.algorithm == DCOP.BACKWARD) {
-//			//solve from h -> 0
-//			//ERROR with solving DCOP more than necessary steps not happen,
-//			//since number of behaviors is set correctly
-//			agent.addExpectedRandomTableToList(agent.h - agent.getCurrentTS());
-//			agent.addConstraintTableToList(agent.h - agent.getCurrentTS());
-//			removeChildrenTableFromTableList(agent.h - agent.getCurrentTS());
-//			//last time step: not need to add switching cost table
-//			if (agent.getCurrentTS() != 0)
-//				createUnarySwitchingCostTableAtATimeStep(agent.h - agent.getCurrentTS()
-//															, DCOP.BACKWARD_BOOL);
-//		}
-//		else if (agent.algorithm == DCOP.REACT) {
-//			agent.addConstraintTableToList(agent.getCurrentTS());
-//			agent.addReactRandomTableToList(agent.getCurrentTS());
-//			removeChildrenTableFromTableList(agent.getCurrentTS());
-//			if (agent.getCurrentTS() != 0)
-//				createUnarySwitchingCostTableAtATimeStep(agent.getCurrentTS(), DCOP.FORWARD_BOOL);
-//		}
-//		//Done: SDPOP, LS_SDPOP are correct
-//		else if (agent.algorithm == DCOP.LS_SDPOP || agent.algorithm == DCOP.SDPOP) {
-//			agent.addExpectedRandomTableToList(agent.getCurrentTS());
-//			agent.addConstraintTableToList(agent.getCurrentTS());
-//			removeChildrenTableFromTableList(agent.getCurrentTS());
-//		}
-		
+				
 		agent.setSimulatedTime(agent.getSimulatedTime()
 						+ agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 		if (agent.isRoot()) System.out.println(agent.getIdStr() + ": I am root");
@@ -210,6 +131,9 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 //		projectedTable.printDecVar();
 	}
 	
+	/* IN THE CONTEXT OF A TREE
+	 * A LEAF NODE HAS ONLY ONE FUNCTION, OTHERWISE THERE EXITS A CYCLE
+	 */
     public void leafDoFuncUtilProcess() {
         agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 
@@ -217,15 +141,11 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 
         agent.setAgentViewFunction(combinedFunction);
         
-//        System.out.println("Combined function " + combinedFunction);
-
-        PiecewiseFunction projectedFunction = combinedFunction.project(DCOP_INFO.DISCRETIZED_VALUE);
-
+        PiecewiseFunction projectedFunction = combinedFunction.project(solvingType);
+        
         agent.setSimulatedTime(
                 agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
         
-//        System.out.println("Projected function " + projectedFunction);
-
         agent.sendObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
     }
 	
@@ -235,6 +155,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 			
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 		
+		// After combined, it becomes a unary function
 		Table combinedUtilAndConstraintTable = combineMessage(receivedUTILmsgList);
 	
 		for (Table pseudoParentTable:agent.getCurrentTableListDPOP()) {
@@ -255,17 +176,18 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
         ArrayList<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 
         agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-
+        
+        // unary pw function
         PiecewiseFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
-
-        for (PiecewiseFunction pseudoParentFunction : agent.getCurrentFunctionListDPOP()) {
-            combinedFunctionMessage = addPiecewiseFunction(combinedFunctionMessage, pseudoParentFunction);
-        }
-
-        agent.setAgentViewFunction(combinedFunctionMessage);
-
-        PiecewiseFunction projectedFunction = combinedFunctionMessage.project(DCOP_INFO.DISCRETIZED_VALUE);
-
+        
+        // In context of a tree, there is only one function to the parent
+        combinedFunctionMessage = addBinaryAndUnaryPiecewiseFunctions(agent.getCurrentFunctionListDPOP().get(0),
+                combinedFunctionMessage);
+        
+//        System.out.println("COMBINE FUNCTION:" +  combinedFunctionMessage);
+       
+        PiecewiseFunction projectedFunction = combinedFunctionMessage.project(solvingType);
+        
         agent.setSimulatedTime(
                 agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
@@ -276,11 +198,10 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	    ArrayList<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 	    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
         PiecewiseFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
-        
-        System.out.println("COMBINED " + combinedFunctionMessage);
-        
+                
+        // In the context of a tree, there isn't such a function
         for (PiecewiseFunction pseudoParentFunction : agent.getCurrentFunctionListDPOP()) {
-            combinedFunctionMessage = addPiecewiseFunction(combinedFunctionMessage, pseudoParentFunction);
+            combinedFunctionMessage = addUnaryPiecewiseFunctions(combinedFunctionMessage, pseudoParentFunction);
         }
         
         // choose the maximum
@@ -390,6 +311,33 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	
 	
 	public void removeChildrenFunctionFromFunctionList(int currentTimeStep) {
+	    List<PiecewiseFunction> funcList = new ArrayList<>();
+	    ArrayList<AID> childAndPseudoChildrenAIDList = new ArrayList<AID>(agent.getChildrenAIDList());
+        childAndPseudoChildrenAIDList.addAll(agent.getPseudoChildrenAIDList());
+        
+        ArrayList<String> childAndPseudoChildrenStrList = new ArrayList<String>();
+        for (AID pscChildrenAID:childAndPseudoChildrenAIDList) {
+            childAndPseudoChildrenStrList.add(pscChildrenAID.getLocalName());
+        }
+	    
+	    for (PiecewiseFunction pwFunc : agent.getFunctionList()) {
+	        if (!childAndPseudoChildrenStrList.contains(pwFunc.getOtherAgent())) {
+	            funcList.add(pwFunc);
+	        }
+//    	    for (AID children : agent.getChildrenStrList()) {
+//    	        // add if not contain children
+////    	        System.out.println("Children " + Double.valueOf(children.getLocalName()));
+////    	        System.out.println("Other agent: " + pwFunc.getOtherAgent());
+//    	        if (Double.compare(pwFunc.getOtherAgent(), Double.valueOf(children.getLocalName())) != 0) {    	            
+//    	            funcList.add(pwFunc);
+//    	            if (agent.isRoot()) {
+//    	                System.out.println("Added " + pwFunc.getOtherAgent() + " " + Double.valueOf(children.getLocalName()));
+//    	            }
+//    	        }
+//    	    }
+	    }
+	   	    
+	    
 //	    /**Remove children and pseudoChildren constraint table*/
 //        ArrayList<AID> childAndPseudoChildrenAIDList = new ArrayList<AID>();
 //        childAndPseudoChildrenAIDList.addAll(agent.getChildrenAIDList());
@@ -426,7 +374,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 //        }
 //        
 //        agent.setCurrentFunctionListDPOP(currentFunctionList);
-	    agent.setCurrentFunctionListDPOP(agent.getFunctionList());
+	    agent.setCurrentFunctionListDPOP(funcList);
 	}
 	
 	//constraintTableAtEachTSMap is constructed in collapsing table (decision and random)
@@ -544,24 +492,119 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 //		agent.getCurrentTableListDPOP().add(switchingCostTable);
 //	}
 	
-	public PiecewiseFunction addPiecewiseFunction(PiecewiseFunction func1, PiecewiseFunction func2) {
-	    PiecewiseFunction pwFunc = new PiecewiseFunction(-1, -1);
+	public PiecewiseFunction addBinaryPiecewiseFunctions(PiecewiseFunction binaryPw1, PiecewiseFunction binaryPw2) {
+        PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
+        List<Function> binaryList1 = binaryPw1.getFunctionList();
+        List<Function> binaryList2 = binaryPw2.getFunctionList();
+
+        Set<Double> binaryRange1 = binaryPw1.getSegmentedRange();
+        Set<Double> binaryRange2 = binaryPw2.getSegmentedRange();
+        binaryRange1.addAll(binaryRange2);
+        List<Double> rangeList = new ArrayList<>(binaryRange1);
+
+        BinaryFunction binaryFunc1 = new BinaryFunction(null, null);
+        BinaryFunction binaryFunc2 = new BinaryFunction(null, null);
+	 
+        for (int i = 0; i < rangeList.size() - 1; i++) {
+            double a = rangeList.get(i);
+            double b = rangeList.get(i+1);
+            for (Function f : binaryList1) {
+                if (f.isInRange(a, b)) {
+                    binaryFunc1 = (BinaryFunction) f;
+                    break;
+                }
+                binaryFunc1 = null;
+            }
+            
+            for (Function f : binaryList2) {
+                if (f.isInRange(a, b)) {
+                    System.out.println("Unary function: " + f);
+                    binaryFunc2 = (BinaryFunction) f;
+                    break;
+                }
+                binaryFunc2 = null;
+            }
+
+            BinaryFunction newBinaryFunction = new BinaryFunction(binaryFunc1);
+            newBinaryFunction = newBinaryFunction.addNewBinaryFunction(binaryFunc2, new Interval(a, b),
+                    binaryFunc2.getOtherInterval(), binaryFunc2.getSelfAgent(), binaryFunc2.getOtherAgent());
+            pwFunc.addNewFunction(newBinaryFunction);
+        }
+        
+        return pwFunc;
+	}
+	
+    public PiecewiseFunction addBinaryAndUnaryPiecewiseFunctions(PiecewiseFunction binaryPw,
+            PiecewiseFunction unaryPw) {
+//	    System.out.println("BEFORE ADDING: ");
+//	    System.out.println("BINARY: " + binaryPw);
+//	    System.out.println("UNARY: " + unaryPw);
+
+	    PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
+	    List<Function> binaryList = binaryPw.getFunctionList();
+	    List<Function> unaryList = unaryPw.getFunctionList();
+	    
+	    Set<Double> binaryRange = binaryPw.getSegmentedRange();
+        Set<Double> unaryRange = unaryPw.getSegmentedRange();
+        binaryRange.addAll(unaryRange);
+        List<Double> rangeList = new ArrayList<>(binaryRange);
+        
+        BinaryFunction binaryFunc = new BinaryFunction(null, null);
+        UnaryFunction unaryFunc = new UnaryFunction(null, null);
+        
+        for (int i = 0; i < rangeList.size() - 1; i++) {
+            double a = rangeList.get(i);
+            double b = rangeList.get(i+1);
+            for (Function f : binaryList) {
+                if (f.isInRange(a, b)) {
+                    binaryFunc = (BinaryFunction) f;
+                    break;
+                }
+                binaryFunc = null;
+            }
+            
+            for (Function f : unaryList) {
+                if (f.isInRange(a, b)) {
+                    unaryFunc = (UnaryFunction) f;
+                    break;
+                }
+                unaryFunc = null;
+            }
+
+            BinaryFunction newBinaryFunction = new BinaryFunction(binaryFunc);
+            newBinaryFunction = newBinaryFunction.addNewFunction(unaryFunc, new Interval(a, b),
+                    binaryFunc.getOtherInterval(), unaryFunc.getSelfAgent(), binaryFunc.getOtherAgent());
+            pwFunc.addNewFunction(newBinaryFunction);
+        }
+        
+        return pwFunc;
+	}
+	
+	
+	public PiecewiseFunction addUnaryPiecewiseFunctions(PiecewiseFunction func1, PiecewiseFunction func2) {
+	    PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
 	    List<Function> functionList1 = func1.getFunctionList();
 	    List<Function> functionList2 = func2.getFunctionList();
 	    
+	    //TODO double check this part
 	    Set<Double> range1 = func1.getSegmentedRange();
 	    Set<Double> range2 = func2.getSegmentedRange();
 	    range1.addAll(range2);
 	    List<Double> rangeList = new ArrayList<>(range1);
 	    
-	    UnaryFunction f1 = new UnaryFunction(-1, -1);
-	    UnaryFunction f2 = new UnaryFunction(-1, -1);
+//	    System.out.println("Range list " + rangeList);
+	    
+	    UnaryFunction f1 = new UnaryFunction(null, null);
+	    UnaryFunction f2 = new UnaryFunction(null, null);
 	    
 	    for (int i = 0; i < rangeList.size() - 1; i++) {
 	        double a = rangeList.get(i);
 	        double b = rangeList.get(i+1);
-	        for (Function f:functionList1) {
-	            if (((UnaryFunction) f).isInRange(a, b)) {
+	        for (Function f : functionList1) {
+//	            if (((UnaryFunction) f).isInRange(a, b)) {
+	            if (f.isInRange(a, b)) {
+//	                System.out.println("function f1 in range: " + f);
+//	                System.out.println(a + " " + b);
 	                f1 = (UnaryFunction) f;
 	                break;
 	            }
@@ -569,12 +612,18 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	        }
 	        
             for (Function f : functionList2) {
-                if (((UnaryFunction) f).isInRange(a, b)) {
+//                System.out.println("function f2 : " + f);
+//                if (((UnaryFunction) f).isInRange(a, b)) {
+                if (f.isInRange(a, b)) {
                     f2 = (UnaryFunction) f;
                     break;
                 }
                 f2 = null;
             }
+            
+//            System.out.println("Range " + a + " " + b );
+//            System.out.println(f1);
+//            System.out.println(f2);
 
             UnaryFunction newFunction = new UnaryFunction(f1);
             newFunction = newFunction.addNewUnaryFunction(f2, new Interval(a, b), f2.getSelfAgent(), -1);
@@ -617,16 +666,6 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 			indexContainedInCommonList2.add(table2.getDecVarLabel().indexOf(variable));
 		}
 		
-//		for (int i=0; i<table1.getDecVarLabel().size(); i++) {
-//			if (commonVariables.contains(table1.getDecVarLabel().get(i)))
-//				indexContainedInCommonList1.add(i);
-//		}
-//		
-//		for (int i=0; i<table2.getDecVarLabel().size(); i++) {
-//			if (commonVariables.contains(table2.getDecVarLabel().get(i)))
-//				indexContainedInCommonList2.add(i);
-//		}
-		
 		//create returnTable
 		//join label
 		ArrayList<Double> joinedLabelTable1FirstThenTable2 = getJoinLabel(table1.getDecVarLabel(), table2.getDecVarLabel()
@@ -646,20 +685,6 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	}
 	
 	ArrayList<Double> getCommonVariables(ArrayList<Double> variableList1, ArrayList<Double> variableList2) {
-//		ArrayList<String> commonVariableList = new ArrayList<String>();
-//		
-//		for (String variable1:variableList1)
-//			for (String variable2:variableList2) {
-//				//check if equal agents, and if list contains agent or not
-//				//if (variable1.equals(variable2) && isContainVariable(commonVariableList, variable1) == false)
-//				if (variable1.equals(variable2) && !commonVariableList.contains(variable1)) {	
-//					commonVariableList.add(variable1);
-//					break;
-//				}
-//			}
-//		
-//		return commonVariableList;
-		
 		ArrayList<Double> commonVariableList = new ArrayList<Double>(variableList1);
 		commonVariableList.retainAll(variableList2);
 		
@@ -689,13 +714,6 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	
 	public Row getJoinRow(Row row1, Row row2, ArrayList<Integer> indexList1, 
 			  ArrayList<Integer> indexList2) {
-//		if (!agent.isLeaf()) {
-//		    System.out.println(row1.getValueList());
-//	        System.out.println(indexList1);
-//            System.out.println(row2.getValueList());
-//            System.out.println(indexList2);
-//            System.out.println("====================");
-//		}
 	    
 	    //check if same size
 		if (indexList1.size() != indexList2.size()) {
@@ -876,7 +894,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
         PiecewiseFunction function = listFunction.get(0);
 
         for (int i = 1; i < size; i++) {
-            function = addPiecewiseFunction(function, listFunction.get(i));
+            function = addUnaryPiecewiseFunctions(function, listFunction.get(i));
         }
 
         return function;

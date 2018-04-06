@@ -6,13 +6,9 @@ import static java.nio.file.StandardOpenOption.CREATE;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.DecimalFormat;
-
-import agent.DCOP;
 
 public class Utilities {	
 	public static String headerLine = "InstanceID" + "\t" + "Alg" + "\t" + "Decision"

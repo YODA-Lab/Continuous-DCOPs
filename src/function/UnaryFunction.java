@@ -20,9 +20,9 @@ public class UnaryFunction extends Function implements Serializable {
     private double b;
     private double c;
         
-    private Interval selfInterval;
+//    private Interval selfInterval;
 
-    public UnaryFunction(double selfAgent, double otherAgent) {
+    public UnaryFunction(String selfAgent, String otherAgent) {
         super(selfAgent, otherAgent);
         a = 0;
         b = 0;
@@ -37,13 +37,8 @@ public class UnaryFunction extends Function implements Serializable {
         c = f.getC();
         selfInterval = new Interval(f.getSelfInterval().getLowerBound(), f.getSelfInterval().getUpperBound());
     }
-    
-    public boolean isInRange(double a, double b) {
-        return Double.compare(a,selfInterval.getLowerBound()) <= 0 
-                && Double.compare(selfInterval.getUpperBound(), b) <= 0;
-    }
 
-    public UnaryFunction(UnaryFunction f1, Interval interval, double selfAgent, double otherAgent) {
+    public UnaryFunction(UnaryFunction f1, Interval interval, String selfAgent, String otherAgent) {
         super(selfAgent, otherAgent);
         this.a = f1.getA();
         this.b = f1.getB();
@@ -51,7 +46,7 @@ public class UnaryFunction extends Function implements Serializable {
         this.selfInterval = new Interval(interval.getLowerBound(), interval.getUpperBound());
     }
     
-    public UnaryFunction(double a, double b, double c, Interval interval, double selfAgent, double otherAgent) {
+    public UnaryFunction(double a, double b, double c, Interval interval, String selfAgent, String otherAgent) {
         super(selfAgent, otherAgent);
         this.a = a;
         this.b = b;
@@ -65,8 +60,8 @@ public class UnaryFunction extends Function implements Serializable {
         this.c += c;
     }
     
-    public UnaryFunction addNewUnaryFunction(UnaryFunction f, Interval interval, double agentOwner, double dummyAgent) {
-        return new UnaryFunction(a + f.getA(), b + f.getB(), c + f.getC(), interval, agentOwner, -1.0);
+    public UnaryFunction addNewUnaryFunction(UnaryFunction f, Interval interval, String agentOwner, double dummyAgent) {
+        return new UnaryFunction(a + f.getA(), b + f.getB(), c + f.getC(), interval, agentOwner, null);
     }
     
     public double getMax() {
@@ -91,6 +86,7 @@ public class UnaryFunction extends Function implements Serializable {
         else return (-b / (2 * a));
     }
     
+    @Override
     public double evaluate(double x) {
         return a * Math.pow(x, 2) + b * x + c;
     }
@@ -119,16 +115,16 @@ public class UnaryFunction extends Function implements Serializable {
         this.c = c;
     }
 
-    public Interval getSelfInterval() {
-        return selfInterval;
-    }
-
-    public void setSelfInterval(Interval selfInterval) {
-        this.selfInterval = selfInterval;
-    }
+//    public Interval getSelfInterval() {
+//        return selfInterval;
+//    }
+//
+//    public void setSelfInterval(Interval selfInterval) {
+//        this.selfInterval = selfInterval;
+//    }
     
     @Override
     public String toString() {
-        return a + " X^2 " + b + " X " + c + "\t" + selfInterval;
+        return a + " X^2 " + b + " X " + c + "\t" + selfInterval + "\t" + selfAgent;
     }
 }
