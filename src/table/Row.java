@@ -2,6 +2,7 @@ package table;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Row implements Serializable {
 	
@@ -10,9 +11,9 @@ public class Row implements Serializable {
 	 */
 	private static final long serialVersionUID = -7773374424812673056L;
 	int variableCount;
-	ArrayList<Double> valueList;
+	List<Double> valueList;
 	int randomCount;
-	ArrayList<Double> randomList;
+	List<Double> randomList;
 	double utility;
 	
 	public Row() {
@@ -26,19 +27,19 @@ public class Row implements Serializable {
 		//copy value list from newRow
 		this.valueList = new ArrayList<Double>();
 		for (Double value:newRow.getValueList()) {
-			this.valueList.add(new Double(value));
+			this.valueList.add(value);
 		}
 	}
 	
 	//input: X1, X2, X3,...,Xn
 	//input utility
-	public Row(ArrayList<Double> input, double utility) {
+	public Row(List<Double> input, double utility) {
 		this.valueList = input;
 		this.variableCount = input.size();
 		this.utility = utility;
 	}
 	
-	public Row(ArrayList<Double> decisionVariableList, ArrayList<Double> randVariableList, double utility) {
+	public Row(List<Double> decisionVariableList, List<Double> randVariableList, double utility) {
 		this.valueList = decisionVariableList;
 		this.randomList = randVariableList;
 		this.variableCount = decisionVariableList.size();
@@ -46,7 +47,7 @@ public class Row implements Serializable {
 		this.utility = utility;
 	}
 	
-	public Row(ArrayList<Double> decisionAndRandomList, int noDecision, double utility) {
+	public Row(List<Double> decisionAndRandomList, int noDecision, double utility) {
 		for (int i = 0; i < noDecision; i++) {
 			this.valueList.add(decisionAndRandomList.get(i));
 		}
@@ -98,27 +99,27 @@ public class Row implements Serializable {
 		System.out.println("utility " + utility);
 	}
 	
-	public boolean equalDecisionVar(Object rowToCompare) {
-		// If the object is compared with itself then return true  
-        if (rowToCompare == this) {
-            return true;
-        }
- 
-        if (!(rowToCompare instanceof Row)) {
-            return false;
-        }
-        
-        // typecast o to Complex so that we can compare data members 
-        Row castedTypeRow = (Row) rowToCompare;
-        
-        if (castedTypeRow.getVariableCount() != this.variableCount)
-        	System.err.println("Different number of variable count: " + this.variableCount + " " + 
-        							castedTypeRow.getRandomCount());
-         
-        // Compare the data members and return accordingly 
-        return 	castedTypeRow.randomCount == this.randomCount
-        	&&	castedTypeRow.randomList.equals(this.randomList);
-	}
+//	public boolean equalDecisionVar(Object rowToCompare) {
+//		// If the object is compared with itself then return true  
+//        if (rowToCompare == this) {
+//            return true;
+//        }
+// 
+//        if (!(rowToCompare instanceof Row)) {
+//            return false;
+//        }
+//        
+//        // typecast o to Complex so that we can compare data members 
+//        Row castedTypeRow = (Row) rowToCompare;
+//        
+//        if (castedTypeRow.getVariableCount() != this.variableCount)
+//        	System.err.println("Different number of variable count: " + this.variableCount + " " + 
+//        							castedTypeRow.getRandomCount());
+//         
+//        // Compare the data members and return accordingly 
+//        return 	castedTypeRow.randomCount == this.randomCount
+//        	&&	castedTypeRow.randomList.equals(this.randomList);
+//	}
 	
 	@Override
     public boolean equals(Object rowToCompare) {
@@ -130,8 +131,7 @@ public class Row implements Serializable {
         if (!(rowToCompare instanceof Row)) {
             return false;
         }
-         
-        // typecast o to Complex so that we can compare data members 
+          
         Row castedTypeRow = (Row) rowToCompare;
          
         // Compare the data members and return accordingly 
@@ -144,7 +144,7 @@ public class Row implements Serializable {
 		return variableCount;
 	}
 
-	public ArrayList<Double> getValueList() {
+	public List<Double> getValueList() {
 		return valueList;
 	}
 
@@ -152,7 +152,7 @@ public class Row implements Serializable {
 		return randomCount;
 	}
 
-	public ArrayList<Double> getRandomList() {
+	public List<Double> getRandomList() {
 		return randomList;
 	}
 

@@ -19,7 +19,6 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 	}
 	
 	public AID returnAndRemoveNeighborCurrentBestInfo() {
-		
 		double maxInfo = Integer.MIN_VALUE;
 		AID agentWithBestInfo = null;
 		
@@ -42,7 +41,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 			AID childrenWithBestInfo = returnAndRemoveNeighborCurrentBestInfo();
 			agent.getChildrenAIDList().add(childrenWithBestInfo);
 			
-			//send an CHILD message to randomChosenNeighborAID
+			//send an CHILD message to childrenWithBestInfo
 			ACLMessage childMessage = new ACLMessage(PSEUDOTREE);
 			childMessage.setContent("CHILD");
 			childMessage.addReceiver(childrenWithBestInfo);
@@ -66,7 +65,6 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 					//set parent
 					agent.setParentAID(sender);
 //					agent.getParentAndPseudoStrList().add(sender.getLocalName());
-
 				}//end of first IF
 				else if (receivedMessage.getContent().equals("CHILD") && agent.getConstraintInfoMap().containsKey(sender)) {
 					//remove sender from open_neighbors and add to pseudo_children
@@ -100,7 +98,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 					AID childrenWithBestInfo = returnAndRemoveNeighborCurrentBestInfo();
 					agent.getChildrenAIDList().add(childrenWithBestInfo);
 					
-					//send the message to y0
+					//send the message to childrenWithBestInfo
 					ACLMessage childMsg = new ACLMessage(PSEUDOTREE);
 					childMsg.setContent("CHILD");
 					childMsg.addReceiver(childrenWithBestInfo);

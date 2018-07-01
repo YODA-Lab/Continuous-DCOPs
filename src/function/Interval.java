@@ -1,8 +1,7 @@
 package function;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class Interval implements Serializable {
     /**
@@ -13,8 +12,15 @@ public class Interval implements Serializable {
     private double upperBound;
     
     public Interval() {
-        lowerBound = 0;
-        upperBound = 0;
+    }
+    
+    /**
+     * Copied constructor
+     * @param object the object to be copied
+     */
+    public Interval(Interval object) {
+        this.lowerBound = object.getLowerBound();
+        this.upperBound = object.getUpperBound();
     }
     
     public Interval(double lowerBound, double upperBound) {
@@ -24,6 +30,10 @@ public class Interval implements Serializable {
 
     public double getLowerBound() {
         return lowerBound;
+    }
+    
+    public double midValue() {
+      return 0.5 * (lowerBound + upperBound);
     }
 
     public void setLowerBound(double lowerBound) {
@@ -38,16 +48,16 @@ public class Interval implements Serializable {
         this.upperBound = upperBound;
     }  
     
-    public List<Interval> divideIntoSmaller(int numberOfIntervals) {
-        List<Interval> intervalList = new ArrayList<Interval>();
+    /**
+     * @param numberOfIntervals the number of intervals, size of the returned list
+     * @return a list of separated intervals in the ascending order
+     */
+    public List<Interval> separateIntoAListOfIntervals(int numberOfIntervals) {
+        List<Interval> intervalList = new ArrayList<>();
         double increment = (upperBound - lowerBound) / numberOfIntervals;
         double currentLB = lowerBound;
-        for (int i = 0; i < numberOfIntervals; i++) {
-            Interval itv;
-            itv = (i != numberOfIntervals - 1) ? new Interval(currentLB, currentLB + increment)
-                    : new Interval(currentLB, upperBound);
-            
-            intervalList.add(itv);
+        for (int i = 0; i < numberOfIntervals; i++) {          
+            intervalList.add(new Interval(currentLB, currentLB + increment));
             currentLB += increment;
         }
         return intervalList;
@@ -56,5 +66,21 @@ public class Interval implements Serializable {
     @Override
     public String toString() {
         return "[" + lowerBound + ", " + upperBound + "]";
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) return true;
+        if (!(o instanceof Interval)) {
+            return false;
+        }
+        Interval interval = (Interval) o;
+        return Double.compare(this.lowerBound, interval.getLowerBound()) == 0 &&
+                Double.compare(this.upperBound, interval.getUpperBound()) == 0;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(lowerBound, upperBound);
     }
 }

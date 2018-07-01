@@ -6,12 +6,11 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
-import java.util.Random;
 
 import behaviour.AGENT_TERMINATE;
 import behaviour.BROADCAST_RECEIVE_HEURISTIC_INFO;
@@ -19,13 +18,12 @@ import behaviour.DPOP_UTIL;
 import behaviour.PSEUDOTREE_GENERATION;
 
 import behaviour.SEARCH_NEIGHBORS;
-
-import function.BinaryFunction;
 import function.Interval;
-import function.PiecewiseFunction;
+import function.binary.PiecewiseFunction;
+import function.binary.QuadraticBinaryFunction;
 import table.Row;
 import table.Table;
-import transition.TransitionFunction;
+
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.SequentialBehaviour;
@@ -67,15 +65,15 @@ public class DCOP extends Agent implements DcopInfo {
 	
 	private static final long serialVersionUID = 2919994686894853596L;
 	
-    public int algorithm;
-    public int h;   //timeStep where the Markov chain is converged
-    public String inputFileName;
+  public int algorithm;
+  public int h;   //timeStep where the Markov chain is converged
+  public String inputFileName;
 	public String varDecisionFileName;
 	public int domainMax; //from 0 - domain
 	public Interval globalInterval;
 
-	private Map<String, ArrayList<Double>> bestValueMap;
-	private Map<String, ArrayList<Double>> agentView_DPOP_TSMap;
+	private Map<String, List<Double>> bestValueMap;
+	private Map<String, List<Double>> agentView_DPOP_TSMap;
 
 	private String idStr;
 	private boolean isRoot;
@@ -94,10 +92,10 @@ public class DCOP extends Agent implements DcopInfo {
 	private List<Table> constraintTableWithoutRandomList;
 	private List<Table> organizedConstraintTableList;
 	
-	private HashMap<String, ArrayList<String>> decisionVariableDomainMap;
+	private HashMap<String, List<String>> decisionVariableDomainMap;
 	//map TS -> constraint table list (if local_search)
 	//map TS -> 1 collapsed table list (if collapsed dpop)
-	private HashMap<Integer, ArrayList<Table>> constraintTableAtEachTSMap;
+	private HashMap<Integer, List<Table>> constraintTableAtEachTSMap;
 	private Table collapsedSwitchingCostTable;
 	
 	//VALUE phase
@@ -105,42 +103,41 @@ public class DCOP extends Agent implements DcopInfo {
 	
 	//used for LOCAL SEARCH
 	private HashMap<Integer, Double> valueAtEachTSMap;
-	//ArrayList<Double> utilityAtEachTSList;
+	//List<Double> utilityAtEachTSList;
 	//agent -> <values0, values1, ..., values_n>
-    private ArrayList<Double> currentGlobalUtilityList;
-    private ArrayList<String> bestImproveValueList;
-    private double currentGlobalUtility;
-    private double totalGlobalUtility;
-    private double utilFromChildrenLS;
-		
-    private Table agentViewTable;
-    private Double chosenValue;
-    private HashMap<Integer, String> pickedRandomMap;
+  private List<Double> currentGlobalUtilityList;
+  private List<String> bestImproveValueList;
+  private double currentGlobalUtility;
+  private double totalGlobalUtility;
+  private double utilFromChildrenLS;
+	
+  private Table agentViewTable;
+  private Double chosenValue;
+  private HashMap<Integer, String> pickedRandomMap;
 
 	private int currentTS;
 	
-    private long startTime;
-    private long endTime;
-    private long currentUTILstartTime;
+  private long startTime;
+  private long endTime;
+  private long currentUTILstartTime;
 	private int lsIteration;
 
 	//simulated time
 	private ThreadMXBean bean;
-    private long simulatedTime = 0;
-    private long currentStartTime;
-    private static long delayMessageTime = 0;
-    
-    //for reuse information
-    private HashMap<AID, Integer> constraintInfoMap;
-    private boolean notVisited = true;
+  private long simulatedTime = 0;
+  private long currentStartTime;
+  private static long delayMessageTime = 0;
+  
+  //for reuse information
+  private HashMap<AID, Integer> constraintInfoMap;
+  private boolean notVisited = true;
 	
-//	ArrayList<String> neighborWithRandList;
+//	List<String> neighborWithRandList;
 	
-    //for writing file
-    private double oldLSUtility = 0;
+  private double oldLSUtility = 0;
 	private double oldLSRunningTime = 0; //old running time because compare to see if old iteration is converged
 	private boolean stop = false;
-	public int noAgent;
+
 	private double utilityAndCost;
 	private String lastLine;
 	
@@ -148,6 +145,10 @@ public class DCOP extends Agent implements DcopInfo {
 	private PiecewiseFunction agentViewFunction;
 	private List<PiecewiseFunction> currentFunctionListDPOP;
 
+	// for writing output purposes
+	public int instanceID;
+	public int noAgent;
+	
 	public DCOP() {
 		initializeArguments();
 		isRoot = false;
@@ -157,32 +158,32 @@ public class DCOP extends Agent implements DcopInfo {
 		utilFromChildrenLS = 0;
 		currentTS = 0;
 		functionList = new ArrayList<>();
+    idStr = getLocalName();
+    h = 0;
 	}
 	
 	//done with LS-RAND
 	public void readArguments() {
-    	Object[] args = getArguments();
+	  Object[] args = getArguments();
 		//parameters for running experiments
-		algorithm = Integer.valueOf((String) args[0]);
+		algorithm = DPOP;
 //		inputFileName = "rep_6_d8.dzn";
 		inputFileName = (String) args[1];
 		
-//		String a[] = inputFileName.replaceAll("rep_","").replaceAll(".dzn","").split("_d");
-//		noAgent = Integer.valueOf(a[1]);
-		noAgent = 4;
-		idStr = getLocalName();
-		h = 0;
+		String a[] = inputFileName.replaceAll("rep_","").replaceAll(".dzn","").split("_d");
+		instanceID = Integer.parseInt(a[0]);
+    noAgent = Integer.parseInt(a[0]);
 		
-//		agentView_DPOP_TSMap.put("next", new ArrayList<Double>());
-//		agentView_DPOP_TSMap.put("further", new ArrayList<Double>());
+//		agentView_DPOP_TSMap.put("next", new List<Double>());
+//		agentView_DPOP_TSMap.put("further", new List<Double>());
 		
 		//can be done after getting the algorithm
-		if (algorithm == DPOP) {
-			constraintTableAtEachTSMap.put(0, new ArrayList<Table>());
-		}
-		else if (algorithm == DSA) {
-			constraintTableAtEachTSMap.put(0, new ArrayList<Table>());
-		}
+//		if (algorithm == DPOP) {
+//			constraintTableAtEachTSMap.put(0, new ArrayList<Table>());
+//		}
+//		else if (algorithm == DSA) {
+//			constraintTableAtEachTSMap.put(0, new ArrayList<Table>());
+//		}
 	}
 	
     protected void setup() {
@@ -245,7 +246,7 @@ public class DCOP extends Agent implements DcopInfo {
 //			addConstraintTableToListAllTS();
 		}		
 		else if (algorithm == DSA) {
-			addConstraintTableToListAllTS();
+//			addConstraintTableToListAllTS();
 		}
 		
 
@@ -294,14 +295,14 @@ public class DCOP extends Agent implements DcopInfo {
 		currentTableListDPOP = new ArrayList<>();
 		constraintTableWithoutRandomList = new ArrayList<>();
 		organizedConstraintTableList = new ArrayList<>();
-		decisionVariableDomainMap = new HashMap<String, ArrayList<String>>();
-		constraintTableAtEachTSMap = new HashMap<Integer, ArrayList<Table>>();
+		decisionVariableDomainMap = new HashMap<String, List<String>>();
+		constraintTableAtEachTSMap = new HashMap<Integer, List<Table>>();
 		valueAtEachTSMap = new HashMap<Integer, Double>();
 
-		bestValueMap = new HashMap<String, ArrayList<Double>>();
+		bestValueMap = new HashMap<String, List<Double>>();
 		bestValueMap.put("next", new ArrayList<>());
 		bestValueMap.put("further", new ArrayList<>());
-		agentView_DPOP_TSMap = new HashMap<String, ArrayList<Double>>();
+		agentView_DPOP_TSMap = new HashMap<String, List<Double>>();
 
 		currentGlobalUtilityList = new ArrayList<>();
 		bestImproveValueList = new ArrayList<String>();
@@ -311,23 +312,10 @@ public class DCOP extends Agent implements DcopInfo {
 		lastLine = "";
 	}
 	
-	// Whether Row from Processed or Non Processed is inputed from the caller
-	public int countViolated(boolean isProcess, boolean isNext, Row row, ArrayList<Double> agent_view) {
-		int count = 0;
-		int index_agentView = (isProcess == NON_PROCESSED) ? 0 : 2;
-		int index_row = (isNext == IS_NEXT) ? 0 : 2;
-		
-		ArrayList<Double> rowValueList = row.getValueList();
-
-		if (Double.compare(rowValueList.get(index_row), agent_view.get(index_agentView+1)) != 0) count++;
-		if (Double.compare(rowValueList.get(index_row+1), agent_view.get(index_agentView)) != 0) count++;
-		
-		return count;
-	}
-	
-	ArrayList<ArrayList<String>> getAllTupleValueOfGivenLabel(ArrayList<String> varLabel, boolean isDecVar) {
-		ArrayList<ArrayList<String>> allTuple = new ArrayList<ArrayList<String>>();
-		ArrayList<Integer> sizeDomainList = new ArrayList<Integer>();
+	@SuppressWarnings("unused")
+  private List<List<String>> getAllTupleValueOfGivenLabel(List<String> varLabel, boolean isDecVar) {
+		List<List<String>> allTuple = new ArrayList<List<String>>();
+		List<Integer> sizeDomainList = new ArrayList<Integer>();
 		int totalSize = 1;
 		for (String randVar:varLabel) {
 			int domainSize = 0;
@@ -345,7 +333,7 @@ public class DCOP extends Agent implements DcopInfo {
 		
 		//go from 0 to totalSize
 		for (int count=0; count<totalSize; count++) {
-			ArrayList<String> valueTuple = new ArrayList<String>();
+			List<String> valueTuple = new ArrayList<String>();
 			int quotient = count;
 			//for each value count, decide the index of each column, then add to the tuple
 			for (int varIndex = noVar-1; varIndex>=0; varIndex--) {
@@ -372,7 +360,7 @@ public class DCOP extends Agent implements DcopInfo {
 	}
 	
 	boolean isConstraintTableAtEachTSMapNull(int indexInConstraintTableMap) {
-		ArrayList<Table> tableList = constraintTableAtEachTSMap.get(indexInConstraintTableMap);
+		List<Table> tableList = constraintTableAtEachTSMap.get(indexInConstraintTableMap);
 		if (tableList == null)	return true;
 		else	
 			return false;
@@ -381,7 +369,7 @@ public class DCOP extends Agent implements DcopInfo {
 	public void addConstraintTableToList(int timeStep) {
 		// traverse table in organizedConstraintTableList
 		for (Table decTable : organizedConstraintTableList) {
-			ArrayList<Double> decLabel = decTable.getDecVarLabel();
+			List<Double> decLabel = decTable.getDecVarLabel();
 			// for each table, run time step from 0 to allowed
 			// for (int tS=0; tS<=solveTimeStep; tS++) {
 			Table newTable = new Table(decLabel);
@@ -395,261 +383,11 @@ public class DCOP extends Agent implements DcopInfo {
 			constraintTableAtEachTSMap.get(timeStep).add(newTable);
 		}
 	}
-	public void addConstraintTableToListAllTS() {		
-		//traverse table in organizedConstraintTableList
-		for (Table decTable:organizedConstraintTableList) {
-			ArrayList<Table> tableAtTSList = new ArrayList<Table>();
-			ArrayList<Double> decLabel = decTable.getDecVarLabel();
-			//for each table, run time step from 0 to allowed
-			for (int tS=0; tS<=h; tS++) {
-				Table newTable = new Table(decLabel);
-				
-				//at each timeStep, traverse rows
-				for (Row row:decTable.getTable()) {
-					double updatedUtility = 0;
-					updatedUtility = row.getUtility();
-					newTable.addRow(new Row(row.getValueList(), updatedUtility));
-				}
-				if (algorithm == DPOP) {
-					tableAtTSList.add(newTable);
-				}
-				else if (algorithm == DSA) {
-					constraintTableAtEachTSMap.get(tS).add(newTable);
-				}
-//				else if (algorithm == LS_RAND) { 
-//					constraintTableAtEachTSMap.get(tS).add(newTable);
-//				}
-			}
-			if (algorithm == DPOP) {
-//				constraintTableAtEachTSMap.get(0).add(joinConstraintTable(tableAtTSList));
-                constraintTableAtEachTSMap.get(0).add(tableAtTSList.get(0));
-			}
-		}
-	}
 	
-	//they have the same entry, only different utility
-//	public Table joinConstraintTable(ArrayList<Table> tableList) {
-//		if (tableList.size() == 0) return null;
-//		Table joinedTable = new Table(tableList.get(0).getDecVarLabel());
-//		int noVar = tableList.get(0).getDecVarLabel().size();
-//		int entryNumber = tableList.get(0).getRowCount();
-//		int noTable = tableList.size();
-//		int totalSize = (int) Math.pow(entryNumber, noTable);
-//		
-//		for (int count=0; count<totalSize; count++) {
-//			ArrayList<Double> valueTuple = new ArrayList<Double>(noVar);
-//			for (int i=0; i<noVar; i++) valueTuple.add("");
-//			double sumUtility = 0;
-//			int quotient = count;
-//			//for each table count, decide the index of each column, then add to the tuple
-//			for (int tableIndex = noTable-1; tableIndex>=0; tableIndex--) {
-//				int remainder = quotient%entryNumber;
-//				quotient = quotient/entryNumber;
-//				Row row = tableList.get(tableIndex).getTable().get(remainder);
-//				sumUtility += row.getUtility();
-//				ArrayList<Double> valueList = row.getValueList();
-//				for (int idx=0; idx<valueList.size(); idx++) {
-//					valueTuple.set(idx, valueList.get(idx) + "," + valueTuple.get(idx));
-//				}
-//			}
-//			for (int idx=0; idx<valueTuple.size(); idx++) {
-//				valueTuple.set(idx, valueTuple.get(idx).substring(0, valueTuple.get(idx).length()-1));
-//			}
-//			joinedTable.addRow(new Row(valueTuple, sumUtility));
-//		}
-//	
-//		return joinedTable;
-//	}
-
-//	public void addExpectedRandomTableToList(int timeStep) {
-//		//loop over number of each organized constraint random table
-//		for (Table randTable:organizedConstraintTableWithRandomList) {
-//			ArrayList<String> decLabel = randTable.getDecVarLabel();
-//			ArrayList<String> randLabel = randTable.getRandVarLabel();
-//			
-//			int randDomainSize = 1;
-//			for (String randVar:randLabel) {
-//				randDomainSize *= randomVariableDomainMap.get(randVar).size();
-//			}
-//							
-//			Table tempTable;				
-//			tempTable = randTable;
-//			Table newTable = new Table(decLabel);
-//			double expectedUtility = 0;
-//			//traverse rows
-//			for (int index=0; index<tempTable.getRowCount(); index++) {
-//				Row row = tempTable.getTable().get(index);
-//				ArrayList<String> decValueList = row.getValueList();
-//				ArrayList<String> randValueList = row.getRandomList();
-//				double initProb = 1;
-//				for (int idx=0; idx<randLabel.size(); idx++) {
-//					String rand = randLabel.get(idx);
-//					initProb *= probabilityAtEachTimeStepMap.
-//							get(rand)[timeStep][randomVariableDomainMap.get(rand).
-//										  indexOf(randValueList.get(idx))];
-//				}
-//				expectedUtility += initProb*row.getUtility();
-//				
-//				//last turn
-//				if (index%randDomainSize == randDomainSize-1) {
-//					Row newRow = null;
-//					newRow = new Row(decValueList, expectedUtility);
-//					newTable.addRow(newRow);
-//					expectedUtility = 0;
-//				}
-//			//end of traversing row
-//			}
-//			constraintTableAtEachTSMap.get(timeStep).add(newTable);
-//		//end of traversing random table
-//		}
-//	
-//	}
-	
-	//initializing constraintTableAtEachTimeStepMap(timeStep, listOfTables)
-	//calculate expected utility, and eliminate random variables
-//	public void addExpectedRandomTableToListAllTS() {		
-//		//loop over number of each organized constraint random table
-//		for (Table randTable:organizedConstraintTableWithRandomList) {
-//			ArrayList<Table> tableAtTSList = new ArrayList<Table>();
-//			ArrayList<String> decLabel = randTable.getDecVarLabel();
-//			ArrayList<String> randLabel = randTable.getRandVarLabel();
-//			
-//			int randDomainSize = 1;
-//			for (String randVar:randLabel) {
-//				randDomainSize *= randomVariableDomainMap.get(randVar).size();
-//			}
-//			
-//			//loop over timeStep -> timeStepAllow-1
-//			for (int tS=0; tS<=h; tS++) {				
-//				Table tempTable;				
-//				tempTable = randTable;
-//				Table newTable = new Table(decLabel);
-//				double expectedUtility = 0;
-//				//traverse rows
-//				for (int index=0; index<tempTable.getRowCount(); index++) {
-//					Row row = tempTable.getTable().get(index);
-//					ArrayList<String> decValueList = row.getValueList();
-//					ArrayList<String> randValueList = row.getRandomList();
-//					double initProb = 1;
-//					for (int idx=0; idx<randLabel.size(); idx++) {
-//						String rand = randLabel.get(idx);
-//						initProb *= probabilityAtEachTimeStepMap.
-//								get(rand)[tS][randomVariableDomainMap.get(rand).
-//											  indexOf(randValueList.get(idx))];
-//					}
-//					expectedUtility += initProb*row.getUtility();
-//					
-//					//last turn
-//					if (index%randDomainSize == randDomainSize-1) {
-//						Row newRow = null;
-//						newRow = new Row(decValueList, expectedUtility);
-//						newTable.addRow(newRow);
-//						expectedUtility = 0;
-//					}
-//				//end of traversing row
-//				}
-//				if (algorithm == C_DPOP) {
-//					//add table to tableAtTSList to be joined later
-//					tableAtTSList.add(newTable);
-//				}
-//				else if (algorithm == LS_RAND) { 
-//					constraintTableAtEachTSMap.get(tS).add(newTable);
-//				}
-//				//end of loop timeStep
-//			}
-//			//at the end of traversing timeStep from 0 -> stableTimeStep,
-//			//join all of expected table, and add the joinedTable to timeStep 0
-//			//tables at last stableTimeStep been added to last time step
-//			if (algorithm == C_DPOP) {
-//				constraintTableAtEachTSMap.get(0).add(joinConstraintTable(tableAtTSList));
-//			}			
-//		//end of traversing random table
-//		}
-//	}
-	
-//	public Table collapseGivenRandomTable(Table tableWithRandom) {		
-//		Table newlyCreatedTable;
-//		ArrayList<ArrayList<String>> processedDecValues = new ArrayList<ArrayList<String>>();
-//		
-//		ArrayList<String> decVarLabel = tableWithRandom.getDecVarLabel();
-//		ArrayList<String> randVarLabel = tableWithRandom.getRandVarLabel();
-//		ArrayList<ArrayList<String>> allTupleValue = getAllTupleValueOfGivenLabel(randVarLabel, false);
-//		newlyCreatedTable = new Table(decVarLabel, randVarLabel);
-//		
-//		int noOfEquations = 1;
-//		for (String randVar:randVarLabel) {
-//			noOfEquations *= randomVariableDomainMap.get(randVar).size();
-//		}
-//
-//		//traverse each row of tableWithRandom
-//		for (Row rowToBeTraversed:tableWithRandom.getTable()) {
-//			ArrayList<String> decValueList = rowToBeTraversed.getValueList();
-//
-//			//ArrayList<String> randValueList = rowToBeTraversed.getRandomList();
-//			
-//			//check if decValueList contained in processedDecValues
-//			if (isArrayContainedInOtherArray(processedDecValues,decValueList)) {
-//
-//				continue;
-//			} //search for all values of random Variable
-//			else if (isArrayContainedInOtherArray(processedDecValues,decValueList) == false) {
-//				processedDecValues.add(decValueList);
-//				/** construct unknown equations, by add coefficients
-//				 *
-//				 * construct coefficients
-//				 *  (1-delta*prob[0,0] - delta*prob[0,1] ... - delta*prob[0,n]  = v0
-//				 *  -delta*prob[1,0] + (1-delta*prob[1,1] ...- delta*prob[1,n]  = v1
-//				 *
-//				 *  -delta*prob[n,0] - delta*prob[n,1] ... + (1-delta*prob[n,n] = v_n
-//				 **/
-//				double coefficients[][] = new double[noOfEquations][noOfEquations+1];
-//				//select rowTuple => colTuple
-//				for (int row=0; row<noOfEquations; row++) {
-//					ArrayList<String> rowTuple = allTupleValue.get(row); 
-//					//get colTuple
-//					for (int column=0; column<noOfEquations; column++) {
-//						ArrayList<String> colTuple = allTupleValue.get(column);
-//						double transProb = 1;
-//						for (int randIndex=0; randIndex < randVarLabel.size(); randIndex++) {
-//							String randVar = randVarLabel.get(randIndex);
-//							transProb = transProb * transitionFunctionMap.get(randVar).
-//									getProbByValue(rowTuple.get(randIndex),
-//													colTuple.get(randIndex));
-//						}
-//						
-//						
-//						if (row == column)
-//							coefficients[row][column] = 1 - discountFactor*transProb;
-//						else
-//							coefficients[row][column] = -discountFactor*transProb;
-//						
-//					}
-//					//set utility
-//					coefficients[row][noOfEquations] = getUtilityFromTableGivenDecAndRand(tableWithRandom, decValueList, rowTuple);
-//				}
-//				
-////				System.out.println(Arrays.deepToString(coefficients));
-//				ArrayList<Double> utilityList = gaussian(coefficients, noOfEquations);
-//				
-////				if (idStr.equals("0")) System.out.println(utilityList);
-//				//create new row with a fix dec values, but different rand values
-//				int i = 0;
-//				for (ArrayList<String> randValueToBeAddedList:allTupleValue) {
-//					Row newRow = new Row(decValueList, randValueToBeAddedList, utilityList.get(i));
-//					i++;
-//					newlyCreatedTable.addRow(newRow);
-//				}
-//			//end if: decValueList not contained
-//			}
-//		//end while: traversing table 
-//		}
-//		return newlyCreatedTable;
-//	}
-	
-	boolean isArrayContainedInOtherArray(ArrayList<ArrayList<String>> bigArray, ArrayList<String> smallArray) {
+	boolean isArrayContainedInOtherArray(List<List<String>> bigArray, List<String> smallArray) {
 		if (bigArray.size() == 0 || smallArray.size() == 0)
 			return false;
-		for (ArrayList<String> traversal:bigArray) {
+		for (List<String> traversal:bigArray) {
 			boolean isArrayFound = true;
 			if (traversal.size() != smallArray.size()) {
 				System.out.println("!!!!!!Different size!!!!!!");
@@ -669,13 +407,13 @@ public class DCOP extends Agent implements DcopInfo {
 		return false;
 	}
 
-	double getUtilityFromTableGivenDecAndRand(Table table, ArrayList<Double> decValueList, ArrayList<Double> randIterationValue) {
-		ArrayList<Row> tableToTraversed = table.getTable();
+	double getUtilityFromTableGivenDecAndRand(Table table, List<Double> decValueList, List<Double> randIterationValue) {
+		List<Row> tableToTraversed = table.getTable();
 		for (Row row:tableToTraversed) {
 			boolean isRowFound = true;
 			//System.err.println("Utility of this row " + row.getUtility());
-			ArrayList<Double> rowValueList = row.getValueList();
-			ArrayList<Double> rowRandomList= row.getRandomList();
+			List<Double> rowValueList = row.getValueList();
+			List<Double> rowRandomList= row.getRandomList();
 
 			if (rowValueList.size() != decValueList.size() || rowRandomList.size() != randIterationValue.size()) {
 				System.err.println("!!!!!!Different size!!!!!!!!!");
@@ -705,8 +443,9 @@ public class DCOP extends Agent implements DcopInfo {
 		return Integer.MIN_VALUE;
 	}
 
-	public ArrayList<Double> gaussian(double arr[][], int N) {
-		ArrayList<Double> longtermUtilityList = new ArrayList<Double>();
+	@SuppressWarnings("unused")
+  private List<Double> gaussian(double arr[][], int N) {
+		List<Double> longtermUtilityList = new ArrayList<Double>();
 		// take each line as pivot, except for the last line
 		for (int pivotIndex = 0; pivotIndex < N - 1; pivotIndex++) {
 			// go from the line below line pivotIndex, to the last line
@@ -757,7 +496,6 @@ public class DCOP extends Agent implements DcopInfo {
 		}
 		
 		return longtermUtilityList;
-
 	}
 		
 	public void sendObjectMessage(AID receiver, Object content, int msgCode) {
@@ -784,7 +522,8 @@ public class DCOP extends Agent implements DcopInfo {
 	}
 
 
-	public void printTree(boolean isRoot) {
+	@SuppressWarnings("unused")
+    private void printTree(boolean isRoot) {
 		System.out.println("************");
 		System.out.println("My ID is: " + idStr);
 		if (isRoot == false)
@@ -815,7 +554,7 @@ public class DCOP extends Agent implements DcopInfo {
 		
 		try (BufferedReader br = new BufferedReader(new FileReader(
 				System.getProperty("user.dir") + '/' + inputFileName))) {
-			ArrayList<String> lineWithSemiColonList = new ArrayList<String>();
+			List<String> lineWithSemiColonList = new ArrayList<String>();
 			
 			String line = br.readLine();
 			while (line != null) {
@@ -857,15 +596,15 @@ public class DCOP extends Agent implements DcopInfo {
 	                System.out.println("Agent " + idStr + " line " + lineWithSemiColon);
 				    
 				    lineWithSemiColon = lineWithSemiColon.replaceAll("function ", "");
-				    String coeffString[] = lineWithSemiColon.split(" ");
-				    int arr[] = parseFunction(coeffString, selfVar);
-				    BinaryFunction func = new BinaryFunction(arr[0], arr[1], arr[2], arr[3], arr[4], arr[5],
-				                              idStr, String.valueOf(arr[6]));
-				    func.setSelfInterval(globalInterval);
-                    func.setOtherInterval(globalInterval);
-                    PiecewiseFunction pwFunc = new PiecewiseFunction(idStr, String.valueOf(arr[6]));
-                    pwFunc.addNewFunction(func);
-                    functionList.add(pwFunc);
+				    String[] termStrList = lineWithSemiColon.split(" ");
+				    int[] arr = parseFunction(termStrList, selfVar);
+				    QuadraticBinaryFunction func = new QuadraticBinaryFunction(arr[0], arr[1], arr[2], arr[3], arr[4], arr[5],
+				                              idStr, String.valueOf(arr[6]), globalInterval, globalInterval);
+//				    func.setSelfInterval(globalInterval);
+//            func.setOtherInterval(globalInterval);
+            PiecewiseFunction pwFunc = new PiecewiseFunction(idStr, String.valueOf(arr[6]));
+            pwFunc.addNewFunction(func);
+            functionList.add(pwFunc);
 
 				    System.out.println("Agent " + idStr + " function " + pwFunc);
 				}
@@ -876,40 +615,52 @@ public class DCOP extends Agent implements DcopInfo {
 		}
 	}
 	
-    //function -281v_2^2 199v_2 -22v_0^2 252v_0 288v_2v_0 358;
+  //function -281v_2^2 199v_2 -22v_0^2 252v_0 288v_2v_0 358;
+	/**
+	 * @param line from input file
+	 * @param selfAgent selfAgent name
+	 * @return an array of coefficients. Make sure that the function reads its coeffcicients first
+	 */
 	public int[] parseFunction(String[] line, String selfAgent) {
-	    int coeffArray[] = new int [7];
-	    for (String str : line) {
-	        //v_1^2 or v1 or v2  
-	        if (str.contains(selfAgent)) {
-	            str = str.replace(selfAgent, "");
- 	            if (str.contains("^2")) {
- 	               coeffArray[0] = Integer.parseInt(str.replace("^2", ""));
- 	            }
- 	            else if (!str.contains("v_")) {
- 	               coeffArray[1] = Integer.parseInt(str);
- 	            }
- 	            else if (str.contains("v_")) {
- 	               coeffArray[4] = Integer.parseInt(str.split("v_")[0]);
-                   coeffArray[6] = Integer.parseInt(str.split("v_")[1]);
-                   String neighbor = String.valueOf(coeffArray[6]);
-                   if (!neighborStrList.contains(neighbor)) neighborStrList.add(neighbor);
- 	            }
-	        }
-	        else {
-               if (str.contains("^2")) {   
-                   coeffArray[2] = Integer.parseInt(str.split("v_")[0]);
-               }
-               else if (str.contains("v_")) {
-                   coeffArray[3] = Integer.parseInt(str.split("v_")[0]);
-               }
-               else {
-                   coeffArray[5] = Integer.parseInt(str);
-               }
-	        }
-	    }
-	    
-	    return coeffArray;
+    int coeffArray[] = new int [7];
+    for (String str : line) {
+      //v_1^2 or v_0v_2  
+      if (str.contains(selfAgent)) {
+          str = str.replace(selfAgent, "");
+          
+          // -281v_2^2 => -281^2
+          if (str.contains("^2")) {
+            coeffArray[0] = Integer.parseInt(str.replace("^2", ""));
+ 	        }
+          // 199v2 => 199
+          else if (!str.contains("v_")) {
+             coeffArray[1] = Integer.parseInt(str);
+          }
+          // 288v_2v_0 => 288v_0
+          else if (str.contains("v_")) {
+             coeffArray[4] = Integer.parseInt(str.split("v_")[0]);
+             // neighbor
+             coeffArray[6] = Integer.parseInt(str.split("v_")[1]);
+             String neighbor = String.valueOf(coeffArray[6]);
+             if (!neighborStrList.contains(neighbor)) neighborStrList.add(neighbor);
+          }
+      }
+      else {
+        // -22v_0^2
+        if (str.contains("^2")) {   
+          coeffArray[2] = Integer.parseInt(str.split("v_")[0]);
+        }
+        // 252v_0
+        else if (str.contains("v_")) {
+          coeffArray[3] = Integer.parseInt(str.split("v_")[0]);
+        }
+        // 358
+        else {
+          coeffArray[5] = Integer.parseInt(str);
+        }
+      }
+    }
+    return coeffArray;
 	}
 	
 	public void registerWithDF () {
@@ -935,10 +686,10 @@ public class DCOP extends Agent implements DcopInfo {
 //		double sumUtility = 0;
 //
 ////		for (int ts=0; ts<=h; ts++) {
-//			ArrayList<Table> tableList = constraintTableAtEachTSMap.get(0);
+//			List<Table> tableList = constraintTableAtEachTSMap.get(0);
 //	    	for (Table constraintTable:tableList) {
-//				ArrayList<String> decVarList = constraintTable.getDecVarLabel();
-//				ArrayList<String> decValueList = new ArrayList<String>();
+//				List<String> decVarList = constraintTable.getDecVarLabel();
+//				List<String> decValueList = new List<String>();
 //				
 //				//chi gui với constraint voi parent and pseudoparents
 //				boolean notInParentList = false;
@@ -1006,7 +757,7 @@ public class DCOP extends Agent implements DcopInfo {
 		return neighborAIDList;
 	}
 
-	public void setNeighborAIDList(ArrayList<AID> neighborAIDList) {
+	public void setNeighborAIDList(List<AID> neighborAIDList) {
 		this.neighborAIDList = neighborAIDList;
 	}
 
@@ -1014,7 +765,7 @@ public class DCOP extends Agent implements DcopInfo {
 		return neighborStrList;
 	}
 
-	public void setNeighborStrList(ArrayList<String> neighborStrList) {
+	public void setNeighborStrList(List<String> neighborStrList) {
 		this.neighborStrList = neighborStrList;
 	}
 
@@ -1090,12 +841,12 @@ public class DCOP extends Agent implements DcopInfo {
 		this.currentStartTime = currentStartTime;
 	}
 
-	public HashMap<String, ArrayList<String>> getDecisionVariableDomainMap() {
+	public HashMap<String, List<String>> getDecisionVariableDomainMap() {
 		return decisionVariableDomainMap;
 	}
 
 	public void setDecisionVariableDomainMap(
-			HashMap<String, ArrayList<String>> decisionVariableDomainMap) {
+			HashMap<String, List<String>> decisionVariableDomainMap) {
 		this.decisionVariableDomainMap = decisionVariableDomainMap;
 	}
 
@@ -1123,16 +874,16 @@ public class DCOP extends Agent implements DcopInfo {
 		return currentTableListDPOP;
 	}
 
-	public void setCurrentTableListDPOP(ArrayList<Table> currentTableListDPOP) {
+	public void setCurrentTableListDPOP(List<Table> currentTableListDPOP) {
 		this.currentTableListDPOP = currentTableListDPOP;
 	}
 
-	public HashMap<Integer, ArrayList<Table>> getConstraintTableAtEachTSMap() {
+	public HashMap<Integer, List<Table>> getConstraintTableAtEachTSMap() {
 		return constraintTableAtEachTSMap;
 	}
 
 	public void setConstraintTableAtEachTSMap(
-			HashMap<Integer, ArrayList<Table>> constraintTableAtEachTSMap) {
+			HashMap<Integer, List<Table>> constraintTableAtEachTSMap) {
 		this.constraintTableAtEachTSMap = constraintTableAtEachTSMap;
 	}
 
@@ -1172,12 +923,12 @@ public class DCOP extends Agent implements DcopInfo {
 		this.chosenValue = chosenValue;
 	}
 
-	public ArrayList<Double> getCurrentGlobalUtilityList() {
+	public List<Double> getCurrentGlobalUtilityList() {
 		return currentGlobalUtilityList;
 	}
 
 	public void setCurrentGlobalUtilityList(
-			ArrayList<Double> currentGlobalUtilityList) {
+			List<Double> currentGlobalUtilityList) {
 		this.currentGlobalUtilityList = currentGlobalUtilityList;
 	}
 
@@ -1217,12 +968,12 @@ public class DCOP extends Agent implements DcopInfo {
 		this.utilFromChildrenLS += util;
 	}
 
-	public Map<String, ArrayList<Double>> getAgentView_DPOP_TSMap() {
+	public Map<String, List<Double>> getAgentView_DPOP_TSMap() {
 		return agentView_DPOP_TSMap;
 	}
 
 	public void setAgentView_DPOP_TSMap(
-			Map<String, ArrayList<Double>> agentView_DPOP_TSMap) {
+			Map<String, List<Double>> agentView_DPOP_TSMap) {
 		this.agentView_DPOP_TSMap = agentView_DPOP_TSMap;
 	}
 
@@ -1254,11 +1005,11 @@ public class DCOP extends Agent implements DcopInfo {
 		this.lsIteration++;
 	}
 
-	public ArrayList<String> getBestImproveValueList() {
+	public List<String> getBestImproveValueList() {
 		return bestImproveValueList;
 	}
 
-	public void setBestImproveValueList(ArrayList<String> bestImproveValueList) {
+	public void setBestImproveValueList(List<String> bestImproveValueList) {
 		this.bestImproveValueList = bestImproveValueList;
 	}
 
@@ -1339,63 +1090,22 @@ public class DCOP extends Agent implements DcopInfo {
 		this.lastLine = lastLine;
 	}
 
-    public Map<String, ArrayList<Double>> getBestValueMap() {
+    public Map<String, List<Double>> getBestValueMap() {
 		return bestValueMap;
 	}
 
-	public void setBestValueMap(Map<String, ArrayList<Double>> bestValueMap) {
+	public void setBestValueMap(Map<String, List<Double>> bestValueMap) {
 		this.bestValueMap = bestValueMap;
 	}
 	
-	public double[] toArray(ArrayList<Double> arrayList) {
-		int arrSize = arrayList.size();
-		double[] convertedArray = new double[arrSize];
-		for (int i=0; i<arrSize; i++) {
-			convertedArray[i] = arrayList.get(i);
-		}
-		return convertedArray;
-	}
-	
-	public static double[] multiply(double[] vector, TransitionFunction transFunc) {
-		int size = vector.length;
-		if (size != transFunc.getSize()) {
-			System.err.println("Not a square matrix");
-			return null;
-		}
-		
-		double resultVector[] = new double[size];
-		for (int col=0; col<size; col++) {
-			for (int k=0; k<size; k++) {
-				resultVector[col] += vector[k] * transFunc.getProbByIndex(k,col);
-			}
-		}
-		
-		return resultVector;
-	}
-	
-	public boolean isNextAgent(String agentLocalName) {
-		if (Integer.valueOf(idStr) % 3 + 1 == Integer.valueOf(agentLocalName))
-			return true;
-		
-		return false;
-	}
-			
-	public Row randomChoose(Table table, double reponseTime) {
-		double chosenProcessLoad = -Double.MAX_VALUE;
-		Random rand = new Random();
-		Row chosenRow = null;
-//		System.out.println("=========SIZE " + table.getLoadMap().keySet().size());
-		int size = table.getRowListFromKey(reponseTime).size();
-		do {
-			int random = rand.nextInt(size);
-			chosenRow = table.getRowListFromKey(reponseTime).get(random);
-			chosenProcessLoad = chosenRow.getValueList().get(4);
-		}
-		while (chosenProcessLoad != reponseTime);
-				
-		return chosenRow;
-		
-	}
+//	public double[] toArray(List<Double> List) {
+//		int arrSize = List.size();
+//		double[] convertedArray = new double[arrSize];
+//		for (int i=0; i<arrSize; i++) {
+//			convertedArray[i] = List.get(i);
+//		}
+//		return convertedArray;
+//	}
 
     public List<PiecewiseFunction> getFunctionList() {
         return functionList;

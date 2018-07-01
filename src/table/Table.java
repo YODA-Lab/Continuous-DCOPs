@@ -3,6 +3,7 @@ package table;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Serializable;
+import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
@@ -18,19 +19,19 @@ public class Table implements Serializable {
 	int rowCount;
 	int variableCount;
 	int randomCount;
-	ArrayList<Row> table;
-	ArrayList<Double> decVarLabel;
-	ArrayList<Double> randVarLabel;
-//	HashMap<Double, ArrayList<Row>> loadMap;
-	HashMap<Double, ArrayList<Row>> keyMap;
+	List<Row> table;
+	List<Double> decVarLabel;
+	List<Double> randVarLabel;
+//	HashMap<Double, List<Row>> loadMap;
+	HashMap<Double, List<Row>> keyMap;
 
 	public Table(Table anotherTable) {
 		this.rowCount = anotherTable.rowCount;
 		this.variableCount = anotherTable.variableCount;
 		this.table = new ArrayList<Row>();
-//		this.decVarLabel = (ArrayList<String>) anotherTable.decVarLabel.clone();
+//		this.decVarLabel = (List<String>) anotherTable.decVarLabel.clone();
 		this.decVarLabel = new ArrayList<>();
-		ArrayList<Double> anotherTableDecVarLabel = anotherTable.getDecVarLabel();
+		List<Double> anotherTableDecVarLabel = anotherTable.getDecVarLabel();
 		for (Double label:anotherTableDecVarLabel) {
 			this.decVarLabel.add(label);
 		}
@@ -41,7 +42,7 @@ public class Table implements Serializable {
 		}
 	}
 	
-	boolean equalArray(ArrayList<?> list1, ArrayList<?> list2) {
+	boolean equalArray(List<?> list1, List<?> list2) {
 		if (list1 == null || list2 == null)
 			return false;
 		if (list1.size() != list2.size())
@@ -53,7 +54,7 @@ public class Table implements Serializable {
 		return true;
 	}
 	
-	public double getUtilityGivenDecValueList(ArrayList<Double> decValueList) {
+	public double getUtilityGivenDecValueList(List<Double> decValueList) {
 		for (int index=0; index<table.size(); index++) {
 			if (equalArray(table.get(index).getValueList(), decValueList))
 				return table.get(index).getUtility();
@@ -61,7 +62,7 @@ public class Table implements Serializable {
 		return Integer.MIN_VALUE;
 	}
 	
-	public double getUtilityGivenDecAndRandValueList(ArrayList<Double> decValueList, ArrayList<Double> randValueList) {
+	public double getUtilityGivenDecAndRandValueList(List<Double> decValueList, List<Double> randValueList) {
 		for (int index=0; index<table.size(); index++) {
 			if (equalArray(table.get(index).getValueList(), decValueList)
 			&& equalArray(table.get(index).getRandomList(), randValueList))
@@ -91,22 +92,22 @@ public class Table implements Serializable {
 //        	&&	castedTypeTable.decVarLabel == this.decVarLabel;
 //	}
 	
-	public Table(ArrayList<Double> newLabel) {
+	public Table(List<Double> newLabel) {
 		table = new ArrayList<Row>();
 		decVarLabel = new ArrayList<>();
 		for (Double variable:newLabel)
 			decVarLabel.add(variable);
 		variableCount = decVarLabel.size();
 		rowCount = 0;
-		keyMap = new HashMap<Double, ArrayList<Row>>();
+		keyMap = new HashMap<Double, List<Row>>();
 	}
 	
-//	public Table(ArrayList<String> newLabel, int randType) {
+//	public Table(List<String> newLabel, int randType) {
 //		this(newLabel);
 //		this.randType = randType;
 //	}
 	
-	public Table(ArrayList<Double> decVarList, ArrayList<Double> randVarList) {
+	public Table(List<Double> decVarList, List<Double> randVarList) {
 		table = new ArrayList<Row>();
 		decVarLabel = decVarList;
 		randVarLabel = randVarList;
@@ -114,7 +115,7 @@ public class Table implements Serializable {
 		randomCount = randVarList.size();
 	}
 	
-//	public Table(ArrayList<String> decVarList, ArrayList<String> randVarList, int randType) {
+//	public Table(List<String> decVarList, List<String> randVarList, int randType) {
 //		this(decVarList, randVarList);
 //	}
 	
@@ -129,18 +130,18 @@ public class Table implements Serializable {
 		
 		Set<Double> currentLoadSet = keyMap.keySet();
 		if (currentLoadSet.contains(key)) {
-			ArrayList<Row> rowList = keyMap.get(key);
+			List<Row> rowList = keyMap.get(key);
 			rowList.add(newRow);
 			keyMap.put(key, rowList);
 		}
 		else {
-			ArrayList<Row> rowList = new ArrayList<Row>();
+			List<Row> rowList = new ArrayList<Row>();
 			rowList.add(newRow);
 			keyMap.put(key, rowList);
 		}
 	}
 	
-	public ArrayList<Row> getRowListFromKey(double key) {
+	public List<Row> getRowListFromKey(double key) {
 		return keyMap.get(key);
 	}
 	
@@ -149,8 +150,8 @@ public class Table implements Serializable {
 	//kiem tra gia tri cua bien, co trong listValues chua
 	//neu chua thi them vao
 	//tra ve danh sach tat ca gia tri cua 1 bien, khong bi duplicate
-	ArrayList<Double> listValuesOfVariable(int index) {
-		ArrayList<Double> listValues = new ArrayList<Double>();
+	List<Double> listValuesOfVariable(int index) {
+		List<Double> listValues = new ArrayList<Double>();
 		for (Row row: table) {			
 			if (listValues.contains(row.getValueAtPosition(index)) == false)
 				listValues.add(row.getValueAtPosition(index));
@@ -158,7 +159,7 @@ public class Table implements Serializable {
 		return listValues;
 	}
 	
-//	public boolean containVariable(ArrayList<String> list, String input) {
+//	public boolean containVariable(List<String> list, String input) {
 //		if (list.size() == 0)
 //			return false;
 //		for (String temp: list) {
@@ -215,6 +216,27 @@ public class Table implements Serializable {
 			row.printBoth();
 		}
 	}
+	
+	@Override
+	public boolean equals(Object tableToCompare) {
+    // If the object is compared with itself then return true  
+    if (tableToCompare == this) {
+        return true;
+    }
+    
+    if (!(tableToCompare instanceof Table)) {
+      return false;
+    }
+       
+    Table castedTypeTable = (Table) tableToCompare;
+      
+    // Compare the data members and return accordingly 
+    for (Row row : castedTypeTable.getTable()) {
+      if (!this.getTable().contains(row))
+        return false;
+    }
+    return castedTypeTable.rowCount == this.rowCount && castedTypeTable.variableCount == this.variableCount;
+  }
 
 	public int getRowCount() {
 		return rowCount;
@@ -224,23 +246,23 @@ public class Table implements Serializable {
 		return variableCount;
 	}
 
-	public ArrayList<Row> getTable() {
+	public List<Row> getTable() {
 		return table;
 	}
 
-	public ArrayList<Double> getDecVarLabel() {
+	public List<Double> getDecVarLabel() {
 		return decVarLabel;
 	}
 
-	public ArrayList<Double> getRandVarLabel() {
+	public List<Double> getRandVarLabel() {
 		return randVarLabel;
 	}
 	
-	public HashMap<Double, ArrayList<Row>> getKeyMap() {
+	public HashMap<Double, List<Row>> getKeyMap() {
 		return keyMap;
 	}
 
-	public void setLoadMap(HashMap<Double, ArrayList<Row>> keyMap) {
+	public void setLoadMap(HashMap<Double, List<Row>> keyMap) {
 		this.keyMap = keyMap;
 	}
 }
