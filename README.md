@@ -3,7 +3,7 @@
 ## 1. To compile:
 mvn install
 
-dcop_jtools.jar. It should be in the target folder.
+The dcop_jtools.jar should be in the target folder.
 
 ## 2. To run:
 dcop_jtool FILE.xml [options]  
