@@ -1,9 +1,9 @@
 # Continuous_DCOPs
 
-1. To compile dcop_jtools.jar. It should be in the target folder.
+## 1. To compile dcop_jtools.jar. It should be in the target folder.
 mvn install
 
-2. To run:
+## 2. To run:
 dcop_jtool FILE.xml [options]
   where options is one of the following:
   --repair (-r) [GDBR, TDBR(default)]. The DLNS repair phase.
