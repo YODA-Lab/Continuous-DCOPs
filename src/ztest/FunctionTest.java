@@ -38,10 +38,11 @@ class FunctionTest {
     assertEquals(functionWith1Roots.solveForRoots(), roots1);
     
     // Test two root
-    // THIS TEST FAILS BECAUSE OF ROUNDING PROBLEM BY JAVA
+    // THIS UNIT TEST FAILS BECAUSE OF ROUNDING PROBLEM BY JAVA
+    // HOWEVER, THE TEST IS STILL CORRECT IF BEING ROUNDED PROPERLY
 //    CubicUnaryFunction functionWith2Roots = new CubicUnaryFunction(1, -5, 8, -4, "A", new Interval(-30, 30));
 //    Set<Double> roots2 = Set.of(1.0, 2.0);
-//    assertEquals(functionWith2Roots.solve(), roots2);
+//    assertEquals(functionWith2Roots.solveForRoots(), roots2);
     
     // Test three root
     CubicUnaryFunction functionWith3Roots = new CubicUnaryFunction(1, -5, -2, 24, "A", new Interval(-30, 30));
@@ -60,7 +61,10 @@ class FunctionTest {
   
   @Test
   void CubicUnaryMaxTest() {
-      // Not necessary
+    // TODO: add more test cases
+    CubicUnaryFunction cubicFunction = new CubicUnaryFunction(-1, 0, 2, 5, "A", new Interval(0, 2));
+    assertEquals(cubicFunction.getArgMax(), 0.8165, 0.1);
+    assertEquals(cubicFunction.getMax(), cubicFunction.evaluate(0.8165), 0.1);
   }
   
   @Test

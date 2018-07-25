@@ -20,6 +20,7 @@ import function.Interval;
 /**
  * @author khoihd
  *    ax^2 + bx + c
+ *    This function is checked for Adding, Project, getMax and getArgMax
  */
 public class QuadraticUnaryFunction extends Function implements Serializable {
   
