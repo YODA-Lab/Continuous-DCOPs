@@ -2,33 +2,33 @@ package function.binary;
 
 import java.util.List;
 
-import function.Function;
+import function.BinaryFunction;
 import function.Interval;
 
-public class SumOfUnaryFunctions extends Function {
+public class SumOfUnaryFunctions extends BinaryFunction {
 
     /**
      * 
      */
     private static final long serialVersionUID = 7650890640047965438L;
-    List<Function> unaryFunctionList;
+    List<BinaryFunction> unaryFunctionList;
     
     public SumOfUnaryFunctions(String selfAgent, String otherAgent, Interval selfInterval, Interval otherInterval) {
         super(selfAgent, otherAgent, selfInterval, otherInterval);
     }
 
-    public List<Function> getUnaryFunctionList() {
+    public List<BinaryFunction> getUnaryFunctionList() {
         return unaryFunctionList;
     }
 
-    public void setUnaryFunctionList(List<Function> unaryFunctionList) {
+    public void setUnaryFunctionList(List<BinaryFunction> unaryFunctionList) {
         this.unaryFunctionList = unaryFunctionList;
     }
     
     @Override
     public Double evaluate(double x) {
         double value = 0;
-        for (Function f : unaryFunctionList) {
+        for (BinaryFunction f : unaryFunctionList) {
             value += (Double) f.evaluate(x);
         }
         return value;

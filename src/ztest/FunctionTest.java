@@ -2,13 +2,23 @@ package ztest;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
 
 import function.Interval;
 import function.binary.CubicUnaryFunction;
 import function.binary.QuadraticBinaryFunction;
 import function.binary.QuadraticUnaryFunction;
+import function.multivariate.MultivariateQuadFunction;
+import function.multivariate.PiecewiseMultivariateQuadFunction;
 
 class FunctionTest {
 
@@ -16,17 +26,20 @@ class FunctionTest {
   void testSolvingQuadratic() {
     // Test zero root
     QuadraticUnaryFunction functionWithNoneRoot = new QuadraticUnaryFunction(1, 2, 2, "A", new Interval(-100, 100));
-    Set<Double> roots0 = Set.of();
+    Set<Double> roots0 = new HashSet<>();
     assertEquals(functionWithNoneRoot.solveForRoots(), roots0);
     
     // Test one root
     QuadraticUnaryFunction functionWithOneRoot = new QuadraticUnaryFunction(1, -2, 1, "A", new Interval(-100, 100));
-    Set<Double> roots1 = Set.of(1.0);
+    Set<Double> roots1 = new HashSet<>();
+    roots1.add(1.0);
     assertEquals(functionWithOneRoot.solveForRoots(), roots1);
     
     // Test two root
     QuadraticUnaryFunction functionWithTwoRoot = new QuadraticUnaryFunction(1, -5, 6, "A", new Interval(-100, 100));
-    Set<Double> roots2 = Set.of(2.0, 3.0);
+    Set<Double> roots2 = new HashSet<>();
+    roots2.add(2.0);
+    roots2.add(3.0);
     assertEquals(functionWithTwoRoot.solveForRoots(), roots2);
   }
   
@@ -34,7 +47,8 @@ class FunctionTest {
   void testSolvingCubic() {
     // Test one root
     CubicUnaryFunction functionWith1Roots = new CubicUnaryFunction(1, 3, 3, 1, "A", new Interval(-30, 30));
-    Set<Double> roots1 = Set.of(-1.0);
+    Set<Double> roots1 = new HashSet<>();
+    roots1.add(-1.0);
     assertEquals(functionWith1Roots.solveForRoots(), roots1);
     
     // Test two root
@@ -46,7 +60,8 @@ class FunctionTest {
     
     // Test three root
     CubicUnaryFunction functionWith3Roots = new CubicUnaryFunction(1, -5, -2, 24, "A", new Interval(-30, 30));
-    Set<Double> roots3 = Set.of(-2.0, 3.0, 4.0);
+    Set<Double> roots3 = new HashSet<>();
+    roots3.add(-2.0); roots3.add(3.0); roots3.add(4.0);
     assertEquals(functionWith3Roots.solveForRoots(), roots3);
   }
   
@@ -88,5 +103,17 @@ class FunctionTest {
   @Test
   void ProjectQuadBinaryFuncTest() {
     // TODO: Create test case here
+    PiecewiseMultivariateQuadFunction pwQuad = new PiecewiseMultivariateQuadFunction();
+    MultivariateQuadFunction func = new MultivariateQuadFunction();
+    
+    Map<String, Interval> intervals = new HashMap<>();
+    for (int i = 0; i < 5; i++) {
+      intervals.put("x_" + i, new Interval(10 * i, 10 * i + 10));
+    }
+    
+    func.setIntervals(intervals);
+    func.setOwner("x_2");
+    pwQuad.addNewFunction(func);
+    pwQuad.approxProject(5);
   }
 }

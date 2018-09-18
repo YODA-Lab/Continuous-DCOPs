@@ -3,313 +3,400 @@ package function.multivariate;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
+import com.google.common.collect.Table.Cell;
 
 import function.Interval;
-import zexception.DiffIntervalException;
-import zexception.NotAUnaryFunction;
+import zexception.FunctionException;
 
 import com.google.common.collect.Sets;
 
+/**
+ * This is the list of function that needs to be tested: ADD, EVALUATE, PROJECT
+ * 
+ * @author khoihd
+ */
 public class MultivariateQuadFunction implements Serializable {
-  
+
   /**
    * 
    */
   private static final long serialVersionUID = 2751671064195985634L;
 
-  Table<String, String, Double> quadratic;
-  Map<String, Double> linear;
-  double intercept;
-  Map<String, Interval> intervals;
-  
-  /** Constructor with no parameter
+  private String owner = new String();
+  private Table<String, String, Double> coefficients = HashBasedTable.create();
+  private Map<String, Interval> intervals = new HashMap<>();
+
+  /**
+   * Constructor with no parameter <br>
+   * Initialize the constant coefficient to 0.0
    * 
    */
   public MultivariateQuadFunction() {
-    this.quadratic = HashBasedTable.create();
-    this.linear = new HashMap<>();
-    this.intercept = Double.NEGATIVE_INFINITY;
-    this.intervals = new HashMap<>();
+    coefficients.put("", "", 0.0);
+  }
+
+  /**
+   * Constructor with all parameters <br>
+   * This function is already TESTED
+   * 
+   * @param quadratic
+   *          in Table String, String, Double format
+   * @param intervals
+   *          in Map String, Interval
+   */
+  public MultivariateQuadFunction(final String owner, final Table<String, String, Double> coefficients,
+      final Map<String, Interval> intervals) {
+    this();
+    this.owner = owner;
+    this.coefficients.putAll(coefficients);
+    this.intervals.putAll(intervals);
+  }
+
+  /**
+   * Copy constructor <br>
+   * This function is already TESTED
+   * 
+   * @param object
+   *          is the MultivariateQuadFunction to be copied
+   */
+  public MultivariateQuadFunction(final MultivariateQuadFunction object) {
+    this(object.getOwner(), object.getCoefficients(), object.getIntervals());
+  }
+
+  /**
+   * ADD operator <br>
+   * This function is already TESTED
+   * Precondition: two functions share the same ranges of common variables
+   * This testing is done by addNewInterval() function
+   * @param tobeAddedFunction
+   *          another MultivariateQuadFunction to add
+   * @return a new function which is a sum of this function and
+   *         tobeAddedFunction
+   */
+  public MultivariateQuadFunction add(final MultivariateQuadFunction tobeAddedFunction) {
+    MultivariateQuadFunction result = new MultivariateQuadFunction(this);
+
+    // Update quadratic coefficients
+    for (Cell<String, String, Double> cellEntry : tobeAddedFunction.getCoefficients().cellSet()) {
+      updateCoefficient(cellEntry.getRowKey(), cellEntry.getColumnKey(), cellEntry.getValue());
+    }
+
+    for (Entry<String, Interval> entry : tobeAddedFunction.getIntervals().entrySet()) {
+      result.addNewInterval(entry.getKey(), entry.getValue());
+    }
+
+    return result;
+  }
+
+  public void updateCoefficient(final String key1, final String key2, final double value) {
+    if (coefficients.contains(key1, key2)) {
+      coefficients.put(key1, key2, coefficients.get(key1, key2) + value);
+    } else if (coefficients.contains(key2, key1)) {
+      coefficients.put(key2, key1, coefficients.get(key2, key1) + value);
+    } else {
+      coefficients.put(key1, key2, value);
+    }
+  }
+
+  /**
+   * Add a new interval to this function <br>
+   * If already contained this variable, check for same interval <br>
+   * If not containing this variable, add <variable, interval> to list <br>
+   * This function is already TESTED
+   * 
+   * @param variable
+   * @param interval
+   */
+  public void addNewInterval(String variable, Interval interval) {
+    if (intervals.containsKey(variable)) {
+      if (!intervals.get(variable).equals(interval)) {
+        throw new FunctionException("Different INTERVAL when adding QUAD MULTIVARIATE function");
+      }
+    } else {
+      intervals.put(variable, new Interval(interval));
+    }
+  }
+  
+  public void replaceOrUpdateInterval(Map<String, Interval> tobeAddedInterval) {
+    for (Entry<String, Interval> entry : tobeAddedInterval.entrySet()) {
+      intervals.put(entry.getKey(), entry.getValue());
+    }
+  }
+
+  /**
+   * EVALUATE operator <br>
+   * This function is already TESTED
+   * @param variable
+   * @param value
+   * @return
+   */
+  public MultivariateQuadFunction evaluate(final String variable, final double value) {
+    if (getVariables().contains(variable)) {
+      throw new FunctionException("The function doesn't contain the variable that needed to be evaluated");
+    }
+
+    MultivariateQuadFunction evaluatedFunc = new MultivariateQuadFunction(this);
+
+    // Adding a_ii * xi^2 and a_i * xi to d (x_i = value)
+    evaluatedFunc.updateCoefficient("", "", evaluatedFunc.getCoefficients().get(variable, variable) * Math.pow(value, 2)
+        + evaluatedFunc.getCoefficients().get(variable, "") * value);
+
+    // Find aij * (xi, xj)
+    // Update a_ij * xi * xj => (a_ij * value) xj
+    for (Map.Entry<String, Double> rowEntry : evaluatedFunc.getCoefficients().row(variable).entrySet()) {
+      String variable_j = rowEntry.getKey();
+      if (null != variable_j) {
+        double a_ij = rowEntry.getValue();
+        evaluatedFunc.updateCoefficient(variable_j, "", a_ij * value);
+      }
+    }
+
+    // Find aji * (xj, xi)
+    // Update a_ji * xi * xj => (a_ji * value) xj
+    for (Map.Entry<String, Double> columnEntry : evaluatedFunc.getCoefficients().column(variable).entrySet()) {
+      String variable_j = columnEntry.getKey();
+      if (null != variable_j) {
+        double a_ji = columnEntry.getValue();
+        evaluatedFunc.updateCoefficient(variable_j, "", a_ji * value);
+      }
+    }
+
+    // Delete all columns and rows that contain the variable
+    evaluatedFunc.getCoefficients().row(variable).clear();
+    evaluatedFunc.getCoefficients().column(variable).clear();
+
+    return evaluatedFunc;
+  }
+
+  @Override
+  public String toString() {
+    StringBuffer sb = new StringBuffer();
+    sb.append("[Coefficients = ");
+    sb.append(coefficients);
+    sb.append(", Intervals = ");
+    sb.append(intervals + " ]");
+    return sb.toString();
+  }
+
+  /**
+   * Create an ordered set, where each element is a list of ordered intervals. <br>
+   * The ordering of interval in the list match the ordering of <variable, interval> from this.getIntervals()
+   * This function is already TESTED
+   * @param numberOfIntervals
+   * @return
+   */
+  public Set<List<Interval>> cartesianProductInterval(int numberOfIntervals) {
+    // List of {intervalSetVar1,...,intervalSetVarN}
+    List<Set<Interval>> intervalsSetList = new ArrayList<Set<Interval>>();
+    for (Map.Entry<String, Interval> entry : intervals.entrySet()) {
+      String entryVariable = entry.getKey();
+      if (entryVariable.equals(owner))
+        continue;
+
+      Interval entryInterval = entry.getValue();
+
+      // Use LinkedHashSet to preserve the ordering of inserted intervals
+      Set<Interval> intervalsSet = new LinkedHashSet<Interval>(entryInterval.separateIntoAListOfIncreasingIntervals(numberOfIntervals));
+      intervalsSetList.add(intervalsSet);
+    }
+
+    // The ordering of intervals is preserved in the ordering of variables from intervals
+    Set<List<Interval>> productIntervals = Sets.cartesianProduct(intervalsSetList);
+    return productIntervals;
   }
   
   /**
-   * Constructor with all parameters
-   * @param quadratic in Table String, String, Double format
-   * @param linear in Map String, Double format
-   * @param intercept in double
-   * @param intervals in Map String, Interval
+   * PROJECT operator
+   * 1. Divide each interval into to smaller k intervals accordingly <br>
+   * 2. In <itv1, itv2,..., itvn> in k^(#variables) intervals, get the midpoints <br>
+   * 3. Evaluate the original function recursively into a unary function where the selfvariable is the only variable <br>
+   * 4. Get v_i = argmax of the unary function<br>
+   * 5. Evaluate the original function with this argmax value (Now the arity is decreased by 1)
+   * @param numberOfIntervals
+   *          each agent divides its interval into this number of smaller
+   *          intervals
+   * @param selfvariable
+   *          is the function's owner that needs to be projected out
+   * @return a piecewise function of MultivariateQuadratic functions
    */
-  public MultivariateQuadFunction(final Table<String, String, Double> quadratic, final Map<String, Double> linear,
-      final double intercept, final Map<String, Interval> intervals) {
-    
-    this.quadratic = HashBasedTable.create(quadratic);
-    this.linear = new HashMap<>(linear);
-    this.intercept = intercept;
-    this.intervals = new HashMap<>(intervals);
-  }
-  
-  /** Copy constructor
-   * @param object is the MultivariateQuadFunction to be copied 
-   */
-  public MultivariateQuadFunction(final MultivariateQuadFunction object) {
-    this(object.getQuadratic(), object.getLinear(), object.getIntercept(), object.getIntervals());
-  }
-  
-  public MultivariateQuadFunction add(final MultivariateQuadFunction tobeAddedFunction) {
-    this.checkSameIntervalForCommonVariables(tobeAddedFunction);
-    MultivariateQuadFunction result = new MultivariateQuadFunction(this);
-    // Update quadratic
-    for (String agent1 : tobeAddedFunction.getAgents()) {
-      for (String agent2 : tobeAddedFunction.getAgents()) {
-        if (result.getQuadratic().contains(agent1, agent2)) {
-          result.addNewOrUpdateQuadratic(agent1, agent2,
-              result.getQuadratic().get(agent1, agent2) + tobeAddedFunction.getQuadratic().get(agent1, agent2));
-        }
-        else {
-          result.addNewOrUpdateQuadratic(agent1, agent2, 
-              tobeAddedFunction.getQuadratic().get(agent1, agent2));
-        }
-      }
-    }
-    
-    // Update linear
-    for (String tobeAddedAgent : tobeAddedFunction.getAgents()) {
-      result.addNewOrUpdateLinear(tobeAddedAgent,
-          tobeAddedFunction.getLinear().get(tobeAddedAgent) + result.getLinear().getOrDefault(tobeAddedAgent, 0.0));
-    }
-    
-    // Update intercept
-    result.addToIntercept(tobeAddedFunction.getIntercept());
-    
-    // Update intervals
-    // Common variables have the same intervals
-    // Need to add intervals from toBeAddedFunction to the current function
-    Set<String> variablesFromAddedFunction = Sets.difference(tobeAddedFunction.getIntervals().keySet(), this.getIntervals().keySet());
-    variablesFromAddedFunction.forEach(var -> this.addNewInterval(var, tobeAddedFunction.getIntervals().get(var)));
-        
-    return result;
-  }
-  
-  
-  
-  public void addNewOrUpdateQuadratic(final String key1, final String key2, final double value) {
-    quadratic.put(key1, key2, value);
-  }
-  
-  public void addNewOrUpdateLinear(final String key, final double value) {
-    linear.put(key, value);
-  }
-  
-  public void addToIntercept(final double value) {
-    intercept += value;
-  }
-  
-  public void addNewInterval(String variable, Interval interval) {
-    intervals.put(variable, interval);
-  }
-  
-  public void checkSameIntervalForCommonVariables(final MultivariateQuadFunction tobeAddedFunction) {
-    for (String agent : this.getAgents()) {
-      if (tobeAddedFunction.getAgents().contains(agent)) {
-        if (!this.getIntervals().get(agent).equals(tobeAddedFunction.getIntervals().get(agent))) {
-          throw new DiffIntervalException("Different INTERVAL when adding QUAD MULTIVARIATE function");
-        }
-      }
-    }
-  }
-  
-  public MultivariateQuadFunction evaluateMultivariate(final String agent, final double value) {
-    assert (this.getAgents().contains(agent)) : "The agent not in agent list when evaluating";
-    MultivariateQuadFunction evaluatedFunc = new MultivariateQuadFunction(this);
-    
-    // Adding xi^2 and xi to d
-    evaluatedFunc.addToIntercept(this.getQuadratic().get(agent, agent) * Math.pow(value, 2));
-    evaluatedFunc.addToIntercept(this.getLinear().get(agent) * value);    
-    
-    // Update xi, xj
-    for (Map.Entry<String, Double> rowEntry : this.getQuadratic().row(agent).entrySet()) {
-      String agent_j = rowEntry.getKey();
-      Double c_ij = rowEntry.getValue();
-      
-      evaluatedFunc.addNewOrUpdateLinear(agent_j, c_ij * value + evaluatedFunc.getLinear().get(agent_j));
-    }
-    
-    evaluatedFunc.removeEntryFromLinear(agent);
-    evaluatedFunc.removeEntryFromQuadratic(agent);
-        
-    return evaluatedFunc;
-  }
-  
-  public void removeEntryFromLinear(final String agent) {
-    assert this.linear.keySet().contains(agent) : "Linear not containing agent when removing";
-    this.linear.remove(agent);
-  }
-  
-  public void removeEntryFromQuadratic(final String agent) {
-    assert this.quadratic.rowKeySet().contains(agent) : "Quadratic row not containing agent when removing";
-    assert this.quadratic.columnKeySet().contains(agent) : "Quadratic column not containing agent when removing";
-    this.quadratic.rowMap().remove(agent);
-    this.quadratic.columnMap().remove(agent);
-  }
-  
-  @Override
-  public String toString() {
-    return "Agents = " + getAgents() + "\n" +
-        "b[] = " + linear + "\n" + 
-        "c[][] = " + quadratic + "\n" +
-        "d = " + intercept + "\n";
-  }
+  public PiecewiseMultivariateQuadFunction approxProject(int numberOfIntervals) {
+    // TODO: needed to be BLACK-BOX TESTING
 
-  public void checkEqualsize() {
-    assert linear.entrySet().size() == quadratic.rowMap().size() : "linear and quadratic has different size";
-    assert quadratic.rowMap().size() == quadratic.columnMap().size() : "quadratic has different size of row and column";
-  }
-  
-  // TODO review this function
-  public PiecewiseMultivariateFunction approxProject(int numberOfIntervals, String selfAgent) {
-    PiecewiseMultivariateFunction mpwFunc = new PiecewiseMultivariateFunction();
-    // Return: projected into a unary function
-    // 1. Divide each interval into to smaller k intervals accordingly
-    //  Then we have k^(#agents) intervals
-    // 2. In <itv1, itv2,..., itvn> in k^(#agents) intervals, get the midpoints 
-    // 
-    // 3. Evaluate into a unary function where the selfAgent is the only variable
-    // 4. Get argmax
-    // 5. Evaluate the original function with this argmax value (Now the arity is decreased by 1)
-    //  The function becomes Piecewise MultivariateFunction
+    PiecewiseMultivariateQuadFunction mpwFunc = new PiecewiseMultivariateQuadFunction();
+    Set<List<Interval>> productIntervals = cartesianProductInterval(numberOfIntervals);
     
-    // List of {intervalListAgent1,...,intervalListAgentN}
-    List<Set<Interval>> intervalsSetList = new ArrayList<Set<Interval>>();
-    for (Map.Entry<String, Interval> entry : this.intervals.entrySet()) {
-      String entryAgent = entry.getKey();
-      if (entryAgent.equals(selfAgent)) continue;
-
-      Interval entryInterval = entry.getValue();
-      
-      Set<Interval> intervalsSet = new HashSet<Interval>(entryInterval.separateIntoAListOfIntervals(numberOfIntervals)); 
-      intervalsSetList.add(intervalsSet);
-    }
-    System.out.println(intervalsSetList);
-    // The ordering of intervals is preserved in the ordering of agents from intervals
-    Set<List<Interval>> productIntervals = Sets.cartesianProduct(intervalsSetList);
-
-    // for each list of intervals, we have a function
+    System.out.println("productIntervals" + productIntervals);
+    System.out.println("intervals " + intervals);
+    
+    // for each list of intervals, we have a function 
     // the result of this process is a piecewise multivariate function
     for (List<Interval> prodItvList : productIntervals) {
-      int index = -1;
-      // for each agent, gets the values, evaluate the function
+      // to match variable from original this.intervals with the interval from prodItvList
+      int varIndex = -1;
+      
+      // for each variable, gets the values, evaluate the function
       MultivariateQuadFunction midPointedFunction = new MultivariateQuadFunction(this);
       Map<String, Interval> intervalsOfNewFunction = new HashMap<>();
-      for (Map.Entry<String, Interval> entry : this.intervals.entrySet()) {
-        String entryAgent = entry.getKey();
-        if (entryAgent.equals(selfAgent)) continue;
-        index++;
+      for (Map.Entry<String, Interval> entry : intervals.entrySet()) {
+        String entryVariable = entry.getKey();
+        if (entryVariable.equals(owner))
+          continue;
+        varIndex++;
 
-        Interval interval = prodItvList.get(index);
-        intervalsOfNewFunction.put(entryAgent, interval);
+        Interval interval = prodItvList.get(varIndex);
+        intervalsOfNewFunction.put(entryVariable, interval);
       }
-      midPointedFunction = this.evaluateWithMap(intervalsOfNewFunction);
+      midPointedFunction = midPointedFunction.evaluateWithIntervalMap(intervalsOfNewFunction);
       double argmax = midPointedFunction.getArgmax();
-      midPointedFunction = this.evaluateMultivariate(selfAgent, argmax);
+      midPointedFunction = midPointedFunction.evaluate(owner, argmax);
       midPointedFunction.setIntervals(intervalsOfNewFunction);
+
       mpwFunc.addNewFunction(midPointedFunction);
     }
-    
+
     return mpwFunc;
-  } 
-  
-  public MultivariateQuadFunction evaluateWithMap(Map<String, Interval> agentValueMap) {
-    // recursively evaluate the function
-    // until the function become unary function
-    // at this time, find the argmax
+  }
+
+  /**
+   * Sequentially evaluate the function with the midpoint from the interval
+   * until the function becomes unary This function is already TESTED
+   * 
+   * @param variableValueMap
+   *          is the map {@code <}variable, interval>
+   * @return
+   */
+  public MultivariateQuadFunction evaluateWithIntervalMap(Map<String, Interval> variableValueMap) {
+    // sequentially evaluate the function
     MultivariateQuadFunction func = new MultivariateQuadFunction(this);
-    for (Map.Entry<String, Interval> entry : agentValueMap.entrySet()) {
-      String agent = entry.getKey();
+    for (Map.Entry<String, Interval> entry : variableValueMap.entrySet()) {
+      String variable = entry.getKey();
       double value = entry.getValue().midValue();
-      func = func.evaluateMultivariate(agent, value);
+      func = func.evaluate(variable, value);
     }
-    
-    if (func.getNumberOfVars() != 1) {
-      throw new NotAUnaryFunction("The number of variables is " + func.getNumberOfVars());
+
+    if (func.getNumberOfVariable() != 1) {
+      throw new FunctionException("The number of variables is " + func.getNumberOfVariable());
     }
-    
+
     return func;
   }
-  
-  public double evaluateUnaryFunction(String agent, Double value) {
-    assert this.getNumberOfVars() == 1 : "Number of vars should be evaluated in unary function " + this.getNumberOfVars();
-    
-    return quadratic.get(agent, agent) * Math.pow(value, 2) + linear.get(agent) * value + intercept;
+
+  /**
+   * Evaluate this unary function. The number of variables is checked if 1 This
+   * function is already TESTED
+   * 
+   * @param variable
+   * @param value
+   * @return
+   */
+  public double evaluateUnaryFunction(String variable, Double value) {
+    if (getNumberOfVariable() != 1)
+      throw new FunctionException(
+          "The number of variable should be ONE in order to be evaluated as a unaryFunction: " + getNumberOfVariable());
+
+    return coefficients.get(variable, variable) * Math.pow(value, 2) + coefficients.get(variable, "") * value
+        + coefficients.get("", "");
   }
-  
+
+  /**
+   * This function is BEING TESTED 
+   * owner is the only variable left
+   * @return v_i such that v_i = argmax{x_i} f where f is the unary function
+   */
   public double getArgmax() {
-    if (this.getNumberOfVars() == 1) {
-      throw new NotAUnaryFunction("The number of variables is " + this.getNumberOfVars()); 
-    }
-    String agent = new ArrayList<String>(getAgents()).get(0);
-    double LB = intervals.get(agent).getLowerBound();
-    double UB = intervals.get(agent).getUpperBound();
-    double midPoint = - linear.get(agent) / (2 * quadratic.get(agent, agent));
-    
-    double lowerEvaluated = evaluateUnaryFunction(agent, LB);
-    double upperEvaluated = evaluateUnaryFunction(agent, UB);
-    double midEvaluated = evaluateUnaryFunction(agent, midPoint);
-    
+    if (getNumberOfVariable() != 1)
+      throw new FunctionException(
+          "The number of variable should be ONE in order to be evaluated as a unaryFunction: " + getNumberOfVariable());
+
+    if (!getVariables().contains(owner))
+      throw new FunctionException("Owner, which is the only variable left, is not contained in variable list: " + getVariables()
+          + " and the owner " + owner);
+
+    double LB = intervals.get(owner).getLowerBound();
+    double UB = intervals.get(owner).getUpperBound();
+    // -b / 2a
+    double midPoint = -coefficients.get(owner, "") / (2 * coefficients.get(owner, owner));
+
+    double lowerEvaluated = evaluateUnaryFunction(owner, LB);
+    double upperEvaluated = evaluateUnaryFunction(owner, UB);
+    double midEvaluated = evaluateUnaryFunction(owner, midPoint);
+
     double max = Math.max(Math.max(lowerEvaluated, upperEvaluated), midEvaluated);
-    
-    if (Double.compare(max, lowerEvaluated) == 0) return LB;
-    else if (Double.compare(max, upperEvaluated) == 0) return UB;
-    else if (Double.compare(max, midEvaluated) == 0) return midEvaluated;
-    
+
+    if (Double.compare(max, lowerEvaluated) == 0)
+      return LB;
+    else if (Double.compare(max, upperEvaluated) == 0)
+      return UB;
+    else if (Double.compare(max, midEvaluated) == 0)
+      return midEvaluated;
+
     return -Double.MAX_VALUE;
   }
   
-  public int getNumberOfVars() {
-    checkEqualsize();
-    return linear.entrySet().size();
+  public boolean isTotallyBigger(Map<String, Interval> varIntervalMap) {
+    for (Entry<String, Interval> entry : varIntervalMap.entrySet()) {
+      if (!intervals.get(entry.getKey()).isTotallyBigger(entry.getValue()))
+          return false;
+    }
+    
+    return true;
   }
 
-  public Set<String> getAgents() {
-    checkEqualsize();
-    return linear.keySet();
+  /**
+   * Return the number of variables in this function This function is already
+   * TESTED
+   * 
+   * @return the number of variables
+   */
+  public int getNumberOfVariable() {
+    return getVariables().size();
   }
 
-  public Table<String, String, Double> getQuadratic() {
-    return quadratic;
+  /**
+   * This function is already TESTED
+   * 
+   * @return the set of variables through intervals.keySet()
+   */
+  public Set<String> getVariables() {
+    return intervals.keySet();
   }
 
-  public void setQuadratic(Table<String, String, Double> quadratic) {
-    this.quadratic = quadratic;
+  /**
+   * @return the coefficients in Table{@code <}String, String, Double> form
+   */
+  public Table<String, String, Double> getCoefficients() {
+    return coefficients;
   }
 
-  public Map<String, Double> getLinear() {
-    return linear;
-  }
-
-  public void setLinear(Map<String, Double> linear) {
-    this.linear = linear;
-  }
-
-  public double getIntercept() {
-    return intercept;
-  }
-
-  public void setIntercept(double intercept) {
-    this.intercept = intercept;
-  }
-
+  /**
+   * @return the interval maps in Map{@code <}String, Interval> form
+   */
   public Map<String, Interval> getIntervals() {
     return intervals;
   }
 
-  public void setIntervals(Map<String, Interval> intervals) {
+  public String getOwner() {
+    return owner;
+  }
+
+  public void setCoefficients(final Table<String, String, Double> coefficients) {
+    this.coefficients = coefficients;
+  }
+
+  public void setIntervals(final Map<String, Interval> intervals) {
     this.intervals = intervals;
-  }   
+  }
+
+  public void setOwner(String owner) {
+    this.owner = owner;
+  }
+
 }

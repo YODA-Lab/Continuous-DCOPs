@@ -6,7 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import function.Function;
+import function.BinaryFunction;
 import function.Interval;
 import utilities.Utilities;
 
@@ -16,7 +16,7 @@ import utilities.Utilities;
  *    <p>a2x2^3 + b2x1x2^2
  *    <p>c
  */
-public class CubicBinaryFunction extends Function implements Serializable {
+public class CubicBinaryFunction extends BinaryFunction implements Serializable {
 
   /**
    * 

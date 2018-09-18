@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.Math.*;
 
-import function.Function;
+import function.BinaryFunction;
 import function.Interval;
 import static utilities.Utilities.*;
 
@@ -19,7 +19,7 @@ import static utilities.Utilities.*;
  *  <p> ax^3 + bx^2 + cx + d
  *  @author khoihd
  */
-public class CubicUnaryFunction extends Function implements Serializable {  
+public class CubicUnaryFunction extends BinaryFunction implements Serializable {  
   /**
    * 
    */

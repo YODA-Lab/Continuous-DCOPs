@@ -13,7 +13,7 @@ import java.util.TreeSet;
 import agent.DCOP;
 import agent.DcopInfo;
 import agent.DcopInfo.SolvingType;
-import function.Function;
+import function.BinaryFunction;
 import function.Interval;
 import function.binary.PiecewiseFunction;
 import function.binary.QuadraticBinaryFunction;
@@ -209,7 +209,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     // choose the maximum
     double argmax = -Double.MAX_VALUE;
     double max = -Double.MAX_VALUE;
-    for (Function f : combinedFunctionMessage.getFunctionList()) {
+    for (BinaryFunction f : combinedFunctionMessage.getFunctionList()) {
       if (Double.compare(((QuadraticUnaryFunction) f).getMax(), max) > 0) {
         max = ((QuadraticUnaryFunction) f).getMax();
         argmax = ((QuadraticUnaryFunction) f).getArgMax();
@@ -476,8 +476,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
    */
   public PiecewiseFunction addBinaryAndUnaryPiecewiseFunctions(PiecewiseFunction binaryPw, PiecewiseFunction unaryPw) {
 	  PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
-	  List<Function> binaryList = binaryPw.getFunctionList();
-	  List<Function> unaryList = unaryPw.getFunctionList();
+	  List<BinaryFunction> binaryList = binaryPw.getFunctionList();
+	  List<BinaryFunction> unaryList = unaryPw.getFunctionList();
 	  
 	  TreeSet<Double> binaryRange = binaryPw.getSortedSegmentedRange();
     TreeSet<Double> unaryRange = unaryPw.getSortedSegmentedRange();
@@ -490,7 +490,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     for (int i = 0; i < rangeList.size() - 1; i++) {
       double a = rangeList.get(i);
       double b = rangeList.get(i+1);
-      for (Function f : binaryList) {
+      for (BinaryFunction f : binaryList) {
         // find the only binary f that is in the range
         // if not, return null
         if (f.isInRange(a, b)) {
@@ -502,7 +502,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
       
       // find the only unary f that is in the range
       // if not, return null
-      for (Function f : unaryList) {
+      for (BinaryFunction f : unaryList) {
         if (f.isInRange(a, b)) {
           unaryFunc = (QuadraticUnaryFunction) f;
           break;
@@ -523,8 +523,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	
 	public PiecewiseFunction addUnaryPiecewiseFunctions(PiecewiseFunction func1, PiecewiseFunction func2) {
 	  PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
-	  List<Function> functionList1 = func1.getFunctionList();
-	  List<Function> functionList2 = func2.getFunctionList();
+	  List<BinaryFunction> functionList1 = func1.getFunctionList();
+	  List<BinaryFunction> functionList2 = func2.getFunctionList();
 	  
 	  //TODO double check this part
 	  TreeSet<Double> range1 = func1.getSortedSegmentedRange();
@@ -538,7 +538,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	  for (int i = 0; i < rangeList.size() - 1; i++) {
 	    double a = rangeList.get(i);
 	    double b = rangeList.get(i+1);
-	    for (Function f : functionList1) {
+	    for (BinaryFunction f : functionList1) {
 	      if (f.isInRange(a, b)) {
 	        f1 = new QuadraticUnaryFunction((QuadraticUnaryFunction) f);
 	        break;
@@ -546,7 +546,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	      f1 = null;
 	    }
 	    
-      for (Function f : functionList2) {
+      for (BinaryFunction f : functionList2) {
         if (f.isInRange(a, b)) {
           f2 = new QuadraticUnaryFunction((QuadraticUnaryFunction) f);
           break;

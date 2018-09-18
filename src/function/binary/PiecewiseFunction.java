@@ -8,25 +8,25 @@ import java.util.TreeSet;
 
 import agent.DcopInfo;
 import agent.DcopInfo.SolvingType;
-import function.Function;
+import function.BinaryFunction;
 import function.Interval;
 
 /**
  * @author khoihd
  *
  */
-public class PiecewiseFunction extends Function implements Serializable {
+public class PiecewiseFunction extends BinaryFunction implements Serializable {
   // function -> intervals
   
   /**
    * 
    */
   private static final long serialVersionUID = 2147073840063782655L;
-  private List<Function> functionList;
+  private List<BinaryFunction> functionList;
   
   public PiecewiseFunction(PiecewiseFunction pwf) {
     super(pwf.getSelfAgent(), pwf.getOtherAgent(), null, null);
-    for (Function f : pwf.getFunctionList()) {
+    for (BinaryFunction f : pwf.getFunctionList()) {
       functionList.add(f);
     }
   }
@@ -39,7 +39,7 @@ public class PiecewiseFunction extends Function implements Serializable {
   // Unary function
   public TreeSet<Double> getSortedSegmentedRange() {
     TreeSet<Double> range = new TreeSet<>();
-    for (Function func : functionList) {
+    for (BinaryFunction func : functionList) {
       range.add(func.getSelfInterval().getLowerBound());
       range.add(func.getSelfInterval().getUpperBound());
     }
@@ -47,7 +47,7 @@ public class PiecewiseFunction extends Function implements Serializable {
     return range;
   }
   
-  public void addNewFunction(Function function) {
+  public void addNewFunction(BinaryFunction function) {
     this.selfAgent = function.getSelfAgent();
     this.otherAgent = function.getOtherAgent();
     functionList.add(function);
@@ -68,7 +68,7 @@ public class PiecewiseFunction extends Function implements Serializable {
    */
   public PiecewiseFunction analyticallyProject() {
     PiecewiseFunction pwFunc = new PiecewiseFunction(selfAgent, otherAgent);
-    for (Function f : functionList) {
+    for (BinaryFunction f : functionList) {
       PiecewiseFunction newPiecewise = ((QuadraticBinaryFunction) f).analyticallyProject();
       pwFunc.addPiecewiseFunction(newPiecewise);
     }
@@ -84,7 +84,7 @@ public class PiecewiseFunction extends Function implements Serializable {
   // The max is the orgin
   public PiecewiseFunction approxProject(int numberOfIntervals) {
     PiecewiseFunction pwFunc = new PiecewiseFunction(selfAgent, otherAgent);
-    for (Function f:functionList) {
+    for (BinaryFunction f:functionList) {
       PiecewiseFunction newPiecewise = (((QuadraticBinaryFunction) f).approxProject(numberOfIntervals));
       pwFunc.addPiecewiseFunction(newPiecewise);
     }
@@ -96,18 +96,18 @@ public class PiecewiseFunction extends Function implements Serializable {
     functionList.addAll(f.getFunctionList());
   }
 
-  public List<Function> getFunctionList() {
+  public List<BinaryFunction> getFunctionList() {
     return functionList;
   }
 
-  public void setFunctionList(List<Function> functionList) {
+  public void setFunctionList(List<BinaryFunction> functionList) {
     this.functionList = functionList;
   }
   
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    for (Function f : functionList) {
+    for (BinaryFunction f : functionList) {
       builder.append(f);
       builder.append("\n");
     }

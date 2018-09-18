@@ -1,17 +1,17 @@
 package zexception;
 
-public class NotAUnaryFunction extends RuntimeException {
+public class FunctionException extends RuntimeException {
 
   /**
    * 
    */
   private static final long serialVersionUID = -731809793907265063L;
 
-  public NotAUnaryFunction(){
+  public FunctionException(){
       super();
   }
 
-  public NotAUnaryFunction(String message){
+  public FunctionException(String message){
       super(message);
   }
 }

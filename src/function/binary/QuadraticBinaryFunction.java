@@ -9,7 +9,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import function.Function;
+import function.BinaryFunction;
 import function.Interval;
 import table.Row;
 import table.Table;
@@ -21,7 +21,7 @@ import utilities.*;
  *    <p>a2x2^2 + b2x2
  *    <p>a3x1x2 + b3
  */
-public class QuadraticBinaryFunction extends Function implements Serializable {
+public class QuadraticBinaryFunction extends BinaryFunction implements Serializable {
 
   
   /**
@@ -89,7 +89,7 @@ public class QuadraticBinaryFunction extends Function implements Serializable {
     // evaluateX2 => get x1 = argmax
     // return f(x1 = argmax,x2)
     
-    List<Interval> intervalList = otherInterval.separateIntoAListOfIntervals(numberOfIntervals);
+    List<Interval> intervalList = otherInterval.separateIntoAListOfIncreasingIntervals(numberOfIntervals);
     
     for (Interval interval : intervalList) {
       double midPoint = 0.5 * (interval.getLowerBound() + interval.getUpperBound());

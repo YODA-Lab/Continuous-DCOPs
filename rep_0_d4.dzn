@@ -1,0 +1,7 @@
+domain 10;
+function 2v_2^2 8v_2 6v_1^2 -10v_1 -0v_2v_1 6;
+function -7v_3^2 2v_3 2v_1^2 7v_1 -4v_3v_1 9;
+function -1v_3^2 -10v_3 -0v_2^2 -0v_2 -10v_3v_2 -3;
+function 0v_4^2 2v_4 -0v_1^2 9v_1 10v_4v_1 -7;
+function 8v_4^2 2v_4 3v_2^2 6v_2 -3v_4v_2 -3;
+function 10v_4^2 10v_4 8v_3^2 -9v_3 -4v_4v_3 9;

@@ -14,15 +14,16 @@ import java.util.stream.Collectors;
 
 import static java.lang.Math.*;
 
-import function.Function;
+import function.BinaryFunction;
 import function.Interval;
 
 /**
  * @author khoihd
  *    ax^2 + bx + c
- *    This function is checked for Adding, Project, getMax and getArgMax
+ *    Needed to implement:
+ *      project, evaluate, getMax, getArgMax
  */
-public class QuadraticUnaryFunction extends Function implements Serializable {
+public class QuadraticUnaryFunction extends BinaryFunction implements Serializable {
   
   /**
    * 
@@ -54,12 +55,20 @@ public class QuadraticUnaryFunction extends Function implements Serializable {
     this.c = c;
   }
 
-  public void addNewUnaryFunction(double a, double b, double c) {
-    this.a += a;
-    this.b += b;
-    this.c += c;
+  /**
+   * @param a in ax^2
+   * @param b in bx
+   * @param c in c
+   * @return a new function which is the addition of the current and new a, b, c values
+   */
+  public QuadraticUnaryFunction addNewUnaryFunction(double a, double b, double c) {
+    return new QuadraticUnaryFunction(this.getA() + a, this.getB() + b, this.getC() + c, selfAgent, selfInterval);
   }
   
+  /**
+   * @param f the QuadraticUnaryFunction to be added
+   * @return a new function which is the addition of the current and f
+   */
   public QuadraticUnaryFunction addNewUnaryFunction(QuadraticUnaryFunction f) {
     checkSameSelfAgent(f, "QUADRATIC");
     checkSameSelfInterval(f, "QUADRATIC");
@@ -67,8 +76,8 @@ public class QuadraticUnaryFunction extends Function implements Serializable {
   }
   
   /**
-   * This function is checked
-   * @return max function
+   * @return max of f
+   * This is also the project operation
    */
   public double getMax() {
     List<Double> values = new ArrayList<>();
@@ -88,7 +97,6 @@ public class QuadraticUnaryFunction extends Function implements Serializable {
   }
   
   /**
-   * This function is checked
    * @return argmax function
    */
   public double getArgMax() {
@@ -186,13 +194,14 @@ public class QuadraticUnaryFunction extends Function implements Serializable {
        
     QuadraticUnaryFunction castedQuadUnaryFunc = (QuadraticUnaryFunction) quadUnaryFuncToCompare;
       
+    // Since this function is unary, other agent and other interval should be null
     return Double.compare(castedQuadUnaryFunc.getA(), this.getA()) == 0 &&
         Double.compare(castedQuadUnaryFunc.getB(), this.getB()) == 0 &&
         Double.compare(castedQuadUnaryFunc.getC(), this.getC()) == 0 &&
         castedQuadUnaryFunc.getSelfAgent().equals(this.getSelfAgent()) &&
-        castedQuadUnaryFunc.getOtherAgent().equals(this.getOtherAgent()) &&
         castedQuadUnaryFunc.getSelfInterval().equals(this.getSelfInterval()) &&
-        castedQuadUnaryFunc.getOtherInterval().equals(this.getOtherInterval());
+        castedQuadUnaryFunc.getOtherAgent() == null && this.getOtherAgent() == null &&
+        castedQuadUnaryFunc.getOtherInterval() == null && this.getOtherInterval() == null;
   }
   
   @Override
