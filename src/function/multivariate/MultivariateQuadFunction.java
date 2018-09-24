@@ -42,6 +42,27 @@ public class MultivariateQuadFunction implements Serializable {
   public MultivariateQuadFunction() {
     coefficients.put("", "", 0.0);
   }
+  
+  //function -281v_2^2 199v_2 -22v_0^2 252v_0 288v_2v_0 358;
+  /**
+   * This is the constructor built for BinaryQuadFunction. This is used to read the input files.
+   * @param coeff
+   * @param selfAgent
+   * @param otherAgent
+   * @param globalInterval
+   */
+  public MultivariateQuadFunction(int[] coeff, String selfAgent, String otherAgent, Interval globalInterval) {
+    coefficients.put(selfAgent, selfAgent, (double) coeff[0]);
+    coefficients.put(selfAgent, "", (double) coeff[1]);
+    coefficients.put(otherAgent, otherAgent, (double) coeff[2]);
+    coefficients.put(otherAgent, "", (double) coeff[3]);
+    coefficients.put(selfAgent, otherAgent, (double) coeff[4]);
+    coefficients.put(otherAgent, "", (double) coeff[5]);
+    
+    owner = selfAgent;
+    intervals.put(selfAgent, globalInterval);
+    intervals.put(otherAgent, globalInterval);
+  }
 
   /**
    * Constructor with all parameters <br>
@@ -73,7 +94,7 @@ public class MultivariateQuadFunction implements Serializable {
 
   /**
    * ADD operator <br>
-   * This function is already TESTED
+   * This function is being TESTED
    * Precondition: two functions share the same ranges of common variables
    * This testing is done by addNewInterval() function
    * @param tobeAddedFunction
@@ -81,16 +102,16 @@ public class MultivariateQuadFunction implements Serializable {
    * @return a new function which is a sum of this function and
    *         tobeAddedFunction
    */
-  public MultivariateQuadFunction add(final MultivariateQuadFunction tobeAddedFunction) {
+  public MultivariateQuadFunction add(final MultivariateQuadFunction tobeAddedFunction, boolean isCheckingSameInterval) {
     MultivariateQuadFunction result = new MultivariateQuadFunction(this);
 
     // Update quadratic coefficients
     for (Cell<String, String, Double> cellEntry : tobeAddedFunction.getCoefficients().cellSet()) {
-      updateCoefficient(cellEntry.getRowKey(), cellEntry.getColumnKey(), cellEntry.getValue());
+      result.updateCoefficient(cellEntry.getRowKey(), cellEntry.getColumnKey(), cellEntry.getValue());
     }
 
     for (Entry<String, Interval> entry : tobeAddedFunction.getIntervals().entrySet()) {
-      result.addNewInterval(entry.getKey(), entry.getValue());
+      result.addNewInterval(entry.getKey(), entry.getValue(), isCheckingSameInterval);
     }
 
     return result;
@@ -114,12 +135,17 @@ public class MultivariateQuadFunction implements Serializable {
    * 
    * @param variable
    * @param interval
+   * @param isCheckingSameInterval
    */
-  public void addNewInterval(String variable, Interval interval) {
-    if (intervals.containsKey(variable)) {
-      if (!intervals.get(variable).equals(interval)) {
-        throw new FunctionException("Different INTERVAL when adding QUAD MULTIVARIATE function");
-      }
+  public void addNewInterval(String variable, Interval interval, boolean isCheckingSameInterval) {
+    if (isCheckingSameInterval) {
+      if (intervals.containsKey(variable)) {
+        if (!intervals.get(variable).equals(interval)) {
+          throw new FunctionException("Different INTERVAL when adding QUAD MULTIVARIATE function");
+        }
+      } else {
+        intervals.put(variable, new Interval(interval));
+      }      
     } else {
       intervals.put(variable, new Interval(interval));
     }
@@ -139,7 +165,7 @@ public class MultivariateQuadFunction implements Serializable {
    * @return
    */
   public MultivariateQuadFunction evaluate(final String variable, final double value) {
-    if (getVariables().contains(variable)) {
+    if (!getVariables().contains(variable)) {
       throw new FunctionException("The function doesn't contain the variable that needed to be evaluated");
     }
 
@@ -172,6 +198,9 @@ public class MultivariateQuadFunction implements Serializable {
     // Delete all columns and rows that contain the variable
     evaluatedFunc.getCoefficients().row(variable).clear();
     evaluatedFunc.getCoefficients().column(variable).clear();
+    
+    // Delete the entry from intervals
+    evaluatedFunc.getIntervals().remove(variable);
 
     return evaluatedFunc;
   }
@@ -193,7 +222,7 @@ public class MultivariateQuadFunction implements Serializable {
    * @param numberOfIntervals
    * @return
    */
-  public Set<List<Interval>> cartesianProductInterval(int numberOfIntervals) {
+  public Set<List<Interval>> cartesianProductIntervalExcludingOwner(int numberOfIntervals) {
     // List of {intervalSetVar1,...,intervalSetVarN}
     List<Set<Interval>> intervalsSetList = new ArrayList<Set<Interval>>();
     for (Map.Entry<String, Interval> entry : intervals.entrySet()) {
@@ -215,6 +244,7 @@ public class MultivariateQuadFunction implements Serializable {
   
   /**
    * PROJECT operator
+   * This function is UNIT-TESTED
    * 1. Divide each interval into to smaller k intervals accordingly <br>
    * 2. In <itv1, itv2,..., itvn> in k^(#variables) intervals, get the midpoints <br>
    * 3. Evaluate the original function recursively into a unary function where the selfvariable is the only variable <br>
@@ -228,14 +258,9 @@ public class MultivariateQuadFunction implements Serializable {
    * @return a piecewise function of MultivariateQuadratic functions
    */
   public PiecewiseMultivariateQuadFunction approxProject(int numberOfIntervals) {
-    // TODO: needed to be BLACK-BOX TESTING
-
     PiecewiseMultivariateQuadFunction mpwFunc = new PiecewiseMultivariateQuadFunction();
-    Set<List<Interval>> productIntervals = cartesianProductInterval(numberOfIntervals);
-    
-    System.out.println("productIntervals" + productIntervals);
-    System.out.println("intervals " + intervals);
-    
+    Set<List<Interval>> productIntervals = cartesianProductIntervalExcludingOwner(numberOfIntervals);
+      
     // for each list of intervals, we have a function 
     // the result of this process is a piecewise multivariate function
     for (List<Interval> prodItvList : productIntervals) {
@@ -254,12 +279,14 @@ public class MultivariateQuadFunction implements Serializable {
         Interval interval = prodItvList.get(varIndex);
         intervalsOfNewFunction.put(entryVariable, interval);
       }
-      midPointedFunction = midPointedFunction.evaluateWithIntervalMap(intervalsOfNewFunction);
-      double argmax = midPointedFunction.getArgmax();
-      midPointedFunction = midPointedFunction.evaluate(owner, argmax);
-      midPointedFunction.setIntervals(intervalsOfNewFunction);
+      
+      MultivariateQuadFunction unaryEvalutedFunction = midPointedFunction.evaluateWithIntervalMap(intervalsOfNewFunction);
+      double argmax = unaryEvalutedFunction.getMaxAndArgMax()[1];
+      
+      unaryEvalutedFunction = midPointedFunction.evaluate(owner, argmax);
+      unaryEvalutedFunction.setIntervals(intervalsOfNewFunction);
 
-      mpwFunc.addNewFunction(midPointedFunction);
+      mpwFunc.addToFunctionList(unaryEvalutedFunction);
     }
 
     return mpwFunc;
@@ -283,7 +310,7 @@ public class MultivariateQuadFunction implements Serializable {
     }
 
     if (func.getNumberOfVariable() != 1) {
-      throw new FunctionException("The number of variables is " + func.getNumberOfVariable());
+      throw new FunctionException("The number of variables shoule be ONE after being evaluated by a map: " + func.getIntervals());
     }
 
     return func;
@@ -305,21 +332,25 @@ public class MultivariateQuadFunction implements Serializable {
     return coefficients.get(variable, variable) * Math.pow(value, 2) + coefficients.get(variable, "") * value
         + coefficients.get("", "");
   }
-
+  
   /**
-   * This function is BEING TESTED 
+   * This function is already TESTED 
    * owner is the only variable left
-   * @return v_i such that v_i = argmax{x_i} f where f is the unary function
+   * @return max and argmax of the function given the interval
    */
-  public double getArgmax() {
-    if (getNumberOfVariable() != 1)
+  public double[] getMaxAndArgMax() {
+    double[] result = new double[2];
+    
+    if (getNumberOfVariable() != 1) {
       throw new FunctionException(
-          "The number of variable should be ONE in order to be evaluated as a unaryFunction: " + getNumberOfVariable());
+          "The number of variable should be ONE in order to be evaluated as a unaryFunction: " + getIntervals());
+    }
 
-    if (!getVariables().contains(owner))
+    if (!getVariables().contains(owner)) {
       throw new FunctionException("Owner, which is the only variable left, is not contained in variable list: " + getVariables()
           + " and the owner " + owner);
-
+    }
+    
     double LB = intervals.get(owner).getLowerBound();
     double UB = intervals.get(owner).getUpperBound();
     // -b / 2a
@@ -330,15 +361,16 @@ public class MultivariateQuadFunction implements Serializable {
     double midEvaluated = evaluateUnaryFunction(owner, midPoint);
 
     double max = Math.max(Math.max(lowerEvaluated, upperEvaluated), midEvaluated);
+    result[0] = max;
 
     if (Double.compare(max, lowerEvaluated) == 0)
-      return LB;
+      result[1] = LB;
     else if (Double.compare(max, upperEvaluated) == 0)
-      return UB;
+      result[1] = UB;
     else if (Double.compare(max, midEvaluated) == 0)
-      return midEvaluated;
+      result[1] = midPoint;
 
-    return -Double.MAX_VALUE;
+    return result;
   }
   
   public boolean isTotallyBigger(Map<String, Interval> varIntervalMap) {
@@ -392,7 +424,8 @@ public class MultivariateQuadFunction implements Serializable {
   }
 
   public void setIntervals(final Map<String, Interval> intervals) {
-    this.intervals = intervals;
+    this.intervals.clear();
+    this.intervals.putAll(intervals);
   }
 
   public void setOwner(String owner) {

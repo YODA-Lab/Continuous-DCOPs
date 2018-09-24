@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Map;
 
 import behaviour.AGENT_TERMINATE;
@@ -19,8 +20,10 @@ import behaviour.PSEUDOTREE_GENERATION;
 
 import behaviour.SEARCH_NEIGHBORS;
 import function.Interval;
-import function.binary.PiecewiseFunction;
-import function.binary.QuadraticBinaryFunction;
+import function.multivariate.MultivariateQuadFunction;
+import function.multivariate.PiecewiseMultivariateQuadFunction;
+//import function.binary.PiecewiseFunction;
+//import function.binary.QuadraticBinaryFunction;
 import table.Row;
 import table.Table;
 
@@ -72,7 +75,6 @@ public class DCOP extends Agent implements DcopInfo {
 	public int domainMax; //from 0 - domain
 	public Interval globalInterval;
 
-	private Map<String, List<Double>> bestValueMap;
 	private Map<String, List<Double>> agentView_DPOP_TSMap;
 
 	private String idStr;
@@ -141,9 +143,11 @@ public class DCOP extends Agent implements DcopInfo {
 	private double utilityAndCost;
 	private String lastLine;
 	
-	private List<PiecewiseFunction> functionList;
-	private PiecewiseFunction agentViewFunction;
-	private List<PiecewiseFunction> currentFunctionListDPOP;
+	private List<PiecewiseMultivariateQuadFunction> functionList;
+	private PiecewiseMultivariateQuadFunction agentViewFunction;
+	private List<PiecewiseMultivariateQuadFunction> currentFunctionListDPOP;
+	
+	private int numberOfIntervals;
 
 	// for writing output purposes
 	public int instanceID;
@@ -167,36 +171,19 @@ public class DCOP extends Agent implements DcopInfo {
 	  Object[] args = getArguments();
 		//parameters for running experiments
 		algorithm = DPOP;
-//		inputFileName = "rep_6_d8.dzn";
-		inputFileName = (String) args[1];
-		
+		inputFileName = (String) args[0];
+    System.out.println(Arrays.deepToString(args));
+    numberOfIntervals = Integer.parseInt((String) args[1]);
 		String a[] = inputFileName.replaceAll("rep_","").replaceAll(".dzn","").split("_d");
 		instanceID = Integer.parseInt(a[0]);
-    noAgent = Integer.parseInt(a[0]);
-		
-//		agentView_DPOP_TSMap.put("next", new List<Double>());
-//		agentView_DPOP_TSMap.put("further", new List<Double>());
-		
-		//can be done after getting the algorithm
-//		if (algorithm == DPOP) {
-//			constraintTableAtEachTSMap.put(0, new ArrayList<Table>());
-//		}
-//		else if (algorithm == DSA) {
-//			constraintTableAtEachTSMap.put(0, new ArrayList<Table>());
-//		}
-	}
+    noAgent = Integer.parseInt(a[0]);	}
 	
-    protected void setup() {
-    	readArguments();
-		if (idStr.equals("1")) {
-			System.out.println("alg " + algorithm);
-//			System.out.println("iter " + MAX_ITERATION);
- 			System.out.println("input " + inputFileName);
-			System.out.println("ts " + h);
-//			System.out.println("id " + instanceD);
-			isRoot = true;
-
-		}
+  protected void setup() {
+    readArguments();
+    idStr = getLocalName();
+    if (idStr.equals("1")) {
+      isRoot = true;
+    }
 
 		readMinizincFileThenParseNeighborAndConstraintTable(inputFileName);		
 		/***** START register neighbors with DF *****/ 
@@ -210,36 +197,6 @@ public class DCOP extends Agent implements DcopInfo {
 //		    createNonProcessTable();
 //		    createProcessedTable();
 		}
-		
-//        Interval interval = new Interval(0, domainMax);
-		
-		// HARD-CODED binary function
-//		if (idStr.equals("1")) {
-//
-//		}
-//		if (idStr.equals("2")) {
-////		    BinaryFunction func = new BinaryFunction(1, 20, -3, 40, -2, 6, Double.valueOf(idStr), 1.0);
-//		    BinaryFunction func = new BinaryFunction(-1, 20, -3, 40, -2, 6, Double.valueOf(idStr), 1.0);
-//		    func.setSelfInterval(interval);
-//	        func.setOtherInterval(interval);
-//            PiecewiseFunction pwFunc = new PiecewiseFunction(Double.valueOf(idStr), 1.0);
-//            pwFunc.addNewFunction(func);
-//            functionList.add(pwFunc);		
-//        }
-//        if (idStr.equals("3")) {
-//            BinaryFunction func = new BinaryFunction(1, 10, -3, 30, -2, 6, Double.valueOf(idStr), 1.0);
-//            func.setSelfInterval(interval);
-//            func.setOtherInterval(interval);
-//            PiecewiseFunction pwFunc = new PiecewiseFunction(Double.valueOf(idStr), 1.0);
-//            pwFunc.addNewFunction(func);
-//            functionList.add(pwFunc);
-//        }
-		
-//		if (algorithm == LS_RAND)
-//			for (int ts=0; ts<=h; ts++) {
-//				addExpectedRandomTableToList(ts);
-//				addConstraintTableToList(ts);
-//			}
 
 		if (algorithm == DPOP) {
 //			addExpectedRandomTableToListAllTS();
@@ -299,9 +256,6 @@ public class DCOP extends Agent implements DcopInfo {
 		constraintTableAtEachTSMap = new HashMap<Integer, List<Table>>();
 		valueAtEachTSMap = new HashMap<Integer, Double>();
 
-		bestValueMap = new HashMap<String, List<Double>>();
-		bestValueMap.put("next", new ArrayList<>());
-		bestValueMap.put("further", new ArrayList<>());
 		agentView_DPOP_TSMap = new HashMap<String, List<Double>>();
 
 		currentGlobalUtilityList = new ArrayList<>();
@@ -578,32 +532,33 @@ public class DCOP extends Agent implements DcopInfo {
 			
 			//Process line by line;
 			for (String lineWithSemiColon:lineWithSemiColonList) {
-				/**DECISION_VARIABLE*/
-				//read decision variable domain
-			    //domain 10
-				if (lineWithSemiColon.contains(DOMAIN)) {
+				/**DOMAIN**/
+			  //domain 10
+				if (lineWithSemiColon.startsWith(DOMAIN)) {
 				    lineWithSemiColon = lineWithSemiColon.replaceAll("domain ", "");
 				    domainMax = Integer.parseInt(lineWithSemiColon);
 				    globalInterval = new Interval(-domainMax, domainMax);
 				}
+				
 				/**FUNCTION*/
-				//function -281v_2^2 199v_2 -22v_0^2 252v_0 288v_2v_0 358;
+				//function -281x_2^2 199x_2 -22x_0^2 252x_0 288x_2x_0 358;
 				//BinaryFunction func = new BinaryFunction(-1, 20, -3, 40, -2, 6, Double.valueOf(idStr), 1.0);
-
-				if (lineWithSemiColon.contains(FUNCTION)) {
-				    String selfVar = "v_" + idStr;
+				if (lineWithSemiColon.startsWith(FUNCTION)) {
+				    String selfVar = "x_" + idStr;
 				    if (!lineWithSemiColon.contains(selfVar)) continue;
 	                System.out.println("Agent " + idStr + " line " + lineWithSemiColon);
 				    
 				    lineWithSemiColon = lineWithSemiColon.replaceAll("function ", "");
 				    String[] termStrList = lineWithSemiColon.split(" ");
 				    int[] arr = parseFunction(termStrList, selfVar);
-				    QuadraticBinaryFunction func = new QuadraticBinaryFunction(arr[0], arr[1], arr[2], arr[3], arr[4], arr[5],
-				                              idStr, String.valueOf(arr[6]), globalInterval, globalInterval);
-//				    func.setSelfInterval(globalInterval);
-//            func.setOtherInterval(globalInterval);
-            PiecewiseFunction pwFunc = new PiecewiseFunction(idStr, String.valueOf(arr[6]));
-            pwFunc.addNewFunction(func);
+				    MultivariateQuadFunction func = new MultivariateQuadFunction(arr, idStr, String.valueOf(arr[6]), globalInterval);
+				    
+				    // Adding the new neighbor to neighborStrList 
+            String neighbor = String.valueOf(arr[6]);
+            if (!neighborStrList.contains(neighbor)) neighborStrList.add(neighbor);
+
+            PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
+            pwFunc.addToFunctionList(func);
             functionList.add(pwFunc);
 
 				    System.out.println("Agent " + idStr + " function " + pwFunc);
@@ -615,44 +570,43 @@ public class DCOP extends Agent implements DcopInfo {
 		}
 	}
 	
-  //function -281v_2^2 199v_2 -22v_0^2 252v_0 288v_2v_0 358;
+  //function -281x_2^2 199x_2 -22x_0^2 252x_0 288x_2x_0 358;
+	// where x_2 is selfAgent and x_0 is the other agent
 	/**
 	 * @param line from input file
 	 * @param selfAgent selfAgent name
-	 * @return an array of coefficients. Make sure that the function reads its coeffcicients first
+	 * @return an array of coefficients. Make sure that the function reads its coefficients first
 	 */
 	public int[] parseFunction(String[] line, String selfAgent) {
     int coeffArray[] = new int [7];
     for (String str : line) {
-      //v_1^2 or v_0v_2  
+      //x_1^2 or x_0x_2  
       if (str.contains(selfAgent)) {
           str = str.replace(selfAgent, "");
           
-          // -281v_2^2 => -281^2
+          // -281x_2^2 => -281^2
           if (str.contains("^2")) {
             coeffArray[0] = Integer.parseInt(str.replace("^2", ""));
  	        }
           // 199v2 => 199
-          else if (!str.contains("v_")) {
+          else if (!str.contains("x_")) {
              coeffArray[1] = Integer.parseInt(str);
           }
-          // 288v_2v_0 => 288v_0
-          else if (str.contains("v_")) {
-             coeffArray[4] = Integer.parseInt(str.split("v_")[0]);
+          // 288x_2x_0 => 288x_0
+          else if (str.contains("x_")) {
+             coeffArray[4] = Integer.parseInt(str.split("x_")[0]);
              // neighbor
-             coeffArray[6] = Integer.parseInt(str.split("v_")[1]);
-             String neighbor = String.valueOf(coeffArray[6]);
-             if (!neighborStrList.contains(neighbor)) neighborStrList.add(neighbor);
+             coeffArray[6] = Integer.parseInt(str.split("x_")[1]);
           }
       }
       else {
-        // -22v_0^2
+        // -22x_0^2
         if (str.contains("^2")) {   
-          coeffArray[2] = Integer.parseInt(str.split("v_")[0]);
+          coeffArray[2] = Integer.parseInt(str.split("x_")[0]);
         }
-        // 252v_0
-        else if (str.contains("v_")) {
-          coeffArray[3] = Integer.parseInt(str.split("v_")[0]);
+        // 252x_0
+        else if (str.contains("x_")) {
+          coeffArray[3] = Integer.parseInt(str.split("x_")[0]);
         }
         // 358
         else {
@@ -1090,44 +1044,35 @@ public class DCOP extends Agent implements DcopInfo {
 		this.lastLine = lastLine;
 	}
 
-    public Map<String, List<Double>> getBestValueMap() {
-		return bestValueMap;
-	}
+  public List<PiecewiseMultivariateQuadFunction> getFunctionList() {
+    return functionList;
+  }
 
-	public void setBestValueMap(Map<String, List<Double>> bestValueMap) {
-		this.bestValueMap = bestValueMap;
-	}
-	
-//	public double[] toArray(List<Double> List) {
-//		int arrSize = List.size();
-//		double[] convertedArray = new double[arrSize];
-//		for (int i=0; i<arrSize; i++) {
-//			convertedArray[i] = List.get(i);
-//		}
-//		return convertedArray;
-//	}
+  public void setFunctionList(List<PiecewiseMultivariateQuadFunction> functionList) {
+    this.functionList = functionList;
+  }
 
-    public List<PiecewiseFunction> getFunctionList() {
-        return functionList;
-    }
+  public PiecewiseMultivariateQuadFunction getAgentViewFunction() {
+    return agentViewFunction;
+  }
 
-    public void setFunctionList(List<PiecewiseFunction> functionList) {
-        this.functionList = functionList;
-    }
+  public void setAgentViewFunction(PiecewiseMultivariateQuadFunction agentViewFunction) {
+    this.agentViewFunction = agentViewFunction;
+  }
 
-    public PiecewiseFunction getAgentViewFunction() {
-        return agentViewFunction;
-    }
+  public List<PiecewiseMultivariateQuadFunction> getCurrentFunctionListDPOP() {
+    return currentFunctionListDPOP;
+  }
 
-    public void setAgentViewFunction(PiecewiseFunction agentViewFunction) {
-        this.agentViewFunction = agentViewFunction;
-    }
+  public void setCurrentFunctionListDPOP(List<PiecewiseMultivariateQuadFunction> currentFunctionListDPOP) {
+    this.currentFunctionListDPOP = currentFunctionListDPOP;
+  }
 
-    public List<PiecewiseFunction> getCurrentFunctionListDPOP() {
-        return currentFunctionListDPOP;
-    }
+  public int getNumberOfIntervals() {
+    return numberOfIntervals;
+  }
 
-    public void setCurrentFunctionListDPOP(List<PiecewiseFunction> currentFunctionListDPOP) {
-        this.currentFunctionListDPOP = currentFunctionListDPOP;
-    }
+  public void setNumberOfIntervals(int numberOfIntervals) {
+    this.numberOfIntervals = numberOfIntervals;
+  }
 }	

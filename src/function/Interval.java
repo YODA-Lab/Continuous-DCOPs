@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.*;
 
 /**
- * Note that this is an immutable class with all private fields and no set function
+ * This class is IMMUTABLE with all private fields and no setter function
  * @author khoihd
  */
 public class Interval implements Serializable {

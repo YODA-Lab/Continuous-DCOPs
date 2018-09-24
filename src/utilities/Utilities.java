@@ -16,9 +16,9 @@ import java.util.List;
 import java.util.TreeSet;
 
 import function.Interval;
-import function.binary.CubicUnaryFunction;
-import function.binary.QuadraticBinaryFunction;
-import function.binary.QuadraticUnaryFunction;
+//import function.binary.CubicUnaryFunction;
+//import function.binary.QuadraticBinaryFunction;
+//import function.binary.QuadraticUnaryFunction;
 
 public class Utilities {	
 	public static String headerLine = "InstanceID" + "\t" + "Alg" + "\t" + "Decision"
@@ -52,62 +52,62 @@ public class Utilities {
    * @param func2 QuadraticUnaryFunction
    * @return a list of sorted intervals
    */
-  public static List<Interval> solveUnaryQuadForIntervals(QuadraticUnaryFunction func1, QuadraticUnaryFunction func2) {
-    List<Interval> intervalList = new ArrayList<>();
-    TreeSet<Double> valueIntervalSet = new TreeSet<>();
-
-    // TODO check again the two below commented lines. They are commented to hide the errors
-//    func1.checkSameSelfAgent(func2, QuadraticUnaryFunction.FUNCTION_TYPE);
-//    func1.checkSameSelfInterval(func2, QuadraticUnaryFunction.FUNCTION_TYPE);
-    
-    QuadraticUnaryFunction diffFunc1Func2 = new QuadraticUnaryFunction(func1.getA() - func2.getA(),
-        func1.getB() - func2.getB(), func1.getC() - func2.getC(), func1.getSelfAgent(), func1.getSelfInterval());
-    
-    double LB = func1.getSelfInterval().getLowerBound();
-    double UB = func1.getSelfInterval().getUpperBound();
-    
-    valueIntervalSet.addAll(diffFunc1Func2.solveForRoots());
-    valueIntervalSet.add(LB);
-    valueIntervalSet.add(UB);
-    
-    List<Double> valList = new ArrayList<>(valueIntervalSet.subSet(LB, true, UB, true));    
-      
-    for (int index = 0; index < valList.size() - 1; index++) {
-      intervalList.add(new Interval(valList.get(index), valList.get(index + 1)));
-    }
-    
-    return intervalList;
-  }
+//  public static List<Interval> solveUnaryQuadForIntervals(QuadraticUnaryFunction func1, QuadraticUnaryFunction func2) {
+//    List<Interval> intervalList = new ArrayList<>();
+//    TreeSet<Double> valueIntervalSet = new TreeSet<>();
+//
+//    // TODO check again the two below commented lines. They are commented to hide the errors
+////    func1.checkSameSelfAgent(func2, QuadraticUnaryFunction.FUNCTION_TYPE);
+////    func1.checkSameSelfInterval(func2, QuadraticUnaryFunction.FUNCTION_TYPE);
+//    
+//    QuadraticUnaryFunction diffFunc1Func2 = new QuadraticUnaryFunction(func1.getA() - func2.getA(),
+//        func1.getB() - func2.getB(), func1.getC() - func2.getC(), func1.getSelfAgent(), func1.getSelfInterval());
+//    
+//    double LB = func1.getSelfInterval().getLowerBound();
+//    double UB = func1.getSelfInterval().getUpperBound();
+//    
+//    valueIntervalSet.addAll(diffFunc1Func2.solveForRoots());
+//    valueIntervalSet.add(LB);
+//    valueIntervalSet.add(UB);
+//    
+//    List<Double> valList = new ArrayList<>(valueIntervalSet.subSet(LB, true, UB, true));    
+//      
+//    for (int index = 0; index < valList.size() - 1; index++) {
+//      intervalList.add(new Interval(valList.get(index), valList.get(index + 1)));
+//    }
+//    
+//    return intervalList;
+//  }
   
   /**
    * @param func1 CubicUnaryFunction
    * @param func2 CubicUnaryFunction
    * @return a list of sorted intervals
    */
-  public static List<Interval> solveCubicForIntervals(CubicUnaryFunction func1, CubicUnaryFunction func2) {
-    List<Interval> intervalList = new ArrayList<>();
-    TreeSet<Double> valueIntervalSet = new TreeSet<>();
-    func1.checkSameSelfAgent(func2, "CUBIC");
-    func1.checkSameSelfInterval(func2, "CUBIC");
-    
-    CubicUnaryFunction diffFunc1Func2 = new CubicUnaryFunction(func1.getA() - func2.getA(), func1.getB() - func2.getB(),
-        func1.getC() - func2.getC(), func1.getD() - func2.getD(), func1.getSelfAgent(), func1.getSelfInterval());
-    
-    double LB = func1.getSelfInterval().getLowerBound();
-    double UB = func1.getSelfInterval().getUpperBound();
-    
-    valueIntervalSet.addAll(diffFunc1Func2.solveForRoots());
-    valueIntervalSet.add(LB);
-    valueIntervalSet.add(UB);
-    
-    List<Double> valList = new ArrayList<>(valueIntervalSet.subSet(LB, true, UB, true));    
-      
-    for (int index = 0; index < valList.size() - 1; index++) {
-      intervalList.add(new Interval(valList.get(index), valList.get(index + 1)));
-    }
-    
-    return intervalList;
-  }
+//  public static List<Interval> solveCubicForIntervals(CubicUnaryFunction func1, CubicUnaryFunction func2) {
+//    List<Interval> intervalList = new ArrayList<>();
+//    TreeSet<Double> valueIntervalSet = new TreeSet<>();
+//    func1.checkSameSelfAgent(func2, "CUBIC");
+//    func1.checkSameSelfInterval(func2, "CUBIC");
+//    
+//    CubicUnaryFunction diffFunc1Func2 = new CubicUnaryFunction(func1.getA() - func2.getA(), func1.getB() - func2.getB(),
+//        func1.getC() - func2.getC(), func1.getD() - func2.getD(), func1.getSelfAgent(), func1.getSelfInterval());
+//    
+//    double LB = func1.getSelfInterval().getLowerBound();
+//    double UB = func1.getSelfInterval().getUpperBound();
+//    
+//    valueIntervalSet.addAll(diffFunc1Func2.solveForRoots());
+//    valueIntervalSet.add(LB);
+//    valueIntervalSet.add(UB);
+//    
+//    List<Double> valList = new ArrayList<>(valueIntervalSet.subSet(LB, true, UB, true));    
+//      
+//    for (int index = 0; index < valList.size() - 1; index++) {
+//      intervalList.add(new Interval(valList.get(index), valList.get(index + 1)));
+//    }
+//    
+//    return intervalList;
+//  }
   
   public static double roundDouble(double value) {
     return new BigDecimal(value).setScale(10, RoundingMode.DOWN).stripTrailingZeros().doubleValue();

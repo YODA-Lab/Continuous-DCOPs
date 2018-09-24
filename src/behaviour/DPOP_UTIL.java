@@ -7,17 +7,21 @@ import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 
 import agent.DCOP;
 import agent.DcopInfo;
 import agent.DcopInfo.SolvingType;
-import function.BinaryFunction;
+//import function.BinaryFunction;
 import function.Interval;
-import function.binary.PiecewiseFunction;
-import function.binary.QuadraticBinaryFunction;
-import function.binary.QuadraticUnaryFunction;
+import function.multivariate.MultivariateQuadFunction;
+import function.multivariate.PiecewiseMultivariateQuadFunction;
+//import function.binary.PiecewiseFunction;
+//import function.binary.QuadraticBinaryFunction;
+//import function.binary.QuadraticUnaryFunction;
 import table.Row;
 import table.Table;
 
@@ -75,6 +79,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		agent.setCurrentTableListDPOP(null);
 		
 		if (agent.algorithm == DCOP.DPOP) {
+		  System.out.println("Removing functions that contains children or pseudochildren...");
 			removeChildrenFunctionFromFunctionList(0);
 		}
 				
@@ -86,12 +91,13 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		
 		if (agent.isLeaf()) {
 //			leafDoUtilProcess();
+      if (agent.algorithm == DCOP.DPOP) System.out.println("LEAF is running");
 		  leafDoFuncUtilProcess();
-			if (agent.algorithm == DCOP.DPOP) System.out.println("leaf done");
+			if (agent.algorithm == DCOP.DPOP) System.out.println("LEAF done");
 		} 
 		else if (agent.isRoot()){
 //			rootDoUtilProcess();
-		  rootFuncDoUtilProcess();
+		  rootDoFuncUtilProcess();
 			
 //			if (agent.algorithm == DCOP.REACT || agent.algorithm == DCOP.HYBRID) {
 //				writeTimeToFile();
@@ -103,9 +109,9 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		}
 		else {
 //			internalNodeDoUtilProcess();
-		  internalNodeFuncDoUtilProcess();
-			
-			if (agent.algorithm == DCOP.DPOP) System.out.println("internal node done");
+      if (agent.algorithm == DCOP.DPOP) System.out.println("INTERNAL node is running");
+		  internalNodeDoFuncUtilProcess();
+			if (agent.algorithm == DCOP.DPOP) System.out.println("INTERNAL node done");
 		}
 	}		
 	
@@ -135,17 +141,20 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 //		projectedTable.printDecVar();
 	}
 	
-	/* IN THE CONTEXT OF A TREE
-	 * A LEAF NODE HAS ONLY ONE FUNCTION, OTHERWISE THERE EXITS A CYCLE
+	/*
 	 */
   public void leafDoFuncUtilProcess() {
     agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 
-    // A leaf has only one constraint function in this case
-    PiecewiseFunction combinedFunction = agent.getFunctionList().get(0); 
+    // Combine all functions in the leaf
+    PiecewiseMultivariateQuadFunction combinedFunction = agent.getCurrentFunctionListDPOP().get(0);
+    for (int i = 1; i < agent.getCurrentFunctionListDPOP().size(); i++) {
+      combinedFunction = combinedFunction.addPiecewiseFunction(agent.getFunctionList().get(i));
+    }
+    
     agent.setAgentViewFunction(combinedFunction);
     
-    PiecewiseFunction projectedFunction = combinedFunction.project(solvingType);
+    PiecewiseMultivariateQuadFunction projectedFunction = combinedFunction.approxProject(agent.getNumberOfIntervals());
     
     agent.setSimulatedTime(
         agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
@@ -162,7 +171,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		// After combined, it becomes a unary function
 		Table combinedUtilAndConstraintTable = combineMessage(receivedUTILmsgList);
 	
-		for (Table pseudoParentTable:agent.getCurrentTableListDPOP()) {
+		for (Table pseudoParentTable : agent.getCurrentTableListDPOP()) {
 			combinedUtilAndConstraintTable = joinTable(combinedUtilAndConstraintTable, pseudoParentTable);
 		}
 
@@ -176,19 +185,21 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		agent.sendObjectMessageWithTime(agent.getParentAID(), projectedTable, DPOP_UTIL, agent.getSimulatedTime());
 	}
 	
-  public void internalNodeFuncDoUtilProcess() {
+  public void internalNodeDoFuncUtilProcess() {
     List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 
     agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
     
     // UnaryPiecewiseFunction
-    PiecewiseFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
+    PiecewiseMultivariateQuadFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
     
-    // In context of a tree, there is only one function to the parent
-    combinedFunctionMessage = addBinaryAndUnaryPiecewiseFunctions(agent.getCurrentFunctionListDPOP().get(0),
-        combinedFunctionMessage);
+    for (int i = 0; i < agent.getCurrentFunctionListDPOP().size(); i++) {
+      combinedFunctionMessage = combinedFunctionMessage.addPiecewiseFunction(agent.getFunctionList().get(i));
+    }
      
-    PiecewiseFunction projectedFunction = combinedFunctionMessage.project(solvingType);
+    agent.setAgentViewFunction(combinedFunctionMessage);
+
+    PiecewiseMultivariateQuadFunction projectedFunction = combinedFunctionMessage.approxProject(agent.getNumberOfIntervals());
     
     agent.setSimulatedTime(
         agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
@@ -196,23 +207,25 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     agent.sendObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
   }
 	
-	public void rootFuncDoUtilProcess() {
+	public void rootDoFuncUtilProcess() {
 	  List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 	  agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-    PiecewiseFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
+    PiecewiseMultivariateQuadFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
         
-    // In the context of a tree, there isn't such a function
-    for (PiecewiseFunction pseudoParentFunction : agent.getCurrentFunctionListDPOP()) {
-      combinedFunctionMessage = addUnaryPiecewiseFunctions(combinedFunctionMessage, pseudoParentFunction);
+    for (PiecewiseMultivariateQuadFunction pseudoParentFunction : agent.getCurrentFunctionListDPOP()) {
+      combinedFunctionMessage = combinedFunctionMessage.addPiecewiseFunction(pseudoParentFunction);   
     }
     
     // choose the maximum
-    double argmax = -Double.MAX_VALUE;
+    double argmax = -Double.MAX_VALUE; 
     double max = -Double.MAX_VALUE;
-    for (BinaryFunction f : combinedFunctionMessage.getFunctionList()) {
-      if (Double.compare(((QuadraticUnaryFunction) f).getMax(), max) > 0) {
-        max = ((QuadraticUnaryFunction) f).getMax();
-        argmax = ((QuadraticUnaryFunction) f).getArgMax();
+    
+    for (MultivariateQuadFunction f : combinedFunctionMessage.getFunctionList()) {
+      double[] maxAndArgMax = f.getMaxAndArgMax();
+      
+      if (Double.compare(maxAndArgMax[0], max) > 0) {
+        max = maxAndArgMax[0];
+        argmax = maxAndArgMax[1];
       }
     }
     
@@ -312,18 +325,27 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	}
 	
 	
+	/**
+	 * Remove any function that contains children or pseudoChildren.
+	 * @param currentTimeStep
+	 */
 	public void removeChildrenFunctionFromFunctionList(int currentTimeStep) {
-	  List<PiecewiseFunction> funcList = new ArrayList<>();
-	  List<AID> childAndPseudoChildrenAIDList = new ArrayList<AID>(agent.getChildrenAIDList());
-    childAndPseudoChildrenAIDList.addAll(agent.getPseudoChildrenAIDList());
+	  List<PiecewiseMultivariateQuadFunction> funcList = new ArrayList<>();
+	  Set<AID> childAndPseudoChildrenAIDSet = new HashSet<>(agent.getChildrenAIDList());
+    childAndPseudoChildrenAIDSet.addAll(agent.getPseudoChildrenAIDList());
     
-    List<String> childAndPseudoChildrenStrList = new ArrayList<String>();
-    for (AID pscChildrenAID:childAndPseudoChildrenAIDList) {
+    Set<String> childAndPseudoChildrenStrList = new HashSet<String>();
+    for (AID pscChildrenAID : childAndPseudoChildrenAIDSet) {
       childAndPseudoChildrenStrList.add(pscChildrenAID.getLocalName());
     }
 	  
-	  for (PiecewiseFunction pwFunc : agent.getFunctionList()) {
-	    if (!childAndPseudoChildrenStrList.contains(pwFunc.getOtherAgent())) {
+	  for (PiecewiseMultivariateQuadFunction pwFunc : agent.getFunctionList()) {
+	    Set<String> variableSet = pwFunc.getVaribleSet();
+	    variableSet.retainAll(childAndPseudoChildrenStrList);
+	    
+	    // There is no children or pseudo-children in this function
+	    // Then add to the function list
+	    if (variableSet.size() == 0) {
 	      funcList.add(pwFunc);
 	    }
 //  	  for (AID children : agent.getChildrenStrList()) {
@@ -426,8 +448,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	 * @param binaryPw2
 	 * @return
 	 */
-	public PiecewiseFunction addBinaryPiecewiseFunctions(PiecewiseFunction binaryPw1, PiecewiseFunction binaryPw2) {
-    PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
+//	public PiecewiseFunction addBinaryPiecewiseFunctions(PiecewiseFunction binaryPw1, PiecewiseFunction binaryPw2) {
+//    PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
 //    List<Function> binaryList1 = binaryPw1.getFunctionList();
 //    List<Function> binaryList2 = binaryPw2.getFunctionList();
 //
@@ -465,8 +487,9 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 //      pwFunc.addNewFunction(newBinaryFunction);
 //    }
 //    
-    return pwFunc;
-	}
+//    return pwFunc;
+//	  return null;
+//	}
 	
   /**
    * This function is checked manually
@@ -474,98 +497,98 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
    * @param unaryPw
    * @return a binary piecewise function
    */
-  public PiecewiseFunction addBinaryAndUnaryPiecewiseFunctions(PiecewiseFunction binaryPw, PiecewiseFunction unaryPw) {
-	  PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
-	  List<BinaryFunction> binaryList = binaryPw.getFunctionList();
-	  List<BinaryFunction> unaryList = unaryPw.getFunctionList();
-	  
-	  TreeSet<Double> binaryRange = binaryPw.getSortedSegmentedRange();
-    TreeSet<Double> unaryRange = unaryPw.getSortedSegmentedRange();
-    binaryRange.addAll(unaryRange);
-    List<Double> rangeList = new ArrayList<>(binaryRange);
-    
-    QuadraticBinaryFunction binaryFunc = null;
-    QuadraticUnaryFunction unaryFunc = null;
-    
-    for (int i = 0; i < rangeList.size() - 1; i++) {
-      double a = rangeList.get(i);
-      double b = rangeList.get(i+1);
-      for (BinaryFunction f : binaryList) {
-        // find the only binary f that is in the range
-        // if not, return null
-        if (f.isInRange(a, b)) {
-          binaryFunc = (QuadraticBinaryFunction) f;
-          break;
-        }
-        binaryFunc = null;
-      }
-      
-      // find the only unary f that is in the range
-      // if not, return null
-      for (BinaryFunction f : unaryList) {
-        if (f.isInRange(a, b)) {
-          unaryFunc = (QuadraticUnaryFunction) f;
-          break;
-        }
-        unaryFunc = null;
-      }
-
-      // Assume that binaryFunc is not null
-      QuadraticBinaryFunction newBinaryFunction = new QuadraticBinaryFunction(binaryFunc);
-      newBinaryFunction = newBinaryFunction.addUnaryFuncDiffInterval(unaryFunc);
-      newBinaryFunction.setSelfInterval(new Interval(a, b));
-      pwFunc.addNewFunction(newBinaryFunction);
-    }
-    
-    return pwFunc;
-	}
+//  public PiecewiseFunction addBinaryAndUnaryPiecewiseFunctions(PiecewiseFunction binaryPw, PiecewiseFunction unaryPw) {
+//	  PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
+//	  List<BinaryFunction> binaryList = binaryPw.getFunctionList();
+//	  List<BinaryFunction> unaryList = unaryPw.getFunctionList();
+//	  
+//	  TreeSet<Double> binaryRange = binaryPw.getSortedSegmentedRange();
+//    TreeSet<Double> unaryRange = unaryPw.getSortedSegmentedRange();
+//    binaryRange.addAll(unaryRange);
+//    List<Double> rangeList = new ArrayList<>(binaryRange);
+//    
+//    QuadraticBinaryFunction binaryFunc = null;
+//    QuadraticUnaryFunction unaryFunc = null;
+//    
+//    for (int i = 0; i < rangeList.size() - 1; i++) {
+//      double a = rangeList.get(i);
+//      double b = rangeList.get(i+1);
+//      for (BinaryFunction f : binaryList) {
+//        // find the only binary f that is in the range
+//        // if not, return null
+//        if (f.isInRange(a, b)) {
+//          binaryFunc = (QuadraticBinaryFunction) f;
+//          break;
+//        }
+//        binaryFunc = null;
+//      }
+//      
+//      // find the only unary f that is in the range
+//      // if not, return null
+//      for (BinaryFunction f : unaryList) {
+//        if (f.isInRange(a, b)) {
+//          unaryFunc = (QuadraticUnaryFunction) f;
+//          break;
+//        }
+//        unaryFunc = null;
+//      }
+//
+//      // Assume that binaryFunc is not null
+//      QuadraticBinaryFunction newBinaryFunction = new QuadraticBinaryFunction(binaryFunc);
+//      newBinaryFunction = newBinaryFunction.addUnaryFuncDiffInterval(unaryFunc);
+//      newBinaryFunction.setSelfInterval(new Interval(a, b));
+//      pwFunc.addNewFunction(newBinaryFunction);
+//    }
+//    
+//    return pwFunc;
+//	}
 	
 	
-	public PiecewiseFunction addUnaryPiecewiseFunctions(PiecewiseFunction func1, PiecewiseFunction func2) {
-	  PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
-	  List<BinaryFunction> functionList1 = func1.getFunctionList();
-	  List<BinaryFunction> functionList2 = func2.getFunctionList();
-	  
-	  //TODO double check this part
-	  TreeSet<Double> range1 = func1.getSortedSegmentedRange();
-	  TreeSet<Double> range2 = func2.getSortedSegmentedRange();
-	  range1.addAll(range2);
-	  List<Double> rangeList = new ArrayList<>(range1);
-	  
-	  QuadraticUnaryFunction f1 = null;
-	  QuadraticUnaryFunction f2 = null; 
-	  
-	  for (int i = 0; i < rangeList.size() - 1; i++) {
-	    double a = rangeList.get(i);
-	    double b = rangeList.get(i+1);
-	    for (BinaryFunction f : functionList1) {
-	      if (f.isInRange(a, b)) {
-	        f1 = new QuadraticUnaryFunction((QuadraticUnaryFunction) f);
-	        break;
-	      }
-	      f1 = null;
-	    }
-	    
-      for (BinaryFunction f : functionList2) {
-        if (f.isInRange(a, b)) {
-          f2 = new QuadraticUnaryFunction((QuadraticUnaryFunction) f);
-          break;
-        }
-        f2 = null;
-      }
+//	public PiecewiseFunction addUnaryPiecewiseFunctions(PiecewiseFunction func1, PiecewiseFunction func2) {
+//	  PiecewiseFunction pwFunc = new PiecewiseFunction(null, null);
+//	  List<BinaryFunction> functionList1 = func1.getFunctionList();
+//	  List<BinaryFunction> functionList2 = func2.getFunctionList();
+//	  
 
-      QuadraticUnaryFunction newFunction = new QuadraticUnaryFunction(f1);
-//      newFunction = newFunction.addNewUnaryFunction(f2), new Interval(a, b), f2.getSelfAgent(), -1);
-      newFunction = newFunction.addNewUnaryFunction(f2);
-      pwFunc.addNewFunction(newFunction);
-	  }
-	  
-	  // given a range [a, b], check which function in that range in functionList1 and functionList2
-	  // to check a <= LB and UB <= b
-	  // then sum up two function
-	  
-	  return pwFunc;
-	}
+//	  TreeSet<Double> range1 = func1.getSortedSegmentedRange();
+//	  TreeSet<Double> range2 = func2.getSortedSegmentedRange();
+//	  range1.addAll(range2);
+//	  List<Double> rangeList = new ArrayList<>(range1);
+//	  
+//	  QuadraticUnaryFunction f1 = null;
+//	  QuadraticUnaryFunction f2 = null; 
+//	  
+//	  for (int i = 0; i < rangeList.size() - 1; i++) {
+//	    double a = rangeList.get(i);
+//	    double b = rangeList.get(i+1);
+//	    for (BinaryFunction f : functionList1) {
+//	      if (f.isInRange(a, b)) {
+//	        f1 = new QuadraticUnaryFunction((QuadraticUnaryFunction) f);
+//	        break;
+//	      }
+//	      f1 = null;
+//	    }
+//	    
+//      for (BinaryFunction f : functionList2) {
+//        if (f.isInRange(a, b)) {
+//          f2 = new QuadraticUnaryFunction((QuadraticUnaryFunction) f);
+//          break;
+//        }
+//        f2 = null;
+//      }
+//
+//      QuadraticUnaryFunction newFunction = new QuadraticUnaryFunction(f1);
+////      newFunction = newFunction.addNewUnaryFunction(f2), new Interval(a, b), f2.getSelfAgent(), -1);
+//      newFunction = newFunction.addNewUnaryFunction(f2);
+//      pwFunc.addNewFunction(newFunction);
+//	  }
+//	  
+//	  // given a range [a, b], check which function in that range in functionList1 and functionList2
+//	  // to check a <= LB and UB <= b
+//	  // then sum up two function
+//	  
+//	  return pwFunc;
+//	}
 	
 	
 	
@@ -810,21 +833,21 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		return table;
 	}
 	
-  PiecewiseFunction combineMessageToFunction(List<ACLMessage> list) {
-    List<PiecewiseFunction> listFunction = new ArrayList<>();
+	PiecewiseMultivariateQuadFunction combineMessageToFunction(List<ACLMessage> list) {
+    List<PiecewiseMultivariateQuadFunction> listFunction = new ArrayList<>();
     for (ACLMessage msg : list) {
       try {
-        listFunction.add((PiecewiseFunction) msg.getContentObject());
+        listFunction.add((PiecewiseMultivariateQuadFunction) msg.getContentObject());
       } catch (UnreadableException e) {
         e.printStackTrace();
       }
     }
 
     int size = listFunction.size();
-    PiecewiseFunction function = listFunction.get(0);
+    PiecewiseMultivariateQuadFunction function = listFunction.get(0);
 
     for (int i = 1; i < size; i++) {
-      function = addUnaryPiecewiseFunctions(function, listFunction.get(i));
+      function = function.addPiecewiseFunction(listFunction.get(i));
     }
 
     return function;
