@@ -154,7 +154,11 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     
     agent.setAgentViewFunction(combinedFunction);
     
+    System.out.println("Leaf Combined function: " + combinedFunction);
+    
     PiecewiseMultivariateQuadFunction projectedFunction = combinedFunction.approxProject(agent.getNumberOfIntervals());
+    
+    System.out.println("Leaf Projected function: " + projectedFunction);
     
     agent.setSimulatedTime(
         agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
@@ -201,6 +205,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 
     PiecewiseMultivariateQuadFunction projectedFunction = combinedFunctionMessage.approxProject(agent.getNumberOfIntervals());
     
+    System.out.println("Internal node Projected function: " + projectedFunction);
+    
     agent.setSimulatedTime(
         agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
@@ -219,6 +225,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     // choose the maximum
     double argmax = -Double.MAX_VALUE; 
     double max = -Double.MAX_VALUE;
+    
+    System.out.println("Root Combined function: " + combinedFunctionMessage);
     
     for (MultivariateQuadFunction f : combinedFunctionMessage.getFunctionList()) {
       double[] maxAndArgMax = f.getMaxAndArgMax();
@@ -399,6 +407,9 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 //    
 //    agent.setCurrentFunctionListDPOP(currentFunctionList);
 	  agent.setCurrentFunctionListDPOP(funcList);
+	  for (PiecewiseMultivariateQuadFunction entry : funcList) {
+	    System.out.println("The function list after removing children of agent " + agent.getIdStr() + " is: " + entry);
+	  }
 	}
 	
 	//constraintTableAtEachTSMap is constructed in collapsing table (decision and random)

@@ -216,7 +216,7 @@ public class DCOP extends Agent implements DcopInfo {
 		mainSequentialBehaviourList.addSubBehaviour(new BROADCAST_RECEIVE_HEURISTIC_INFO(this));
 		mainSequentialBehaviourList.addSubBehaviour(new PSEUDOTREE_GENERATION(this));
 		
-		//run DPOP multi-step
+		// Adding UTIL and VALUE behavior
 		if (algorithm == DPOP) {
 			mainSequentialBehaviourList.addSubBehaviour(new DPOP_UTIL(this));
 //			mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));

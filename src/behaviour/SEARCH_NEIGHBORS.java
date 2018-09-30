@@ -24,6 +24,8 @@ public class SEARCH_NEIGHBORS extends OneShotBehaviour implements MESSAGE_TYPE {
 		ServiceDescription serviceDescription = new ServiceDescription();
 		serviceDescription.setType(agent.getIdStr());
 		templateDF.addServices(serviceDescription);
+		
+		System.out.println("Start looking for neighbors: " + agent.getNeighborStrList());
 				
 		while (agent.getNeighborAIDList().size() < agent.getNeighborStrList().size()) {
 			try {
@@ -35,5 +37,7 @@ public class SEARCH_NEIGHBORS extends OneShotBehaviour implements MESSAGE_TYPE {
 				e.printStackTrace();
 			}
 		}
+		
+		System.out.println("Done looking for neighbors");
 	}
 }
