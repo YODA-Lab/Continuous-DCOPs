@@ -65,7 +65,7 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 				e.printStackTrace();
 			}
 
-			for (String agentKey:valuesFromParent.keySet()) {
+			for (String agentKey : valuesFromParent.keySet()) {
 				int positionInParentMessage = agent.getAgentViewTable().getDecVarLabel().indexOf(agentKey);
 				if (positionInParentMessage == -1) //not in agentView
 					continue;
@@ -116,22 +116,6 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 			else if (agent.algorithm == DCOP.REACT) {
 				agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
 			}
-			//correct
-//			else if (agent.algorithm == DCOP.FORWARD) {
-//				//solution at current time step
-//				if (agent.getCurrentTS() < agent.h-1)
-//					agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
-//				//solution at h because we solve h before h-1
-//				else if (agent.getCurrentTS() == agent.h-1)
-//					agent.getValueAtEachTSMap().put(agent.h, agent.getChosenValue());
-//				//solution at h-1
-//				else if (agent.getCurrentTS() == agent.h)
-//					agent.getValueAtEachTSMap().put(agent.h-1, agent.getChosenValue());
-//
-//			}
-//			else if (agent.algorithm == DCOP.BACKWARD) {
-//				agent.getValueAtEachTSMap().put(agent.h - agent.getCurrentTS(), agent.getChosenValue());
-//			}
 			
 			agent.addupSimulatedTime(agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 			

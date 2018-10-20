@@ -1,8 +1,10 @@
 package agent; //dcop
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
@@ -12,6 +14,8 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.zip.GZIPOutputStream;
+import static java.lang.System.out;
 
 import behaviour.AGENT_TERMINATE;
 import behaviour.BROADCAST_RECEIVE_HEURISTIC_INFO;
@@ -142,12 +146,14 @@ public class DCOP extends Agent implements DcopInfo {
 
 	private double utilityAndCost;
 	private String lastLine;
+	private int rootFromInput = Integer.MAX_VALUE;
 	
 	private List<PiecewiseMultivariateQuadFunction> functionList;
 	private PiecewiseMultivariateQuadFunction agentViewFunction;
 	private List<PiecewiseMultivariateQuadFunction> currentFunctionListDPOP;
 	
 	private int numberOfIntervals;
+	private int numberOfAgents;
 
 	// for writing output purposes
 	public int instanceID;
@@ -172,20 +178,23 @@ public class DCOP extends Agent implements DcopInfo {
 		//parameters for running experiments
 		algorithm = DPOP;
 		inputFileName = (String) args[0];
-    System.out.println(Arrays.deepToString(args));
+    out.println(Arrays.deepToString(args));
     numberOfIntervals = Integer.parseInt((String) args[1]);
 		String a[] = inputFileName.replaceAll("rep_","").replaceAll(".dzn","").split("_d");
 		instanceID = Integer.parseInt(a[0]);
-    noAgent = Integer.parseInt(a[0]);	}
+    noAgent = Integer.parseInt(a[1]);	
+    numberOfAgents = 2;
+	}
 	
   protected void setup() {
     readArguments();
     idStr = getLocalName();
-    if (idStr.equals("1")) {
-      isRoot = true;
-    }
 
-		readMinizincFileThenParseNeighborAndConstraintTable(inputFileName);		
+		readMinizincFileThenParseNeighborAndConstraintTable(inputFileName, noAgent);		
+    if (Integer.valueOf(idStr) == rootFromInput) {
+      isRoot = true;
+      out.println("Agent " + idStr + "is the roort");
+    }
 		/***** START register neighbors with DF *****/ 
 		registerWithDF();
 		/***** END register neighbors with DF *****/ 
@@ -229,10 +238,10 @@ public class DCOP extends Agent implements DcopInfo {
 	//JADE function: stop the Agent
 	protected void takeDown() {	
 		endTime = System.currentTimeMillis();
-		System.out.println("Agent " + idStr + " has RUNNING TIME: " + (endTime - startTime) + "ms");
-		System.out.println("Agent " + idStr + " with threadID " + Thread.currentThread().getId() + 
+		out.println("Agent " + idStr + " has RUNNING TIME: " + (endTime - startTime) + "ms");
+		out.println("Agent " + idStr + " with threadID " + Thread.currentThread().getId() + 
 								" has SIMULATED TIME: " + simulatedTime/1000000 + "ms");
-		System.out.println("Agent " + idStr + " with threadID " + Thread.currentThread().getId() + 
+		out.println("Agent " + idStr + " with threadID " + Thread.currentThread().getId() + 
 				" has sim TIME: " + bean.getCurrentThreadUserTime()/1000000 + "ms");
 		System.err.println("Agent: " + getAID().getName() + " terminated.");
 		try {
@@ -344,7 +353,7 @@ public class DCOP extends Agent implements DcopInfo {
 		for (List<String> traversal:bigArray) {
 			boolean isArrayFound = true;
 			if (traversal.size() != smallArray.size()) {
-				System.out.println("!!!!!!Different size!!!!!!");
+				out.println("!!!!!!Different size!!!!!!");
 				continue;
 			}
 			for (int i=0; i<traversal.size(); i++) {
@@ -393,7 +402,7 @@ public class DCOP extends Agent implements DcopInfo {
 			
 			return row.getUtility();
 		}
-		System.out.println("Not found!!!!!!!!!!!!!!");
+		out.println("Not found!!!!!!!!!!!!!!");
 		return Integer.MIN_VALUE;
 	}
 
@@ -474,40 +483,59 @@ public class DCOP extends Agent implements DcopInfo {
 		message.setLanguage(String.valueOf(time));
 		send(message);
 	}
+	
+	public void sendByteObjectMessageWithTime(AID receiver, PiecewiseMultivariateQuadFunction content, int msgCode, long time) throws IOException {
+	  ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	  GZIPOutputStream gzipOut = new GZIPOutputStream(baos);
+	  ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut);
+	  objectOut.writeObject(content);
+	  objectOut.close();
+	  byte[] data = baos.toByteArray();
+//	  byte[] data = SerializationUtils.serialize(content);
+	  
+    ACLMessage message = new ACLMessage(msgCode);
+    message.setByteSequenceContent(data);
+    message.addReceiver(receiver);
+    message.setLanguage(String.valueOf(time));
+    send(message);
+	}
 
 
 	@SuppressWarnings("unused")
     private void printTree(boolean isRoot) {
-		System.out.println("************");
-		System.out.println("My ID is: " + idStr);
+		out.println("************");
+		out.println("My ID is: " + idStr);
 		if (isRoot == false)
-			System.out.println("My parent is: " + parentAID.getLocalName());
-		System.out.println("My children are: ");
+			out.println("My parent is: " + parentAID.getLocalName());
+		out.println("My children are: ");
 		for (int i=0;i<childrenAIDList.size();i++) {
-			System.out.print(childrenAIDList.get(i).getLocalName() + " ");
+			out.print(childrenAIDList.get(i).getLocalName() + " ");
 		}
-		System.out.println();
+		out.println();
 		
-		System.out.println("My pseudo_parents are: ");
+		out.println("My pseudo_parents are: ");
 		for (int i=0;i<pseudoParentAIDList.size();i++) {
-			System.out.print(pseudoParentAIDList.get(i).getLocalName() + " ");
+			out.print(pseudoParentAIDList.get(i).getLocalName() + " ");
 		}
-		System.out.println();
+		out.println();
 		
-		System.out.println("My pseudo_children are: ");
+		out.println("My pseudo_children are: ");
 		for (int i=0;i<pseudoChildrenAIDList.size();i++) {
-			System.out.print(pseudoChildrenAIDList.get(i).getLocalName() + " ");
+			out.print(pseudoChildrenAIDList.get(i).getLocalName() + " ");
 		}
-		System.out.println();
+		out.println();
 		
 	}
 	
-	public void readMinizincFileThenParseNeighborAndConstraintTable(String inputFileName) {
-		final String DOMAIN = "domain";
+	public void readMinizincFileThenParseNeighborAndConstraintTable(String inputFileName, int numberOfAgents) {
+	  int maxNumberOfNeighbors = Integer.MIN_VALUE;
+	  
+	  final String DOMAIN = "domain";
 		final String FUNCTION = "function";
+		final String NEIGHBOR_SET = "neighbor set: ";
 		
 		try (BufferedReader br = new BufferedReader(new FileReader(
-				System.getProperty("user.dir") + '/' + inputFileName))) {
+				System.getProperty("user.dir") + "/d" + numberOfAgents + "/" + inputFileName))) {
 			List<String> lineWithSemiColonList = new ArrayList<String>();
 			
 			String line = br.readLine();
@@ -545,8 +573,8 @@ public class DCOP extends Agent implements DcopInfo {
 				//BinaryFunction func = new BinaryFunction(-1, 20, -3, 40, -2, 6, Double.valueOf(idStr), 1.0);
 				if (lineWithSemiColon.startsWith(FUNCTION)) {
 				    String selfVar = "x_" + idStr;
-				    if (!lineWithSemiColon.contains(selfVar)) continue;
-	                System.out.println("Agent " + idStr + " line " + lineWithSemiColon);
+				    // x_1^ and x_10^
+				    if (!lineWithSemiColon.contains(selfVar + "^")) continue;
 				    
 				    lineWithSemiColon = lineWithSemiColon.replaceAll("function ", "");
 				    String[] termStrList = lineWithSemiColon.split(" ");
@@ -561,8 +589,18 @@ public class DCOP extends Agent implements DcopInfo {
             pwFunc.addToFunctionList(func);
             functionList.add(pwFunc);
 
-				    System.out.println("Agent " + idStr + " function " + pwFunc);
+//				    out.println("Agent " + idStr + " function " + pwFunc);
 				}
+        if (lineWithSemiColon.startsWith(NEIGHBOR_SET)) {
+          lineWithSemiColon = lineWithSemiColon.replace(NEIGHBOR_SET, "");
+          lineWithSemiColon = lineWithSemiColon.replace("x_", "");
+          String[] agentWithNeighbors = lineWithSemiColon.split(" ");
+          // 3: 1 4 5 
+          if (agentWithNeighbors.length -  1 > maxNumberOfNeighbors) {
+            maxNumberOfNeighbors = agentWithNeighbors.length - 1;
+            rootFromInput = Integer.parseInt(agentWithNeighbors[0].replaceAll(":", ""));
+          }
+        }
 			}
 		}
 		catch (IOException e) {
@@ -570,47 +608,52 @@ public class DCOP extends Agent implements DcopInfo {
 		}
 	}
 	
-  //function -281x_2^2 199x_2 -22x_0^2 252x_0 288x_2x_0 358;
+  //function -281x_1^2 199x_1 -22x_10^2 252x_10 288x_1x_10 358;
 	// where x_2 is selfAgent and x_0 is the other agent
 	/**
-	 * @param line from input file
-	 * @param selfAgent selfAgent name
+	 * @param termArray from input file
+	 * @param selfAgent x_idStr
 	 * @return an array of coefficients. Make sure that the function reads its coefficients first
 	 */
-	public int[] parseFunction(String[] line, String selfAgent) {
-    int coeffArray[] = new int [7];
-    for (String str : line) {
-      //x_1^2 or x_0x_2  
-      if (str.contains(selfAgent)) {
-          str = str.replace(selfAgent, "");
-          
-          // -281x_2^2 => -281^2
-          if (str.contains("^2")) {
-            coeffArray[0] = Integer.parseInt(str.replace("^2", ""));
- 	        }
-          // 199v2 => 199
-          else if (!str.contains("x_")) {
-             coeffArray[1] = Integer.parseInt(str);
-          }
-          // 288x_2x_0 => 288x_0
-          else if (str.contains("x_")) {
-             coeffArray[4] = Integer.parseInt(str.split("x_")[0]);
-             // neighbor
-             coeffArray[6] = Integer.parseInt(str.split("x_")[1]);
-          }
+	// TODO: test this function again
+	public int[] parseFunction(String[] termArray, String selfAgent) {
+	  int coeffArray[] = new int [7];
+	  Arrays.fill(coeffArray, Integer.MIN_VALUE);
+    int neighborID = -1;
+    for (String term : termArray) {
+      // -281x_1^2
+      if (term.contains(selfAgent + "^2")) {
+        coeffArray[0] = Integer.parseInt(term.replace(selfAgent + "^2", ""));
       }
+      // -22x_10^2
+      else if (term.contains("^2")) {
+        term = term.replace("^2", "");
+        coeffArray[2] = Integer.parseInt(term.split("x_")[0]);
+        // neighbor
+        coeffArray[6] = Integer.parseInt(term.split("x_")[1]);
+        neighborID = coeffArray[6];
+      }
+      // constant 358
+      else if (!term.contains("_")){
+        coeffArray[5] = Integer.parseInt(term);
+        
+      }
+      // 288x_1x_10 OR 252x_10 OR 199x_1
+      // split the "x_"
+      // count for number of element
+      // then comparing number
+      // done
       else {
-        // -22x_0^2
-        if (str.contains("^2")) {   
-          coeffArray[2] = Integer.parseInt(str.split("x_")[0]);
-        }
-        // 252x_0
-        else if (str.contains("x_")) {
-          coeffArray[3] = Integer.parseInt(str.split("x_")[0]);
-        }
-        // 358
-        else {
-          coeffArray[5] = Integer.parseInt(str);
+        String[] smallerTerms = term.split("x_");
+        if (smallerTerms.length == 3) {
+          coeffArray[4] = Integer.valueOf(smallerTerms[0]);
+        } else {
+          int variable = Integer.valueOf(smallerTerms[1]);
+          if (variable == neighborID) {
+            coeffArray[3] = Integer.valueOf(smallerTerms[0]);
+          } else {
+            coeffArray[1] = Integer.valueOf(smallerTerms[0]);
+          }
         }
       }
     }
@@ -620,8 +663,10 @@ public class DCOP extends Agent implements DcopInfo {
 	public void registerWithDF () {
 		DFAgentDescription dfd = new DFAgentDescription();
 		dfd.setName(getAID());
-		for (int i=0; i<neighborStrList.size(); i++) {
+		for (int i = 0; i < neighborStrList.size(); i++) {
 			ServiceDescription sd = new ServiceDescription();
+			// provide service for neighbor
+			// later on, the neighbor will search for agent providing the service with this neighbor's name
 			sd.setType(neighborStrList.get(i));
 			sd.setName(idStr);
 			dfd.addServices(sd);
@@ -1074,5 +1119,13 @@ public class DCOP extends Agent implements DcopInfo {
 
   public void setNumberOfIntervals(int numberOfIntervals) {
     this.numberOfIntervals = numberOfIntervals;
+  }
+
+  public int getNumberOfAgents() {
+    return numberOfAgents;
+  }
+
+  public void setNumberOfAgents(int numberOfAgents) {
+    this.numberOfAgents = numberOfAgents;
   }
 }	

@@ -3,6 +3,7 @@ package function.multivariate;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +58,7 @@ public class MultivariateQuadFunction implements Serializable {
     coefficients.put(otherAgent, otherAgent, (double) coeff[2]);
     coefficients.put(otherAgent, "", (double) coeff[3]);
     coefficients.put(selfAgent, otherAgent, (double) coeff[4]);
-    coefficients.put(otherAgent, "", (double) coeff[5]);
+    coefficients.put("", "", (double) coeff[5]);
     
     owner = selfAgent;
     intervals.put(selfAgent, globalInterval);
@@ -220,15 +221,25 @@ public class MultivariateQuadFunction implements Serializable {
    * The ordering of interval in the list match the ordering of <variable, interval> from this.getIntervals()
    * This function is already TESTED
    * @param numberOfIntervals
+   *                is the number of smaller intervals to be divided
+   * @param numberOfAgents
+   *                is the limit of number of agents to choose to project
    * @return
    */
-  public Set<List<Interval>> cartesianProductIntervalExcludingOwner(int numberOfIntervals) {
+  public Set<List<Interval>> cartesianProductIntervalExcludingOwner(int numberOfIntervals, int numberOfAgents) {
     // List of {intervalSetVar1,...,intervalSetVarN}
     List<Set<Interval>> intervalsSetList = new ArrayList<Set<Interval>>();
+    int agentCount = 0;
     for (Map.Entry<String, Interval> entry : intervals.entrySet()) {
       String entryVariable = entry.getKey();
       if (entryVariable.equals(owner))
         continue;
+      
+      agentCount++;
+      
+      // stop choosing agents to divide the intervals
+      if (agentCount > numberOfAgents)
+        break;
 
       Interval entryInterval = entry.getValue();
 
@@ -255,11 +266,13 @@ public class MultivariateQuadFunction implements Serializable {
    *          intervals
    * @param selfvariable
    *          is the function's owner that needs to be projected out
+   * @param numberOfAgents
+   *          numberOfAgents to choose to divide the interval 
    * @return a piecewise function of MultivariateQuadratic functions
    */
-  public PiecewiseMultivariateQuadFunction approxProject(int numberOfIntervals) {
+  public PiecewiseMultivariateQuadFunction approxProject(int numberOfIntervals, String agentID, int numberOfAgents) {
     PiecewiseMultivariateQuadFunction mpwFunc = new PiecewiseMultivariateQuadFunction();
-    Set<List<Interval>> productIntervals = cartesianProductIntervalExcludingOwner(numberOfIntervals);
+    Set<List<Interval>> productIntervals = cartesianProductIntervalExcludingOwner(numberOfIntervals, numberOfAgents);
       
     // for each list of intervals, we have a function 
     // the result of this process is a piecewise multivariate function
@@ -272,14 +285,24 @@ public class MultivariateQuadFunction implements Serializable {
       Map<String, Interval> intervalsOfNewFunction = new HashMap<>();
       for (Map.Entry<String, Interval> entry : intervals.entrySet()) {
         String entryVariable = entry.getKey();
-        if (entryVariable.equals(owner))
-          continue;
+        if (entryVariable.equals(agentID)) {continue;}
         varIndex++;
+        
+        if (varIndex == prodItvList.size()) {break;}
 
         Interval interval = prodItvList.get(varIndex);
         intervalsOfNewFunction.put(entryVariable, interval);
       }
       
+      // Now adding the rest
+      Set<String> intervalVar = intervalsOfNewFunction.keySet();
+      Set<String> functionVar = new HashSet<String>(intervals.keySet());
+      functionVar.removeAll(intervalVar);
+      functionVar.remove(agentID);
+      for (String varToAdd : functionVar) {
+        intervalsOfNewFunction.put(varToAdd, intervals.get(varToAdd));
+      }
+            
       MultivariateQuadFunction unaryEvalutedFunction = midPointedFunction.evaluateWithIntervalMap(intervalsOfNewFunction);
       double argmax = unaryEvalutedFunction.getMaxAndArgMax()[1];
       

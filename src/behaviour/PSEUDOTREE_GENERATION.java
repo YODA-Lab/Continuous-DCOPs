@@ -34,7 +34,8 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 	
 	@Override
 	public void action() {
-		if (agent.isRoot()) {
+		System.out.println("Agent " + agent.getIdStr() + " Start building the pseudotree...");
+	  if (agent.isRoot()) {
 			agent.setNotVisited(false);
 		
 			//remove best children and add to childrenList
@@ -46,7 +47,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 			childMessage.setContent("CHILD");
 			childMessage.addReceiver(childrenWithBestInfo);
 			agent.send(childMessage);
-//			System.out.println("Agent " + getLocalName() + " send message "
+//			System.out.println("Agent " + agent.getIdStr() + " send message "
 //							+ childMessage.getContent() + " to Agent " + childrenWithBestInfo.getLocalName());
 		}
 		
@@ -77,7 +78,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 					pseudoMsg.addReceiver(sender);
 					agent.send(pseudoMsg);
 					
-//					System.out.println("Agent " + getLocalName() + " send message "
+//					System.out.println("Agent " + agent.getIdStr() + " send message "
 //							+ pseudoMsg.getContent() + " to Agent " + sender.getLocalName());
 					
 					continue;
@@ -104,7 +105,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 					childMsg.addReceiver(childrenWithBestInfo);
 					agent.send(childMsg);
 					
-//					System.out.println("Agent " + getLocalName() + " send message "
+//					System.out.println("Agent " + agent.getIdStr() + " send message "
 //							+ childMsg.getContent() + " to Agent " + childrenWithBestInfo.getLocalName());
 				}
 				else {
@@ -113,8 +114,8 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 						finishMsg.setContent("FINISH");
 						finishMsg.addReceiver(agent.getParentAID());
 						
-//						System.out.println("Agent " + getLocalName() + " send message "
-//								+ finishMsg.getContent() + " to agent " + parentAID.getLocalName());
+//						System.out.println("Agent " + agent.getIdStr() + " send message "
+//								+ finishMsg.getContent() + " to agent " + agent.getParentAID().getLocalName());
 						agent.send(finishMsg);
 					}
 //					printTree(isRoot);
@@ -140,7 +141,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 				treeFinishMsg.setContent("TREE_FINISH");
 				treeFinishMsg.addReceiver(childrenAID);
 				agent.send(treeFinishMsg);
-//				System.out.println("Agent " + getLocalName() + " send message "
+//				System.out.println("Agent " + agent.getIdStr() + " send message "
 //								+ treeFinishMsg.getContent() + " to Agent " + childrenAID.getLocalName());
 			}
 //			isPseudotreeProcess = FINISHED;
@@ -158,7 +159,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 							treeFinishMsg.setContent("TREE_FINISH");
 							treeFinishMsg.addReceiver(childrenAgentAID);
 							agent.send(treeFinishMsg);
-//							System.out.println("Agent " + getLocalName() + " send message "
+//							System.out.println("Agent " + agent.getIdStr() + " send message "
 //											+ treeFinishMsg.getContent() + " to Agent " + childrenAgentAID.getLocalName());
 						}
 						break;
@@ -176,6 +177,8 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 		if (agent.isRoot() == false) {
 			agent.getParentAndPseudoStrList().add(agent.getParentAID().getLocalName());
 		}
+		
+    System.out.println("Agent " + agent.getIdStr() + " Done building the pseudotree");
 	}
 	
 }	

@@ -64,13 +64,21 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
    * @param numberOfIntervals
    * @return a piecewise function of projected functions
    */
-  public PiecewiseMultivariateQuadFunction approxProject(final int numberOfIntervals) {
+  public PiecewiseMultivariateQuadFunction approxProject(final int numberOfIntervals, String agentID, int numberOfAgents) {
     PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
+
     for (MultivariateQuadFunction f : functionList) {
-      PiecewiseMultivariateQuadFunction newPiecewise = f.approxProject(numberOfIntervals);
-      pwFunc.addPiecewiseFunction(newPiecewise);
+      PiecewiseMultivariateQuadFunction newPiecewise = f.approxProject(numberOfIntervals, agentID, numberOfAgents);
+      pwFunc.addPiecewiseToList(newPiecewise);
     }
     return pwFunc;
+  }
+
+  private void addPiecewiseToList(PiecewiseMultivariateQuadFunction newPiecewise) {
+    // TODO Auto-generated method stub
+    for (MultivariateQuadFunction entry : newPiecewise.getFunctionList()) {
+      functionList.add(entry);
+    }
   }
 
   /**
@@ -112,10 +120,8 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
     PiecewiseMultivariateQuadFunction addedFunction = new PiecewiseMultivariateQuadFunction();
 
     Set<String> commonVarSet = commonVarSet(this, pmqFunc);
-    System.out.println("commonVarSet " + commonVarSet);
 
     Set<List<Interval>> productIntervals = cartesianProductIntervalCommonVariables(this, pmqFunc, commonVarSet);
-    System.out.println("productIntervals " + productIntervals);
 
     // Get the Interval of common variables
     for (List<Interval> intervalOfCommon : productIntervals) {
@@ -225,5 +231,16 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
       builder.append("\n");
     }
     return builder.toString();
+  }
+
+  public void setOwner(String idStr) {
+    // TODO Auto-generated method stub
+    for (MultivariateQuadFunction entry : functionList) {
+      entry.setOwner(idStr);
+    }
+  }
+
+  public long size() {
+    return functionList.size();
   }
 }

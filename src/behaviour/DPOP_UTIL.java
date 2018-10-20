@@ -10,13 +10,18 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
+import java.util.zip.GZIPInputStream;
+
+import static java.lang.System.out;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 
 import agent.DCOP;
 import agent.DcopInfo;
 import agent.DcopInfo.SolvingType;
 //import function.BinaryFunction;
-import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 //import function.binary.PiecewiseFunction;
@@ -78,41 +83,34 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		agent.setCurrentUTILstartTime(System.currentTimeMillis());
 		agent.setCurrentTableListDPOP(null);
 		
+    out.println("Start removing children...");
 		if (agent.algorithm == DCOP.DPOP) {
-		  System.out.println("Removing functions that contains children or pseudochildren...");
 			removeChildrenFunctionFromFunctionList(0);
 		}
+		out.println("Done removing children!");
 				
 		agent.setSimulatedTime(agent.getSimulatedTime()
 						+ agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
-		if (agent.isRoot()) System.out.println(agent.getIdStr() + ": I am root");
-		else if (agent.isLeaf()) System.out.println(agent.getIdStr() + ": I am leaf, my parent is " + agent.getParentAID().getLocalName());
-		else {System.out.println(agent.getIdStr() + ": I am internal node, my parent is " + agent.getParentAID().getLocalName());}
+		if (agent.isRoot()) out.println(agent.getIdStr() + ": I am root");
+		else if (agent.isLeaf()) out.println(agent.getIdStr() + ": I am leaf, my parent is " + agent.getParentAID().getLocalName());
+		else {out.println(agent.getIdStr() + ": I am internal node, my parent is " + agent.getParentAID().getLocalName());}
 		
 		if (agent.isLeaf()) {
-//			leafDoUtilProcess();
-      if (agent.algorithm == DCOP.DPOP) System.out.println("LEAF is running");
+      if (agent.algorithm == DCOP.DPOP) out.println("LEAF " + agent.getIdStr() + " is running");
 		  leafDoFuncUtilProcess();
-			if (agent.algorithm == DCOP.DPOP) System.out.println("LEAF done");
+			if (agent.algorithm == DCOP.DPOP) out.println("LEAF " + agent.getIdStr() + " done");
 		} 
 		else if (agent.isRoot()){
-//			rootDoUtilProcess();
 		  rootDoFuncUtilProcess();
-			
-//			if (agent.algorithm == DCOP.REACT || agent.algorithm == DCOP.HYBRID) {
-//				writeTimeToFile();
-//			}
-//			if (agent.algorithm == DCOP.FORWARD || agent.algorithm == DCOP.BACKWARD) {
-//				if (agent.getCurrentTS() == agent.h)
-//					Utilities.writeUtil_Time_FW_BW(agent);
-//			}
 		}
 		else {
-//			internalNodeDoUtilProcess();
-      if (agent.algorithm == DCOP.DPOP) System.out.println("INTERNAL node is running");
+      if (agent.algorithm == DCOP.DPOP) out.println("INTERNAL node " + agent.getIdStr() + " is running");
 		  internalNodeDoFuncUtilProcess();
-			if (agent.algorithm == DCOP.DPOP) System.out.println("INTERNAL node done");
+			if (agent.algorithm == DCOP.DPOP) out.println("INTERNAL node " + agent.getIdStr() + " done");
 		}
+		
+		long maxMemory = Runtime.getRuntime().maxMemory() / 10241024;
+		out.println(agent.getIdStr() + " Max memory after done: " + maxMemory);
 	}		
 	
 	public void leafDoUtilProcess() {
@@ -132,7 +130,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		agent.setAgentViewTable(combinedTable);
 		Table projectedTable = projectOperator(combinedTable, Double.parseDouble(agent.getLocalName()));
 
-//    System.out.println("Projected table: " ); projectedTable.printDecVar();
+//    out.println("Projected table: " ); projectedTable.printDecVar();
 
 		agent.setSimulatedTime(agent.getSimulatedTime()
 					+ agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
@@ -147,23 +145,35 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 
     // Combine all functions in the leaf
+    System.out.println("Agent " + agent.getIdStr() + " LEAF functions counts when joining " + agent.getCurrentFunctionListDPOP().get(0).size());
     PiecewiseMultivariateQuadFunction combinedFunction = agent.getCurrentFunctionListDPOP().get(0);
     for (int i = 1; i < agent.getCurrentFunctionListDPOP().size(); i++) {
-      combinedFunction = combinedFunction.addPiecewiseFunction(agent.getFunctionList().get(i));
+      System.out.println("Agent " + agent.getIdStr() + " LEAF functions counts when joining " + agent.getCurrentFunctionListDPOP().get(i).size());
+      combinedFunction = combinedFunction.addPiecewiseFunction(agent.getCurrentFunctionListDPOP().get(i));
     }
+    
+    combinedFunction.setOwner(agent.getIdStr());
     
     agent.setAgentViewFunction(combinedFunction);
     
-    System.out.println("Leaf Combined function: " + combinedFunction);
+    out.println("Agent " + agent.getIdStr() + " Leaf number of combined function: " + combinedFunction.getFunctionList().size());
     
-    PiecewiseMultivariateQuadFunction projectedFunction = combinedFunction.approxProject(agent.getNumberOfIntervals());
+    PiecewiseMultivariateQuadFunction projectedFunction = combinedFunction.approxProject(agent.getNumberOfIntervals(),
+        agent.getIdStr(), agent.getNumberOfAgents());
     
-    System.out.println("Leaf Projected function: " + projectedFunction);
+    out.println("Agent " + agent.getIdStr() + " Leaf number of projected function: " + projectedFunction.getFunctionList().size());
     
     agent.setSimulatedTime(
         agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
     
-    agent.sendObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
+//    agent.sendObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
+    
+    try {
+      agent.sendByteObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
   }
 	
 	
@@ -191,42 +201,92 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	
   public void internalNodeDoFuncUtilProcess() {
     List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
+    
+    System.out.println("Agent " + agent.getIdStr() + " has received all UTIL messages");
 
     agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
     
     // UnaryPiecewiseFunction
-    PiecewiseMultivariateQuadFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
-    
-    for (int i = 0; i < agent.getCurrentFunctionListDPOP().size(); i++) {
-      combinedFunctionMessage = combinedFunctionMessage.addPiecewiseFunction(agent.getFunctionList().get(i));
+//    PiecewiseMultivariateQuadFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
+    PiecewiseMultivariateQuadFunction combinedFunctionMessage = null;
+    try {
+      combinedFunctionMessage = combineByteMessageToFunction(receivedUTILmsgList);
+    } catch (ClassNotFoundException e1) {
+      e1.printStackTrace();
+    } catch (IOException e1) {
+      e1.printStackTrace();
     }
-     
-    agent.setAgentViewFunction(combinedFunctionMessage);
-
-    PiecewiseMultivariateQuadFunction projectedFunction = combinedFunctionMessage.approxProject(agent.getNumberOfIntervals());
     
-    System.out.println("Internal node Projected function: " + projectedFunction);
+    long maxMemory = Runtime.getRuntime().maxMemory() / 10241024;
+    out.println(agent.getIdStr() + " Max memory BEFORE combining functions: " + maxMemory);
+    
+    System.out.println("Agent " + agent.getIdStr() + " Internal node functions counts before joining rewards " + combinedFunctionMessage.size());
+
+    for (PiecewiseMultivariateQuadFunction pseudoParentFunction : agent.getCurrentFunctionListDPOP()) {
+      System.out.println("Agent " + agent.getIdStr() + " Internal node functions counts when joining " + pseudoParentFunction.size());
+      combinedFunctionMessage = combinedFunctionMessage.addPiecewiseFunction(pseudoParentFunction);   
+      System.out.println("Agent " + agent.getIdStr() + " Internal node functions counts after joining " + combinedFunctionMessage.size());
+      // Setting object to null to free the memory
+    }
+    
+    out.println(agent.getIdStr() + " Max memory AFTER combining functions: " + maxMemory);
+    out.println("Agent " + agent.getIdStr() + " Internal node number of combined function: " + combinedFunctionMessage.getFunctionList().size());
+    
+    combinedFunctionMessage.setOwner(agent.getIdStr());
+        
+    agent.setAgentViewFunction(combinedFunctionMessage);
+        
+    PiecewiseMultivariateQuadFunction projectedFunction = combinedFunctionMessage.approxProject(agent.getNumberOfIntervals(),
+        agent.getIdStr(), agent.getNumberOfAgents());
+    
+    out.println("Agent " + agent.getIdStr() + " Internal node number of projected function: " + projectedFunction.getFunctionList().size());
+
+    out.println(agent.getIdStr() + " Max memory AFTER PROJECTING functions: " + maxMemory);
+    
+    // to free the memory
+    combinedFunctionMessage = null;
     
     agent.setSimulatedTime(
         agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
-    agent.sendObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
+//    agent.sendObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
+    try {
+      agent.sendByteObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
+    
+    System.out.println("Agent " + agent.getIdStr() + " has send an UTIL message to the parent " + agent.getParentAID().getLocalName());
   }
 	
 	public void rootDoFuncUtilProcess() {
 	  List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 	  agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-    PiecewiseMultivariateQuadFunction combinedFunctionMessage = combineMessageToFunction(receivedUTILmsgList);
+    PiecewiseMultivariateQuadFunction combinedFunctionMessage = null;
+    try {
+      combinedFunctionMessage = combineByteMessageToFunction(receivedUTILmsgList);
+    } catch (ClassNotFoundException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    } catch (IOException e) {
+      // TODO Auto-generated catch block
+      e.printStackTrace();
+    }
         
     for (PiecewiseMultivariateQuadFunction pseudoParentFunction : agent.getCurrentFunctionListDPOP()) {
       combinedFunctionMessage = combinedFunctionMessage.addPiecewiseFunction(pseudoParentFunction);   
     }
     
+    combinedFunctionMessage.setOwner(agent.getIdStr());
+    
+    out.println("ROOT has received the message");
+    
     // choose the maximum
     double argmax = -Double.MAX_VALUE; 
     double max = -Double.MAX_VALUE;
     
-    System.out.println("Root Combined function: " + combinedFunctionMessage);
+//    out.println("Root Combined function: " + combinedFunctionMessage);
     
     for (MultivariateQuadFunction f : combinedFunctionMessage.getFunctionList()) {
       double[] maxAndArgMax = f.getMaxAndArgMax();
@@ -237,13 +297,13 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
       }
     }
     
-    System.out.println("MAX VALUE IS " + max);
-    System.out.println("ARGMAX VALUE IS " + argmax);
+    out.println("MAX VALUE IS " + max);
+    out.println("ARGMAX VALUE IS " + argmax);
 	}
 	   
   public void rootDoUtilProcess() {
 		List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
-		
+				
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 		
 		Table combinedUtilAndConstraintTable = combineMessage(receivedUTILmsgList);
@@ -251,6 +311,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		for (Table pseudoParentTable:agent.getCurrentTableListDPOP()) {
 			combinedUtilAndConstraintTable = joinTable(combinedUtilAndConstraintTable, pseudoParentTable);
 		}
+		
+    out.println("Root is finding max and argmax");
 		
 		//pick value with smallest utility
 		//since agent 0 is always at the beginning of the row formatted: agent0,agent1,..,agentN -> utility
@@ -264,7 +326,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 			}
 		}
 			
-		System.out.println("CHOSEN: " + agent.getChosenValue());
+		out.println("CHOSEN: " + agent.getChosenValue());
 		
 
 		if (agent.algorithm == DCOP.LS_SDPOP) {
@@ -316,7 +378,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 			ACLMessage receivedMessage = myAgent.receive(template);
 			
 			if (receivedMessage != null) {
-//				System.out.println("Agent " + getLocalName() + " receive message "
+//				out.println("Agent " + getLocalName() + " receive message "
 //						+ msgTypes[msgCode] + " from Agent " + receivedMessage.
 //						getSender().getLocalName());
 
@@ -356,60 +418,9 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	    if (variableSet.size() == 0) {
 	      funcList.add(pwFunc);
 	    }
-//  	  for (AID children : agent.getChildrenStrList()) {
-//  	    // add if not contain children
-////  	    System.out.println("Children " + Double.valueOf(children.getLocalName()));
-////  	    System.out.println("Other agent: " + pwFunc.getOtherAgent());
-//  	    if (Double.compare(pwFunc.getOtherAgent(), Double.valueOf(children.getLocalName())) != 0) {  	      
-//  	      funcList.add(pwFunc);
-//  	      if (agent.isRoot()) {
-//  	        System.out.println("Added " + pwFunc.getOtherAgent() + " " + Double.valueOf(children.getLocalName()));
-//  	      }
-//  	    }
-//  	  }
 	  }
 	   	  
-	  
-//	  /**Remove children and pseudoChildren constraint table*/
-//    List<AID> childAndPseudoChildrenAIDList = new List<AID>();
-//    childAndPseudoChildrenAIDList.addAll(agent.getChildrenAIDList());
-//    childAndPseudoChildrenAIDList.addAll(agent.getPseudoChildrenAIDList());
-//
-//    List<String> childAndPseudoChildrenStrList = new List<String>();
-//    for (AID pscChildrenAID:childAndPseudoChildrenAIDList) {
-//      childAndPseudoChildrenStrList.add(pscChildrenAID.getLocalName());
-//    }
-//    
-//    List<PiecewiseFunction> functionToBeRemove = new List<>();
-//    List<PiecewiseFunction> currentFunctionList = new List<>();
-//    for (PiecewiseFunction f : agent.getFunctionList()) {
-//      currentFunctionList.add(new PiecewiseFunction(f));
-//    }
-//    
-//    for (PiecewiseFunction pwf : currentFunctionList) {
-////      List<Double> decLabelList = pwf.get();
-//      double neighbor = pwf.getFunctionList().get(0).getOtherAgent();
-//      
-//      boolean hasChildren = false;
-//      for (String children:childAndPseudoChildrenStrList) {
-//        if (Double.compare(neighbor, Double.parseDouble(children)) == 0) {
-//          hasChildren = true;
-//          break;
-//        }
-//      }
-//      if (hasChildren)
-//        functionToBeRemove.add(pwf);
-//    }
-//    
-//    for (PiecewiseFunction removeFunction:functionToBeRemove) {
-//      currentFunctionList.remove(removeFunction);
-//    }
-//    
-//    agent.setCurrentFunctionListDPOP(currentFunctionList);
-	  agent.setCurrentFunctionListDPOP(funcList);
-	  for (PiecewiseMultivariateQuadFunction entry : funcList) {
-	    System.out.println("The function list after removing children of agent " + agent.getIdStr() + " is: " + entry);
-	  }
+    agent.setCurrentFunctionListDPOP(funcList);
 	}
 	
 	//constraintTableAtEachTSMap is constructed in collapsing table (decision and random)
@@ -429,7 +440,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		List<Table> constraintTableToBeRemove = new ArrayList<>();
 		//get table list, then remove children table
 		List<Table> tableListAtCurrentTS = new ArrayList<>(agent.getConstraintTableAtEachTSMap().get(currentTimeStep));
-		System.out.println("Agent " + agent.getIdStr() + " size" + agent.getConstraintTableAtEachTSMap().get(currentTimeStep).size());
+		out.println("Agent " + agent.getIdStr() + " size" + agent.getConstraintTableAtEachTSMap().get(currentTimeStep).size());
 
 		//for (Table constraintTable:constraintTableAtEachTSMap.get(currentTS)) {
 		for (Table constraintTable:tableListAtCurrentTS) {
@@ -485,7 +496,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 //      
 //      for (Function f : binaryList2) {
 //        if (f.isInRange(a, b)) {
-//          System.out.println("Unary function: " + f);
+//          out.println("Unary function: " + f);
 //          binaryFunc2 = (QuadraticBinaryFunction) f;
 //          break;
 //        }
@@ -691,7 +702,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		for (int i=0; i<listSize; i++) {
 			if (row1.getValueList().get(indexList1.get(i)).equals
 			(row2.getValueList().get(indexList2.get(i))) == false) {
-//				System.out.println("Different values here!");
+//				out.println("Different values here!");
 				return null;
 			}
 		}
@@ -863,6 +874,28 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 
     return function;
   }
+	
+	 PiecewiseMultivariateQuadFunction combineByteMessageToFunction(List<ACLMessage> list) throws IOException, ClassNotFoundException {
+	    List<PiecewiseMultivariateQuadFunction> listFunction = new ArrayList<>();
+	    for (ACLMessage msg : list) {
+	      ByteArrayInputStream bais = new ByteArrayInputStream(msg.getByteSequenceContent());
+	      GZIPInputStream gzipIn = new GZIPInputStream(bais);
+	      ObjectInputStream objectIn = new ObjectInputStream(gzipIn);
+	      PiecewiseMultivariateQuadFunction func = (PiecewiseMultivariateQuadFunction) objectIn.readObject();
+	      objectIn.close();
+//	      PiecewiseMultivariateQuadFunction func = SerializationUtils.deserialize(msg.getByteSequenceContent());
+	      listFunction.add(func);
+	    }
+
+	    int size = listFunction.size();
+	    PiecewiseMultivariateQuadFunction function = listFunction.get(0);
+
+	    for (int i = 1; i < size; i++) {
+	      function = function.addPiecewiseFunction(listFunction.get(i));
+	    }
+
+	    return function;
+	  }
 	
 //	public void writeTimeToFile() {
 //		if (agent.algorithm != DCOP.REACT)

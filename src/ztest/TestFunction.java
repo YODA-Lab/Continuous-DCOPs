@@ -101,26 +101,69 @@ class TestFunction {
 //    assertEquals(addedFunction, actualAddedFunction);
 //  }
  
+//  Internal node combined function: 
+//  [Coefficients = {={=-151.1875}, 2={2=4.0, =-35.875, 1=5.0}, 1={1=1.0, =-7.0}}, Intervals = {1=[-10.0, 10.0], 2=[-10.0, 0.0]} ]
+//  [Coefficients = {={=-151.1875}, 2={2=4.0, =26.625, 1=5.0}, 1={1=1.0, =-7.0}}, Intervals = {1=[-10.0, 10.0], 2=[0.0, 10.0]} ]
+  @Test 
+  void testApproxProjectDPOP() {
+    PiecewiseMultivariateQuadFunction f = new PiecewiseMultivariateQuadFunction();
+    MultivariateQuadFunction f1 = new MultivariateQuadFunction();
+    MultivariateQuadFunction f2 = new MultivariateQuadFunction();
+    f1.getCoefficients().put("", "", -151.1875);
+    f2.getCoefficients().put("", "", -151.1875);
+    
+    f1.getCoefficients().put("2", "2", 4.0);
+    f2.getCoefficients().put("2", "2", 4.0);
+
+    f1.getCoefficients().put("2", "", -35.875);
+    f2.getCoefficients().put("2", "", -26.625);
+
+    f1.getCoefficients().put("2", "1", -5.0);
+    f2.getCoefficients().put("2", "1", -5.0);
+    
+    f1.getCoefficients().put("1", "1", 1.0);
+    f2.getCoefficients().put("1", "1", 1.0);
+
+    f1.getCoefficients().put("1", "", -7.0);
+    f2.getCoefficients().put("1", "", -7.0);
+
+    Interval int1 = new Interval(-10, 10);
+    Interval int2_1 = new Interval(-10, 0);
+    Interval int2_2 = new Interval(0, 10);
+
+    f1.getIntervals().put("1", int1);
+    f1.getIntervals().put("2", int2_1);
+    
+    f2.getIntervals().put("1", int1);
+    f2.getIntervals().put("2", int2_2);
+    
+    f.addToFunctionList(f1);
+    f.addToFunctionList(f2);
+    
+    f.setOwner("2");
+    
+    System.out.println(f.approxProject(2, "2", 99));
+  }
   
 //  @Test
   void TestApproximateProject() {
     MultivariateQuadFunction func_1234 = createMultivariateFunction(1, 4);
     func_1234.setOwner("x1");
-    PiecewiseMultivariateQuadFunction pw1 = func_1234.approxProject(2);
+    PiecewiseMultivariateQuadFunction pw1 = func_1234.approxProject(2, "x1", 99);
     System.out.println(pw1);
   }
   
-  @Test
+//  @Test
   void TestAddingPiecewiseMultivariateQuadFunction() {
     MultivariateQuadFunction func_012 = createMultivariateFunction(1, 3);
     func_012.setOwner("x1");
-    PiecewiseMultivariateQuadFunction pw1 = func_012.approxProject(2);
+    PiecewiseMultivariateQuadFunction pw1 = func_012.approxProject(2, "x1", 99);
     
     System.out.println("pw1 " + pw1);
 
     MultivariateQuadFunction func_123 = createMultivariateFunction(2, 4);
     func_123.setOwner("x2");
-    PiecewiseMultivariateQuadFunction pw2 = func_123.approxProject(2);
+    PiecewiseMultivariateQuadFunction pw2 = func_123.approxProject(2, "x2", 99);
     
     System.out.println("pw2 " + pw2);
     
