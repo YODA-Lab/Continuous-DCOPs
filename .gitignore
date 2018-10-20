@@ -1,4 +1,5 @@
-bin
 .classpath
 .project
-target
+*.class
+.DS_Store
+.settings/
