@@ -1,5 +1,6 @@
 package ztest;
 
+import static java.lang.System.out;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
@@ -22,6 +23,73 @@ import function.multivariate.PiecewiseMultivariateQuadFunction;
 import zexception.FunctionException;
 
 class TestFunction {
+  
+  @Test
+  void testAnalyticalProjectDPOP() {
+    PiecewiseMultivariateQuadFunction f = new PiecewiseMultivariateQuadFunction();
+    MultivariateQuadFunction f1 = new MultivariateQuadFunction();
+    // -1.18993x_2^2 -9.73194x_2 -7.46737x_1^2 -4.28303x_1 -7.63075x_2x_1 5.36355;
+    
+    f1.getCoefficients().put("2", "2", 2.0);
+    f1.getCoefficients().put("2", "", 1.0);
+    f1.getCoefficients().put("2", "1", 7.0);
+    f1.getCoefficients().put("1", "1", -2.0);
+    f1.getCoefficients().put("1", "", 4.0);
+    f1.getCoefficients().put("", "", -10.0);    
+
+    Interval int_1 = new Interval(-5, 5);
+    Interval int_2 = new Interval(-10, 10);
+
+    f1.getIntervals().put("1", int_1);
+    f1.getIntervals().put("2", int_2);
+    
+    f.addToFunctionList(f1);
+    f.setOwner("1");
+    
+    System.out.println("BEFORE projecting:\n" + f1);
+    
+    System.out.println("CritF :\n" + f1.getUnaryFunctionAtCriticalPoint());
+    System.out.println("LB_F :\n" + f1.evaluateBinaryFunctionX1(f1.getIntervals().get(f1.getOwner()).getLowerBound()));
+    System.out.println("UB_F :\n" + f1.evaluateBinaryFunctionX1(f1.getIntervals().get(f1.getOwner()).getUpperBound()));
+
+    
+    PiecewiseMultivariateQuadFunction projected = f1.analyticalProject();
+    System.out.println("AFTER projecting:\n" + projected);
+    
+    double max = -Double.MAX_VALUE;
+    double argmax = -Double.MAX_VALUE;
+    
+    for (MultivariateQuadFunction func : projected.getFunctionList()) {
+      double[] maxAndArgMax = func.getMaxAndArgMax();
+           
+      if (Double.compare(maxAndArgMax[0], max) > 0) {
+        max = maxAndArgMax[0];
+        argmax = maxAndArgMax[1];
+      }
+    }
+    
+    out.println("MAX VALUE IS " + max);
+    out.println("ARGMAX VALUE IS " + argmax);  
+    
+    max = -Double.MAX_VALUE;
+    argmax = -Double.MAX_VALUE;
+    for (MultivariateQuadFunction func : f.getFunctionList()) {
+      for (double val1 = -5; Double.compare(val1, 5) <= 0; val1+=0.5) {
+        for (double val2 = -5; Double.compare(val2, 5) <= 0; val2+=0.5) {
+          Map<String, Double> valueMap = new HashMap<>();
+          valueMap.put("1", val1);
+          valueMap.put("2", val2);
+          
+          double evaluated = func.evaluateToValueGivenValueMap(valueMap);
+          if (Double.compare(evaluated, max) > 0) {
+            max = evaluated;
+          }
+        }
+      }
+    }
+    
+    out.println("MAX VALUE IS " + max);
+  }
 
 //  @Test
 //  void testSolvingQuadratic() {
@@ -108,66 +176,60 @@ class TestFunction {
   void testApproxProjectDPOP() {
     PiecewiseMultivariateQuadFunction f = new PiecewiseMultivariateQuadFunction();
     MultivariateQuadFunction f1 = new MultivariateQuadFunction();
-    MultivariateQuadFunction f2 = new MultivariateQuadFunction();
-    f1.getCoefficients().put("", "", -151.1875);
-    f2.getCoefficients().put("", "", -151.1875);
+
+    f1.getCoefficients().put("1", "1", -2.0);
+    f1.getCoefficients().put("1", "", 4.0);
     
-    f1.getCoefficients().put("2", "2", 4.0);
-    f2.getCoefficients().put("2", "2", 4.0);
-
-    f1.getCoefficients().put("2", "", -35.875);
-    f2.getCoefficients().put("2", "", -26.625);
-
-    f1.getCoefficients().put("2", "1", -5.0);
-    f2.getCoefficients().put("2", "1", -5.0);
+    f1.getCoefficients().put("2", "2", 2.0);
+    f1.getCoefficients().put("2", "", 1.0);
     
-    f1.getCoefficients().put("1", "1", 1.0);
-    f2.getCoefficients().put("1", "1", 1.0);
-
-    f1.getCoefficients().put("1", "", -7.0);
-    f2.getCoefficients().put("1", "", -7.0);
-
-    Interval int1 = new Interval(-10, 10);
-    Interval int2_1 = new Interval(-10, 0);
-    Interval int2_2 = new Interval(0, 10);
-
-    f1.getIntervals().put("1", int1);
-    f1.getIntervals().put("2", int2_1);
+    f1.getCoefficients().put("3", "3", 1.0);
+    f1.getCoefficients().put("3", "", 2.0);
     
-    f2.getIntervals().put("1", int1);
-    f2.getIntervals().put("2", int2_2);
+    f1.getCoefficients().put("2", "1", 7.0);
+    f1.getCoefficients().put("2", "3", 8.0);
+    f1.getCoefficients().put("3", "1", 9.0);
+
+    f1.getCoefficients().put("", "", -10.0); 
+    
+
+    Interval int_1 = new Interval(-5, 5);
+    Interval int_2 = new Interval(-10, 10);
+    Interval int_3 = new Interval(-8, 8);
+
+    f1.getIntervals().put("1", int_1);
+    f1.getIntervals().put("2", int_2);
+    f1.getIntervals().put("3", int_3);
     
     f.addToFunctionList(f1);
-    f.addToFunctionList(f2);
+    f.setOwner("1");
     
-    f.setOwner("2");
-    
-    System.out.println(f.approxProject(2, "2", 99));
+    System.out.println(f.approxProject(2, "1", 2, true));
   }
   
 //  @Test
   void TestApproximateProject() {
-    MultivariateQuadFunction func_1234 = createMultivariateFunction(1, 4);
-    func_1234.setOwner("x1");
-    PiecewiseMultivariateQuadFunction pw1 = func_1234.approxProject(2, "x1", 99);
-    System.out.println(pw1);
+//    MultivariateQuadFunction func_1234 = createMultivariateFunction(1, 4);
+//    func_1234.setOwner("x1");
+//    PiecewiseMultivariateQuadFunction pw1 = func_1234.approxProject(2, "x1", 99);
+//    System.out.println(pw1);
   }
   
 //  @Test
   void TestAddingPiecewiseMultivariateQuadFunction() {
-    MultivariateQuadFunction func_012 = createMultivariateFunction(1, 3);
-    func_012.setOwner("x1");
-    PiecewiseMultivariateQuadFunction pw1 = func_012.approxProject(2, "x1", 99);
-    
-    System.out.println("pw1 " + pw1);
-
-    MultivariateQuadFunction func_123 = createMultivariateFunction(2, 4);
-    func_123.setOwner("x2");
-    PiecewiseMultivariateQuadFunction pw2 = func_123.approxProject(2, "x2", 99);
-    
-    System.out.println("pw2 " + pw2);
-    
-    System.out.println(pw1.addPiecewiseFunction(pw2));
+//    MultivariateQuadFunction func_012 = createMultivariateFunction(1, 3);
+//    func_012.setOwner("x1");
+//    PiecewiseMultivariateQuadFunction pw1 = func_012.approxProject(2, "x1", 99);
+//    
+//    System.out.println("pw1 " + pw1);
+//
+//    MultivariateQuadFunction func_123 = createMultivariateFunction(2, 4);
+//    func_123.setOwner("x2");
+//    PiecewiseMultivariateQuadFunction pw2 = func_123.approxProject(2, "x2", 99);
+//    
+//    System.out.println("pw2 " + pw2);
+//    
+//    System.out.println(pw1.addPiecewiseFunction(pw2));
   }
     
 //  @Test

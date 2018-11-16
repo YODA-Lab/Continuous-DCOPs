@@ -153,11 +153,14 @@ public class DCOP extends Agent implements DcopInfo {
 	private List<PiecewiseMultivariateQuadFunction> currentFunctionListDPOP;
 	
 	private int numberOfIntervals;
-	private int numberOfAgents;
+	private int numberOfApproxAgents;
+	private boolean isApprox;
 
 	// for writing output purposes
 	public int instanceID;
 	public int noAgent;
+	public int domainSize;
+	private double rootArgMax;
 	
 	public DCOP() {
 		initializeArguments();
@@ -176,14 +179,17 @@ public class DCOP extends Agent implements DcopInfo {
 	public void readArguments() {
 	  Object[] args = getArguments();
 		//parameters for running experiments
-		algorithm = DPOP;
 		inputFileName = (String) args[0];
     out.println(Arrays.deepToString(args));
-    numberOfIntervals = Integer.parseInt((String) args[1]);
+    algorithm = Integer.parseInt((String) args[1]);
 		String a[] = inputFileName.replaceAll("rep_","").replaceAll(".dzn","").split("_d");
 		instanceID = Integer.parseInt(a[0]);
     noAgent = Integer.parseInt(a[1]);	
-    numberOfAgents = 2;
+    
+    numberOfIntervals = Integer.parseInt((String) args[2]);
+    numberOfApproxAgents = Integer.parseInt((String) args[3]);
+    
+    isApprox = true;
 	}
 	
   protected void setup() {
@@ -202,18 +208,18 @@ public class DCOP extends Agent implements DcopInfo {
 		// add constraints table FROM constraintTableWithoutRandomList TO organizedConstraintTableList
 		reorganizeConstaintTable();
 		
-		if (algorithm == DSA) {
+//		if (algorithm == DSA) {
 //		    createNonProcessTable();
 //		    createProcessedTable();
-		}
+//		}
 
-		if (algorithm == DPOP) {
+//		if (algorithm == BASE_DPOP) {
 //			addExpectedRandomTableToListAllTS();
 //			addConstraintTableToListAllTS();
-		}		
-		else if (algorithm == DSA) {
+//		}		
+//		else if (algorithm == DSA) {
 //			addConstraintTableToListAllTS();
-		}
+//		}
 		
 
 		startTime = System.currentTimeMillis();
@@ -226,7 +232,7 @@ public class DCOP extends Agent implements DcopInfo {
 		mainSequentialBehaviourList.addSubBehaviour(new PSEUDOTREE_GENERATION(this));
 		
 		// Adding UTIL and VALUE behavior
-		if (algorithm == DPOP) {
+		if (algorithm == BASE_DPOP || algorithm == ANALYTICAL_DPOP || algorithm == APPROX_DPOP) {
 			mainSequentialBehaviourList.addSubBehaviour(new DPOP_UTIL(this));
 //			mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
 		}
@@ -500,32 +506,34 @@ public class DCOP extends Agent implements DcopInfo {
     send(message);
 	}
 
-
-	@SuppressWarnings("unused")
-    private void printTree(boolean isRoot) {
-		out.println("************");
-		out.println("My ID is: " + idStr);
-		if (isRoot == false)
-			out.println("My parent is: " + parentAID.getLocalName());
-		out.println("My children are: ");
-		for (int i=0;i<childrenAIDList.size();i++) {
-			out.print(childrenAIDList.get(i).getLocalName() + " ");
-		}
-		out.println();
-		
-		out.println("My pseudo_parents are: ");
-		for (int i=0;i<pseudoParentAIDList.size();i++) {
-			out.print(pseudoParentAIDList.get(i).getLocalName() + " ");
-		}
-		out.println();
-		
-		out.println("My pseudo_children are: ");
-		for (int i=0;i<pseudoChildrenAIDList.size();i++) {
-			out.print(pseudoChildrenAIDList.get(i).getLocalName() + " ");
-		}
-		out.println();
-		
-	}
+  public void printTree(boolean isRoot) {
+//    out.println("************");
+//    out.println("My ID is: " + idStr);
+//    if (isRoot == false)
+//      out.println("My parent is: " + parentAID.getLocalName());
+//    out.println("My children are: ");
+//    for (int i = 0; i < childrenAIDList.size(); i++) {
+//      out.print(childrenAIDList.get(i).getLocalName() + " ");
+//    }
+//    out.println();
+//
+//    out.println("My pseudo_parents are: ");
+//    for (int i = 0; i < pseudoParentAIDList.size(); i++) {
+//      out.print(pseudoParentAIDList.get(i).getLocalName() + " ");
+//    }
+//    out.println();
+//
+//    out.println("My pseudo_children are: ");
+//    for (int i = 0; i < pseudoChildrenAIDList.size(); i++) {
+//      out.print(pseudoChildrenAIDList.get(i).getLocalName() + " ");
+//    }
+//    out.println();
+    out.print("Agent " + idStr + " has children: ");
+    for (int i = 0; i < childrenAIDList.size(); i++) {
+      out.print(childrenAIDList.get(i).getLocalName() + " ");
+    }
+    out.println();
+  }
 	
 	public void readMinizincFileThenParseNeighborAndConstraintTable(String inputFileName, int numberOfAgents) {
 	  int maxNumberOfNeighbors = Integer.MIN_VALUE;
@@ -565,7 +573,8 @@ public class DCOP extends Agent implements DcopInfo {
 				if (lineWithSemiColon.startsWith(DOMAIN)) {
 				    lineWithSemiColon = lineWithSemiColon.replaceAll("domain ", "");
 				    domainMax = Integer.parseInt(lineWithSemiColon);
-				    globalInterval = new Interval(-domainMax, domainMax);
+				    globalInterval = new Interval(-domainMax + 1, domainMax);
+				    domainSize = domainMax * 2;
 				}
 				
 				/**FUNCTION*/
@@ -578,11 +587,11 @@ public class DCOP extends Agent implements DcopInfo {
 				    
 				    lineWithSemiColon = lineWithSemiColon.replaceAll("function ", "");
 				    String[] termStrList = lineWithSemiColon.split(" ");
-				    int[] arr = parseFunction(termStrList, selfVar);
-				    MultivariateQuadFunction func = new MultivariateQuadFunction(arr, idStr, String.valueOf(arr[6]), globalInterval);
+				    double[] arr = parseFunction(termStrList, selfVar);
+				    MultivariateQuadFunction func = new MultivariateQuadFunction(arr, idStr, String.valueOf((int) arr[6]), globalInterval);
 				    
 				    // Adding the new neighbor to neighborStrList 
-            String neighbor = String.valueOf(arr[6]);
+            String neighbor = String.valueOf((int) arr[6]);
             if (!neighborStrList.contains(neighbor)) neighborStrList.add(neighbor);
 
             PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
@@ -616,26 +625,26 @@ public class DCOP extends Agent implements DcopInfo {
 	 * @return an array of coefficients. Make sure that the function reads its coefficients first
 	 */
 	// TODO: test this function again
-	public int[] parseFunction(String[] termArray, String selfAgent) {
-	  int coeffArray[] = new int [7];
+	public double[] parseFunction(String[] termArray, String selfAgent) {
+	  double coeffArray[] = new double [7];
 	  Arrays.fill(coeffArray, Integer.MIN_VALUE);
     int neighborID = -1;
     for (String term : termArray) {
       // -281x_1^2
       if (term.contains(selfAgent + "^2")) {
-        coeffArray[0] = Integer.parseInt(term.replace(selfAgent + "^2", ""));
+        coeffArray[0] = Double.parseDouble(term.replace(selfAgent + "^2", ""));
       }
       // -22x_10^2
       else if (term.contains("^2")) {
         term = term.replace("^2", "");
-        coeffArray[2] = Integer.parseInt(term.split("x_")[0]);
+        coeffArray[2] = Double.parseDouble(term.split("x_")[0]);
         // neighbor
-        coeffArray[6] = Integer.parseInt(term.split("x_")[1]);
-        neighborID = coeffArray[6];
+        coeffArray[6] = Double.parseDouble(term.split("x_")[1]);
+        neighborID = (int) coeffArray[6];
       }
       // constant 358
       else if (!term.contains("_")){
-        coeffArray[5] = Integer.parseInt(term);
+        coeffArray[5] = Double.parseDouble(term);
         
       }
       // 288x_1x_10 OR 252x_10 OR 199x_1
@@ -646,13 +655,13 @@ public class DCOP extends Agent implements DcopInfo {
       else {
         String[] smallerTerms = term.split("x_");
         if (smallerTerms.length == 3) {
-          coeffArray[4] = Integer.valueOf(smallerTerms[0]);
+          coeffArray[4] = Double.parseDouble(smallerTerms[0]);
         } else {
           int variable = Integer.valueOf(smallerTerms[1]);
           if (variable == neighborID) {
-            coeffArray[3] = Integer.valueOf(smallerTerms[0]);
+            coeffArray[3] = Double.parseDouble(smallerTerms[0]);
           } else {
-            coeffArray[1] = Integer.valueOf(smallerTerms[0]);
+            coeffArray[1] = Double.parseDouble(smallerTerms[0]);
           }
         }
       }
@@ -1121,11 +1130,35 @@ public class DCOP extends Agent implements DcopInfo {
     this.numberOfIntervals = numberOfIntervals;
   }
 
-  public int getNumberOfAgents() {
-    return numberOfAgents;
+  public int getNumberOfApproxAgents() {
+    return numberOfApproxAgents;
   }
 
-  public void setNumberOfAgents(int numberOfAgents) {
-    this.numberOfAgents = numberOfAgents;
+  public void setNumberOfApproxAgents(int numberOfAgents) {
+    this.numberOfApproxAgents = numberOfAgents;
+  }
+
+  public Interval getGlobalInterval() {
+    return globalInterval;
+  }
+
+  public void setGlobalInterval(Interval globalInterval) {
+    this.globalInterval = globalInterval;
+  }
+
+  public double getRootArgMax() {
+    return rootArgMax;
+  }
+
+  public void setRootArgMax(double rootArgMax) {
+    this.rootArgMax = rootArgMax;
+  }
+
+  public boolean isApprox() {
+    return isApprox;
+  }
+
+  public void setApprox(boolean isApprox) {
+    this.isApprox = isApprox;
   }
 }	

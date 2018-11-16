@@ -2,22 +2,28 @@ package function.multivariate;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import java.util.Set;
+import java.util.TreeSet;
 
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import com.google.common.collect.Table.Cell;
 
 import function.Interval;
+import utilities.Utilities;
 import zexception.FunctionException;
 
 import com.google.common.collect.Sets;
+import static java.lang.Math.*;
+import static java.lang.Double.*;
 
 /**
  * This is the list of function that needs to be tested: ADD, EVALUATE, PROJECT
@@ -52,17 +58,33 @@ public class MultivariateQuadFunction implements Serializable {
    * @param otherAgent
    * @param globalInterval
    */
-  public MultivariateQuadFunction(int[] coeff, String selfAgent, String otherAgent, Interval globalInterval) {
-    coefficients.put(selfAgent, selfAgent, (double) coeff[0]);
-    coefficients.put(selfAgent, "", (double) coeff[1]);
-    coefficients.put(otherAgent, otherAgent, (double) coeff[2]);
-    coefficients.put(otherAgent, "", (double) coeff[3]);
-    coefficients.put(selfAgent, otherAgent, (double) coeff[4]);
-    coefficients.put("", "", (double) coeff[5]);
+  public MultivariateQuadFunction(double[] coeff, String selfAgent, String otherAgent, Interval globalInterval) {
+    coefficients.put(selfAgent, selfAgent, coeff[0]);
+    coefficients.put(selfAgent, "", coeff[1]);
+    coefficients.put(otherAgent, otherAgent, coeff[2]);
+    coefficients.put(otherAgent, "", coeff[3]);
+    coefficients.put(selfAgent, otherAgent, coeff[4]);
+    coefficients.put("", "", coeff[5]);
     
     owner = selfAgent;
     intervals.put(selfAgent, globalInterval);
     intervals.put(otherAgent, globalInterval);
+  }
+  
+  /**
+   * This is a unary quadratic function
+   * @param a
+   * @param b
+   * @param c
+   * @param owner
+   * @param interval
+   */
+  public MultivariateQuadFunction(double a, double b, double c, final String owner, final Interval interval) {
+    coefficients.put(owner, owner, a);
+    coefficients.put(owner, "", b);
+    coefficients.put("", "", c);
+    this.owner = owner;
+    intervals.put(owner, interval);
   }
 
   /**
@@ -167,7 +189,7 @@ public class MultivariateQuadFunction implements Serializable {
    */
   public MultivariateQuadFunction evaluate(final String variable, final double value) {
     if (!getVariables().contains(variable)) {
-      throw new FunctionException("The function doesn't contain the variable that needed to be evaluated");
+      throw new FunctionException("The function doesn't contain the variable that needed to be evaluated " + variable + " " + intervals);
     }
 
     MultivariateQuadFunction evaluatedFunc = new MultivariateQuadFunction(this);
@@ -180,7 +202,7 @@ public class MultivariateQuadFunction implements Serializable {
     // Update a_ij * xi * xj => (a_ij * value) xj
     for (Map.Entry<String, Double> rowEntry : evaluatedFunc.getCoefficients().row(variable).entrySet()) {
       String variable_j = rowEntry.getKey();
-      if (null != variable_j) {
+      if (!variable_j.equals("")) {
         double a_ij = rowEntry.getValue();
         evaluatedFunc.updateCoefficient(variable_j, "", a_ij * value);
       }
@@ -190,7 +212,7 @@ public class MultivariateQuadFunction implements Serializable {
     // Update a_ji * xi * xj => (a_ji * value) xj
     for (Map.Entry<String, Double> columnEntry : evaluatedFunc.getCoefficients().column(variable).entrySet()) {
       String variable_j = columnEntry.getKey();
-      if (null != variable_j) {
+      if (!variable_j.equals("")) {
         double a_ji = columnEntry.getValue();
         evaluatedFunc.updateCoefficient(variable_j, "", a_ji * value);
       }
@@ -212,7 +234,9 @@ public class MultivariateQuadFunction implements Serializable {
     sb.append("[Coefficients = ");
     sb.append(coefficients);
     sb.append(", Intervals = ");
-    sb.append(intervals + " ]");
+    sb.append(intervals);
+    sb.append(", Owner = ");
+    sb.append(owner + " ]");
     return sb.toString();
   }
 
@@ -226,7 +250,7 @@ public class MultivariateQuadFunction implements Serializable {
    *                is the limit of number of agents to choose to project
    * @return
    */
-  public Set<List<Interval>> cartesianProductIntervalExcludingOwner(int numberOfIntervals, int numberOfAgents) {
+  public Set<List<Interval>> cartesianProductIntervalExcludingOwner(int numberOfIntervals, int numberOfAgents, boolean isApprox) {
     // List of {intervalSetVar1,...,intervalSetVarN}
     List<Set<Interval>> intervalsSetList = new ArrayList<Set<Interval>>();
     int agentCount = 0;
@@ -238,7 +262,7 @@ public class MultivariateQuadFunction implements Serializable {
       agentCount++;
       
       // stop choosing agents to divide the intervals
-      if (agentCount > numberOfAgents)
+      if (isApprox && agentCount > numberOfAgents)
         break;
 
       Interval entryInterval = entry.getValue();
@@ -270,9 +294,9 @@ public class MultivariateQuadFunction implements Serializable {
    *          numberOfAgents to choose to divide the interval 
    * @return a piecewise function of MultivariateQuadratic functions
    */
-  public PiecewiseMultivariateQuadFunction approxProject(int numberOfIntervals, String agentID, int numberOfAgents) {
+  public PiecewiseMultivariateQuadFunction approxProject(int numberOfIntervals, String agentID, int numberOfAgents, boolean isApprox) {
     PiecewiseMultivariateQuadFunction mpwFunc = new PiecewiseMultivariateQuadFunction();
-    Set<List<Interval>> productIntervals = cartesianProductIntervalExcludingOwner(numberOfIntervals, numberOfAgents);
+    Set<List<Interval>> productIntervals = cartesianProductIntervalExcludingOwner(numberOfIntervals, numberOfAgents, isApprox);
       
     // for each list of intervals, we have a function 
     // the result of this process is a piecewise multivariate function
@@ -304,7 +328,12 @@ public class MultivariateQuadFunction implements Serializable {
       }
             
       MultivariateQuadFunction unaryEvalutedFunction = midPointedFunction.evaluateWithIntervalMap(intervalsOfNewFunction);
+      
+      System.out.println(unaryEvalutedFunction);
+      
       double argmax = unaryEvalutedFunction.getMaxAndArgMax()[1];
+      
+      System.out.println("Arg max is " + argmax);
       
       unaryEvalutedFunction = midPointedFunction.evaluate(owner, argmax);
       unaryEvalutedFunction.setIntervals(intervalsOfNewFunction);
@@ -313,6 +342,135 @@ public class MultivariateQuadFunction implements Serializable {
     }
 
     return mpwFunc;
+  }
+  
+  public PiecewiseMultivariateQuadFunction analyticalProject() {
+    // After project, the function become PiecewiseQuadFunction
+    // Also change the owner to the otherAgent
+    PiecewiseMultivariateQuadFunction pwFunction = new PiecewiseMultivariateQuadFunction();
+    TreeSet<Double> sortedPoint = new TreeSet<>();
+    List<Interval> itvSortedList = new ArrayList<>();
+    
+    // All of them should have the same interval
+    List<MultivariateQuadFunction> candidateFuncList = new ArrayList<>();
+    MultivariateQuadFunction critF = getUnaryFunctionAtCriticalPoint();
+    Interval critInterval = null;
+    
+    if (null != critF) {
+      candidateFuncList.add(critF);
+      critInterval = critF.getIntervals().get(critF.getOwner());
+      sortedPoint.add(critInterval.getLowerBound());
+      sortedPoint.add(critInterval.getUpperBound());
+    }
+    candidateFuncList.add(evaluateBinaryFunctionX1(intervals.get(owner).getLowerBound()));
+    candidateFuncList.add(evaluateBinaryFunctionX1(intervals.get(owner).getUpperBound()));
+    
+    // To compare those quadratic unary functions, we need to solve f1 = x2, and then get the range
+    
+    for (int first = 0; first < candidateFuncList.size() - 1; first++) {
+      for (int second = first + 1; second < candidateFuncList.size(); second++) {
+        sortedPoint.addAll(Utilities.solveUnaryQuadForValues(candidateFuncList.get(first), candidateFuncList.get(second), true));
+      }
+    }
+    
+    System.out.println("Sorted Points " + sortedPoint);
+    
+    double LB = intervals.get(getOtherAgent()).getLowerBound();
+    double UB = intervals.get(getOtherAgent()).getUpperBound();
+    
+    sortedPoint.add(LB);
+    sortedPoint.add(UB);
+    
+    itvSortedList = Utilities.createSortedInterval(sortedPoint.subSet(LB, true, UB, true));
+    
+    candidateFuncList.remove(critF);
+    
+    for (Interval interval : itvSortedList) {
+      double midPoint = 0.5 * (interval.getLowerBound() + interval.getUpperBound());
+      List<Double> evalList = candidateFuncList.stream().map(x -> x.evaluateUnary(midPoint)).collect(Collectors.toList());
+      
+      double maxEval = Collections.max(evalList);
+      int maxIndex = evalList.indexOf(maxEval);
+      MultivariateQuadFunction functionToAdd = new MultivariateQuadFunction(candidateFuncList.get(maxIndex));
+      
+      if (null != critF && critInterval.isTotallyBigger(interval)) {
+        // compare with critF
+        double critVal = critF.evaluateUnary(midPoint);
+        if (compare(critVal, maxEval) > 0) {
+          functionToAdd = new MultivariateQuadFunction(critF);
+        }
+      }
+      
+      Map<String, Interval> domain = new HashMap<>();
+      domain.put(getOtherAgent(), interval);
+      functionToAdd.setIntervals(domain);
+      
+      pwFunction.addToFunctionList(functionToAdd);
+    }
+        
+    return pwFunction;
+  }
+
+  /**
+   * Apply for binary function only
+   * This function is correct
+   * @param x1
+   * @return
+   */
+  public MultivariateQuadFunction evaluateBinaryFunctionX1(double x1) {
+      
+    String otherAgent = getOtherAgent();
+    
+    double a1 = coefficients.get(owner, owner);
+    double b1 = coefficients.get(owner, "");
+    double a2 = coefficients.get(otherAgent, otherAgent);
+    double b2 = coefficients.get(otherAgent, "");
+    double a3 = coefficients.contains(owner, otherAgent) ? coefficients.get(owner, otherAgent) : coefficients.get(otherAgent, owner);
+    double b3 = coefficients.get("", "");
+    
+    return new MultivariateQuadFunction(a2,
+        b2 + a3*x1,
+        a1 * Math.pow(x1, 2) + b1 * x1 + b3,
+        otherAgent,
+        intervals.get(otherAgent));
+  }
+
+  /**
+   * This function is correct
+   * @return UnaryFunction from taking the derivative and set to 0
+   */
+  public MultivariateQuadFunction getUnaryFunctionAtCriticalPoint() {
+    String otherAgent = getOtherAgent();
+    
+    double a1 = coefficients.get(owner, owner);
+    double b1 = coefficients.get(owner, "");
+    double a2 = coefficients.get(otherAgent, otherAgent);
+    double b2 = coefficients.get(otherAgent, "");
+    double a3 = coefficients.contains(owner, otherAgent) ? coefficients.get(owner, otherAgent) : coefficients.get(otherAgent, owner);
+    double b3 = coefficients.get("", "");
+    
+    double newA1 = - Math.pow(a3, 2) / (4*a1) + a2;
+    double newB1 = - b1*a3 / (2*a1) + b2;
+    double newC1 = - Math.pow(b1, 2) / (4*a1) + b3;
+
+    double LB = intervals.get(owner).getLowerBound();
+    double UB = intervals.get(owner).getUpperBound();
+    
+    // Solve for LB <= df/dx = 0 <= UB
+    // Then we get the interval for the other agent, such that root of df/fx = 0 belongs to [LB, UB] of owner
+    // Intersect the two intervals, if not valid, return null
+    // If valid, return the intersected interval
+    
+    double bound1 = (LB * 2 * a1 + b1) / (-a3);
+    double bound2 = (UB * 2 * a1 + b1) / (-a3);
+    
+    Interval boundCritPointInInterval = compare(bound1, bound2) <= 0 ? new Interval(bound1, bound2) : new Interval(bound2, bound1);
+    Interval resultInterval = intervals.get(otherAgent).intersectInterval(boundCritPointInInterval);
+    
+    if (null == resultInterval)
+      return null;
+     
+    return new MultivariateQuadFunction(newA1, newB1, newC1, otherAgent, resultInterval);
   }
 
   /**
@@ -337,6 +495,24 @@ public class MultivariateQuadFunction implements Serializable {
     }
 
     return func;
+  }
+  
+  public double evaluateToValueGivenValueMap(Map<String, Double> valueMap) {
+    
+    if (valueMap.size() != intervals.size()) {
+      throw new FunctionException("Different in size between valueMap and intervalMap: " + valueMap + " " + intervals);
+    }
+    MultivariateQuadFunction func = new MultivariateQuadFunction(this);
+    int count = 1;
+    for (Map.Entry<String, Double> entry : valueMap.entrySet()) {
+      if (count < valueMap.size() ) {
+        func = func.evaluate(entry.getKey(), entry.getValue());
+      } else {
+        return func.evaluateUnaryFunction(entry.getKey(), entry.getValue());
+      }
+      count++;
+    }
+    return Double.MAX_VALUE;
   }
 
   /**
@@ -377,22 +553,23 @@ public class MultivariateQuadFunction implements Serializable {
     double LB = intervals.get(owner).getLowerBound();
     double UB = intervals.get(owner).getUpperBound();
     // -b / 2a
-    double midPoint = -coefficients.get(owner, "") / (2 * coefficients.get(owner, owner));
-
+    double midPoint = -getB()/(2 * getA());
+    
     double lowerEvaluated = evaluateUnaryFunction(owner, LB);
     double upperEvaluated = evaluateUnaryFunction(owner, UB);
-    double midEvaluated = evaluateUnaryFunction(owner, midPoint);
+    double midEvaluated = compare(LB, midPoint) <= 0 &&
+        compare(midPoint, UB) <= 0 ? evaluateUnaryFunction(owner, midPoint) : -Double.MAX_VALUE;
 
     double max = Math.max(Math.max(lowerEvaluated, upperEvaluated), midEvaluated);
     result[0] = max;
 
-    if (Double.compare(max, lowerEvaluated) == 0)
+    if (compare(max, lowerEvaluated) == 0)
       result[1] = LB;
-    else if (Double.compare(max, upperEvaluated) == 0)
+    else if (compare(max, upperEvaluated) == 0)
       result[1] = UB;
-    else if (Double.compare(max, midEvaluated) == 0)
+    else if (compare(max, midEvaluated) == 0)
       result[1] = midPoint;
-
+    
     return result;
   }
   
@@ -403,6 +580,69 @@ public class MultivariateQuadFunction implements Serializable {
     }
     
     return true;
+  }
+  
+  /**
+   * Assume this is a binary function
+   * @return
+   */
+  public String getOtherAgent() {
+    List<String> tempVarList = new ArrayList<>(getVariables());
+    tempVarList.remove(owner);
+    return tempVarList.get(0); // assume binary function
+  }
+  
+  public double getA() {
+    return coefficients.get(owner, owner);
+  }
+  
+  public double getB() {
+    return coefficients.get(owner, "");
+  }
+  
+  public double getC() {
+    return coefficients.get("", "");
+  }
+  
+  public Set<Double> solveForRootsInsideInterval() {
+    System.out.println("Function to solve: " + toString());
+    
+    TreeSet<Double> rootsAndBounds = new TreeSet<>();
+    
+    double a = getA();
+    double b = getB();
+    double c = getC();
+    
+    double LB = intervals.get(owner).getLowerBound();
+    double UB = intervals.get(owner).getUpperBound();
+    
+    rootsAndBounds.add(LB);
+    rootsAndBounds.add(UB);
+    
+    // Linear
+    if (compare(a, 0) == 0) {
+      rootsAndBounds.add(-c / b);
+      return rootsAndBounds.subSet(LB, false, UB, false);
+    }
+
+    // Quadratic
+    double delta = pow(b, 2) - 4 * a * c;
+    if (compare(delta, 0) == 0) {
+      rootsAndBounds.add(-b / (2 * a));
+    } else if (compare(delta, 0) > 0) {
+      rootsAndBounds.add((-b - sqrt(delta)) / (2 * a));
+      rootsAndBounds.add((-b + sqrt(delta)) / (2 * a));
+    }
+
+    return rootsAndBounds.subSet(LB, false, UB, false);
+  }
+  
+  double evaluateUnary(double value) {
+    double a = getA();
+    double b = getB();
+    double c = getC();
+    
+    return a * pow(value, 2) + b * value + c;
   }
 
   /**
@@ -455,4 +695,17 @@ public class MultivariateQuadFunction implements Serializable {
     this.owner = owner;
   }
 
+  public void checkSameSelfAgent(MultivariateQuadFunction func2) {
+    // TODO Auto-generated method stub
+    if (!owner.equals(func2.getOwner()))
+      throw new FunctionException("DIFFERENT owner when checkSameSelfAgent " + owner + " " + func2.getOwner());
+  }
+
+  public void checkSameSelfInterval(MultivariateQuadFunction func2) {
+    // TODO Auto-generated method stub
+    if (!intervals.get(owner).equals(func2.getIntervals().get(func2.getOwner())))
+    throw new FunctionException(
+        "DIFFERENT interval when checkSameSelfInterval " + intervals.get(owner) + " " + func2.getIntervals().get(func2.getOwner()));
+  }
+  
 }

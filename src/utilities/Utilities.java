@@ -2,6 +2,7 @@ package utilities;
 
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
+import static java.lang.Double.*;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -11,40 +12,66 @@ import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 
+import agent.DCOP;
+import agent.DcopInfo;
 import function.Interval;
+import function.multivariate.MultivariateQuadFunction;
 //import function.binary.CubicUnaryFunction;
 //import function.binary.QuadraticBinaryFunction;
 //import function.binary.QuadraticUnaryFunction;
 
 public class Utilities {	
-	public static String headerLine = "InstanceID" + "\t" + "Alg" + "\t" + "Decision"
-									+ "\t" + "Time" + "\t" + "Utility";
+	public static String headerLine = "ID" + "\t" + "Alg" + "\t" + "noAgent" + "\t" + "Time (ms)" + "\t" + "Utility" + "\t" + "RootArgMax";
+	
+	 //before local search iteration
+  public static void writeUtil_Time(DCOP agent) {
+    String alg = DcopInfo.algTypes[agent.algorithm];
+    
+    String newFileName;
+    
+    if (agent.algorithm == DcopInfo.APPROX_DPOP ) {
+      newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.domainSize + "_numIntervals=" + agent.getNumberOfIntervals() + "_numApproxAgents="
+          + agent.getNumberOfApproxAgents() + ".txt";
+    } else {
+      newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.domainSize + ".txt";  
+    }
+    
+    
+    if (agent.instanceID == 0) {
+      writeHeaderLineToFile(newFileName);
+    }
+    
+    DecimalFormat df = new DecimalFormat("##.##");
+    df.setRoundingMode(RoundingMode.DOWN);
+    String line = null;
+    
+    line = "\n" + agent.instanceID + "\t" + alg + "\t" + agent.noAgent + "\t" + 
+        agent.getSimulatedTime()/1000000.0 + "\t" + df.format(agent.getTotalGlobalUtility()) + "\t" + agent.getRootArgMax();
+
+    writeToFile(line, newFileName);
+  }
+	
 	
 	/**
 	 * Code checked
-	 * @param intervalList a list of input intervals
+	 * @param sortedValues
 	 * @return list of sorted merged intervals
 	 */
-	public static List<Interval> mergeIntervals(List<Interval> intervalList) {
-    List<Interval> shortedIntervalList = new ArrayList<>();
-    TreeSet<Double> sortedBoundSet = new TreeSet<>();
+	public static List<Interval> createSortedInterval(Set<Double> sortedValues) {
+    List<Double> sortedValueList = new ArrayList<>(sortedValues);
+    List<Interval> sortedInterval = new ArrayList<>();
   
-    for (Interval interval : intervalList) {
-      sortedBoundSet.add(interval.getLowerBound());
-      sortedBoundSet.add(interval.getUpperBound());
+    for (int i = 0; i < sortedValueList.size() - 1; i++) {
+      sortedInterval.add(new Interval(sortedValueList.get(i), sortedValueList.get(i + 1)));
     }
     
-    double smallerValue = sortedBoundSet.pollFirst();
-    for (Double biggerValue : sortedBoundSet) { 
-      shortedIntervalList.add(new Interval(smallerValue, biggerValue));
-      smallerValue = biggerValue;
-    }
-    
-    return shortedIntervalList;
+    return sortedInterval;
   }
 	
   /**
@@ -52,33 +79,41 @@ public class Utilities {
    * @param func2 QuadraticUnaryFunction
    * @return a list of sorted intervals
    */
-//  public static List<Interval> solveUnaryQuadForIntervals(QuadraticUnaryFunction func1, QuadraticUnaryFunction func2) {
-//    List<Interval> intervalList = new ArrayList<>();
-//    TreeSet<Double> valueIntervalSet = new TreeSet<>();
-//
-//    // TODO check again the two below commented lines. They are commented to hide the errors
-////    func1.checkSameSelfAgent(func2, QuadraticUnaryFunction.FUNCTION_TYPE);
-////    func1.checkSameSelfInterval(func2, QuadraticUnaryFunction.FUNCTION_TYPE);
-//    
-//    QuadraticUnaryFunction diffFunc1Func2 = new QuadraticUnaryFunction(func1.getA() - func2.getA(),
-//        func1.getB() - func2.getB(), func1.getC() - func2.getC(), func1.getSelfAgent(), func1.getSelfInterval());
-//    
-//    double LB = func1.getSelfInterval().getLowerBound();
-//    double UB = func1.getSelfInterval().getUpperBound();
-//    
-//    valueIntervalSet.addAll(diffFunc1Func2.solveForRoots());
-//    valueIntervalSet.add(LB);
-//    valueIntervalSet.add(UB);
-//    
+  public static Set<Double> solveUnaryQuadForValues(MultivariateQuadFunction func1, MultivariateQuadFunction func2, boolean isGettingSmallerInterval) {
+    TreeSet<Double> valueIntervalSet = new TreeSet<>();
+
+    func1.checkSameSelfAgent(func2);
+    Interval intervalOfTheResult = null;
+    
+    if (!isGettingSmallerInterval) {
+      func1.checkSameSelfInterval(func2);
+      intervalOfTheResult = func1.getIntervals().get(func1.getOwner());
+    }
+    else {
+      intervalOfTheResult = func1.getIntervals().get(func1.getOwner()).intersectInterval(func2.getIntervals().get(func2.getOwner()));
+      if (null == intervalOfTheResult)
+        return valueIntervalSet;
+    }
+    
+    MultivariateQuadFunction diffFunc1Func2 = new MultivariateQuadFunction(func1.getA() - func2.getA(),
+        func1.getB() - func2.getB(), func1.getC() - func2.getC(), func1.getOwner(), intervalOfTheResult);
+    
+    valueIntervalSet.addAll(diffFunc1Func2.solveForRootsInsideInterval());
+    
+    return valueIntervalSet;
+    
+    
 //    List<Double> valList = new ArrayList<>(valueIntervalSet.subSet(LB, true, UB, true));    
-//      
+      
 //    for (int index = 0; index < valList.size() - 1; index++) {
 //      intervalList.add(new Interval(valList.get(index), valList.get(index + 1)));
 //    }
 //    
 //    return intervalList;
-//  }
+  }
   
+ 
+
   /**
    * @param func1 CubicUnaryFunction
    * @param func2 CubicUnaryFunction
@@ -139,9 +174,4 @@ public class Utilities {
 	  System.err.println(x);
 	  }
 	}
-
-//  public static int indexMaxValueList(List<Double> evalList) {
-//    double max = evalList.stream().mapToDouble(Double::doubleValue).max().getAsDouble();
-//    return evalList.indexOf(max);
-//  }
 }

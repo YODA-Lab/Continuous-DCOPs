@@ -42,7 +42,7 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 		agent.setValuesToSendInVALUEPhase(new HashMap<String, Double>());
 		if (agent.isRoot()) {
 			agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-			if (agent.algorithm == DCOP.DPOP) {
+			if (agent.algorithm == DCOP.BASE_DPOP) {
 				System.out.println(agent.getIdStr() + " choose value " + agent.getChosenValue());
 			}
 			
@@ -103,19 +103,19 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 			//add its chosen value to the map to send to its children
 			agent.addValuesToSendInValuePhase(agent.getIdStr(), agent.getChosenValue());			
 			
-			if (agent.algorithm == DCOP.DPOP) {
+			if (agent.algorithm == DCOP.BASE_DPOP) {
 				System.out.println("Chosen value is " + agent.getChosenValue());
 			}
 			//correct
-			else if (agent.algorithm == DCOP.LS_SDPOP || agent.algorithm == DCOP.SDPOP) {
-				agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
-			}
-			else if (agent.algorithm == DCOP.HYBRID) {
-				agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
-			}
-			else if (agent.algorithm == DCOP.REACT) {
-				agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
-			}
+//			else if (agent.algorithm == DCOP.LS_SDPOP || agent.algorithm == DCOP.SDPOP) {
+//				agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
+//			}
+//			else if (agent.algorithm == DCOP.HYBRID) {
+//				agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
+//			}
+//			else if (agent.algorithm == DCOP.REACT) {
+//				agent.getValueAtEachTSMap().put(agent.getCurrentTS(), agent.getChosenValue());
+//			}
 			
 			agent.addupSimulatedTime(agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 			
@@ -123,7 +123,7 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 //				ArrayList<Double> agent_value = new ArrayList<>();
 //				agent_value.add(agent.getIdStr());
 //				agent_value.add(agent.getChosenValue());
-				if (agent.algorithm == DCOP.DPOP) {
+				if (agent.algorithm == DCOP.BASE_DPOP) {
 					System.out.println("Chosen value is " + agent.getChosenValue());
 				}
 //				agent_value.add(String.valueOf(agent.getCurrentGlobalUtility()));

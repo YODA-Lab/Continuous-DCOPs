@@ -35,28 +35,9 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
     functionList = new ArrayList<>();
   }
 
-  // public Set<Double> getSegmentedRange() {
-  // Set<Double> range = new TreeSet<>();
-  // for (MultivariateFunction func : functionList) {
-  //// Interval intervals = ((UnaryFunction) func).getSelfInterval();
-  // Interval intervals = func.getSelfInterval();
-  // range.add(intervals.getLowerBound());
-  // range.add(intervals.getUpperBound());
-  // }
-  //
-  // return range;
-  // }
-
   public void addToFunctionList(MultivariateQuadFunction function) {
     functionList.add(function);
   }
-
-  // Divide into smaller intervals
-  // + Divide each intervals into k equal intervals
-  // + In each k intervals, pick the middle values
-  // Get the final function
-  // Find the argmax of that function
-  // The max is the orgin
 
   /**
    * Approximately project the PiecewiseMultivariateQuadFunction
@@ -64,11 +45,23 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
    * @param numberOfIntervals
    * @return a piecewise function of projected functions
    */
-  public PiecewiseMultivariateQuadFunction approxProject(final int numberOfIntervals, String agentID, int numberOfAgents) {
+  public PiecewiseMultivariateQuadFunction approxProject(final int numberOfIntervals, String agentID, int numberOfAgents,
+      boolean isApprox) {
     PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
 
     for (MultivariateQuadFunction f : functionList) {
-      PiecewiseMultivariateQuadFunction newPiecewise = f.approxProject(numberOfIntervals, agentID, numberOfAgents);
+      PiecewiseMultivariateQuadFunction newPiecewise = f.approxProject(numberOfIntervals, agentID, numberOfAgents, isApprox);
+      pwFunc.addPiecewiseToList(newPiecewise);
+    }
+    return pwFunc;
+  }
+  
+
+  public PiecewiseMultivariateQuadFunction analyticalProject() {
+    PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
+
+    for (MultivariateQuadFunction f : functionList) {
+      PiecewiseMultivariateQuadFunction newPiecewise = f.analyticalProject();
       pwFunc.addPiecewiseToList(newPiecewise);
     }
     return pwFunc;

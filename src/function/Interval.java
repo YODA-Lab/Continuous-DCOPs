@@ -1,5 +1,7 @@
 package function;
 
+import static java.lang.Double.*;
+
 import java.io.Serializable;
 import java.util.*;
 
@@ -65,9 +67,54 @@ public class Interval implements Serializable {
   }
   
   public boolean isTotallyBigger(Interval another) {
-    return Double.compare(lowerBound, another.getLowerBound()) <= 0 &&
-        Double.compare(upperBound, another.getUpperBound()) >= 0;
+    return compare(lowerBound, another.getLowerBound()) <= 0 &&
+        compare(upperBound, another.getUpperBound()) >= 0;
   }
+  
+  /**
+   * Get the intersection of two intervals
+   * @param otherInterval
+   * @return
+   */
+  public Interval intersectInterval(Interval otherInterval) {
+    
+    double LB1; // = interval1.getLowerBound();
+    double UB1; // = interval1.getUpperBound();
+    double UB2; // = otherInterval.getUpperBound();
+    
+    // Pre-condition: LB2 <= LB1
+    if (compare(otherInterval.getLowerBound(), lowerBound) <= 0) {
+      LB1 = lowerBound;
+      UB1 = upperBound;
+      UB2 = otherInterval.getUpperBound();  
+    } else {
+      LB1 = otherInterval.getLowerBound();
+      UB1 = otherInterval.getUpperBound();
+      UB2 = upperBound;
+    }
+    
+    // Pre-condition: LB2 <= LB1
+
+    // [LB2, UB2] < [LB1, UB1] 
+    if (compare(UB2, LB1) < 0) {
+      return null;
+    }
+    
+    // LB2 <= LB1 <= UB2 <= UB1
+    //        LB1 <= UB2 <= UB1
+    if (compare(LB1, UB2) <= 0 && compare(UB2, UB1) <= 0) {
+      return new Interval(LB1, UB2);
+    }
+    
+    // LB2 <= LB1 <= UB1 <= UB2 
+    //        LB1 <= UB1 <= UB2 
+    if (compare(UB1, UB2) < 0) {
+      return new Interval(LB1, UB1);
+    }
+    
+    return null;
+  }
+
 
   @Override
   public String toString() {
@@ -83,8 +130,8 @@ public class Interval implements Serializable {
       return false;
     }
     Interval interval = (Interval) o;
-    return Double.compare(this.lowerBound, interval.getLowerBound()) == 0
-        && Double.compare(this.upperBound, interval.getUpperBound()) == 0;
+    return compare(this.lowerBound, interval.getLowerBound()) == 0
+        && compare(this.upperBound, interval.getUpperBound()) == 0;
   }
 
   @Override

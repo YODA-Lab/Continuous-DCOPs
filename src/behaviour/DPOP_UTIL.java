@@ -7,13 +7,17 @@ import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 import static java.lang.System.out;
 
+import java.awt.geom.QuadCurve2D;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -21,6 +25,7 @@ import java.io.ObjectInputStream;
 import agent.DCOP;
 import agent.DcopInfo;
 import agent.DcopInfo.SolvingType;
+import function.Interval;
 //import function.BinaryFunction;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
@@ -29,6 +34,7 @@ import function.multivariate.PiecewiseMultivariateQuadFunction;
 //import function.binary.QuadraticUnaryFunction;
 import table.Row;
 import table.Table;
+import utilities.Utilities;
 
 /*
  * This is UTIL phrase of DTREE
@@ -81,39 +87,91 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	public void action() {
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 		agent.setCurrentUTILstartTime(System.currentTimeMillis());
-		agent.setCurrentTableListDPOP(null);
 		
-    out.println("Start removing children...");
-		if (agent.algorithm == DCOP.DPOP) {
-			removeChildrenFunctionFromFunctionList(0);
-		}
+//    out.println("Start removing children...");
+		
+    removeChildrenFunctionFromFunctionList(0);
+		
+    if (agent.algorithm == DCOP.BASE_DPOP) {
+      createDCOPTableFromFunction(0);
+    }
+    
+    // At this point, all three algorithms have the same functions (or transformed to tables)   
+		
 		out.println("Done removing children!");
 				
 		agent.setSimulatedTime(agent.getSimulatedTime()
 						+ agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
-		if (agent.isRoot()) out.println(agent.getIdStr() + ": I am root");
-		else if (agent.isLeaf()) out.println(agent.getIdStr() + ": I am leaf, my parent is " + agent.getParentAID().getLocalName());
-		else {out.println(agent.getIdStr() + ": I am internal node, my parent is " + agent.getParentAID().getLocalName());}
+
+//		agent.printTree(isRoot);
 		
 		if (agent.isLeaf()) {
-      if (agent.algorithm == DCOP.DPOP) out.println("LEAF " + agent.getIdStr() + " is running");
-		  leafDoFuncUtilProcess();
-			if (agent.algorithm == DCOP.DPOP) out.println("LEAF " + agent.getIdStr() + " done");
+      out.println("LEAF " + agent.getIdStr() + " is running");
+      if (agent.algorithm == DCOP.BASE_DPOP) {
+        leafDoTableUtilProcess();
+      } else { 
+        leafDoFuncUtilProcess();
+      }
+			out.println("LEAF " + agent.getIdStr() + " done");
 		} 
 		else if (agent.isRoot()){
-		  rootDoFuncUtilProcess();
+      out.println("ROOT node " + agent.getIdStr() + " is running");
+      if (agent.algorithm == DCOP.BASE_DPOP) {
+        rootDoTableUtilProcess();
+      } else { 
+        rootDoFuncUtilProcess();
+      }
 		}
 		else {
-      if (agent.algorithm == DCOP.DPOP) out.println("INTERNAL node " + agent.getIdStr() + " is running");
-		  internalNodeDoFuncUtilProcess();
-			if (agent.algorithm == DCOP.DPOP) out.println("INTERNAL node " + agent.getIdStr() + " done");
+      out.println("INTERNAL node " + agent.getIdStr() + " is running");
+      if (agent.algorithm == DCOP.BASE_DPOP) {
+        internalNodeDoTableUtilProcess();
+      } else { 
+        internalNodeDoFuncUtilProcess();
+      }
+			out.println("INTERNAL node " + agent.getIdStr() + " done");
 		}
 		
-		long maxMemory = Runtime.getRuntime().maxMemory() / 10241024;
-		out.println(agent.getIdStr() + " Max memory after done: " + maxMemory);
+//		long maxMemory = Runtime.getRuntime().maxMemory() / 10241024;
+//		out.println(agent.getIdStr() + " Max memory after done: " + maxMemory);
 	}		
 	
-	public void leafDoUtilProcess() {
+	// Assume binary tables
+	public void createDCOPTableFromFunction(int i) {
+	  List<Table> tableListWithParents = new ArrayList<>();
+	  for (PiecewiseMultivariateQuadFunction pwFunction : agent.getCurrentFunctionListDPOP()) {
+	    MultivariateQuadFunction func = pwFunction.getFunctionList().get(0); //there is only one function in pw at this time
+	    List<Double> varListLabel = func.getVariables().stream().map(key -> Double.valueOf(key)).collect(Collectors.toList());
+	    Table tableFromFunc = new Table(varListLabel);
+	    
+	    // Always binary functions
+	    double variableOne = varListLabel.get(0);
+	    double variableTwo = varListLabel.get(1);
+	    
+	    Interval interval = agent.getGlobalInterval();
+
+	    for (double valueOne = interval.getLowerBound(); Double.compare(valueOne, interval.getUpperBound()) <= 0; valueOne++) {
+	      Map<String, Double> valueMap = new HashMap<>();
+	      List<Double> rowValueList = new ArrayList<>();
+	      rowValueList.add(valueOne);
+	      valueMap.put(String.valueOf((int) variableOne), valueOne);
+	      for (double valueTwo = interval.getLowerBound(); Double.compare(valueTwo, interval.getUpperBound()) <= 0; valueTwo++) {
+	        rowValueList.add(valueTwo);
+	        valueMap.put(String.valueOf((int) variableTwo), valueTwo);
+	        Row newRow = new Row(new ArrayList<>(rowValueList), func.evaluateToValueGivenValueMap(valueMap));
+	        tableFromFunc.addRow(newRow);
+	        rowValueList.remove(1);
+	        valueMap.remove(String.valueOf((int) variableTwo));
+	      }
+	      rowValueList.clear();
+	      valueMap.clear();
+	    }
+	    tableListWithParents.add(tableFromFunc);
+	  }
+	  agent.setCurrentTableListDPOP(tableListWithParents);
+  }
+
+  public void leafDoTableUtilProcess() {
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 		
 		//get the first table
@@ -145,39 +203,40 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 
     // Combine all functions in the leaf
-    System.out.println("Agent " + agent.getIdStr() + " LEAF functions counts when joining " + agent.getCurrentFunctionListDPOP().get(0).size());
+    System.out.println(agent.getIdStr() + " LEAF functions counts when joining " + agent.getCurrentFunctionListDPOP().get(0).size());
     PiecewiseMultivariateQuadFunction combinedFunction = agent.getCurrentFunctionListDPOP().get(0);
+    
     for (int i = 1; i < agent.getCurrentFunctionListDPOP().size(); i++) {
-      System.out.println("Agent " + agent.getIdStr() + " LEAF functions counts when joining " + agent.getCurrentFunctionListDPOP().get(i).size());
+      out.println("Agent " + agent.getIdStr() + " LEAF functions counts when joining " + agent.getCurrentFunctionListDPOP().get(i).size());
       combinedFunction = combinedFunction.addPiecewiseFunction(agent.getCurrentFunctionListDPOP().get(i));
     }
     
     combinedFunction.setOwner(agent.getIdStr());
     
     agent.setAgentViewFunction(combinedFunction);
-    
-    out.println("Agent " + agent.getIdStr() + " Leaf number of combined function: " + combinedFunction.getFunctionList().size());
-    
-    PiecewiseMultivariateQuadFunction projectedFunction = combinedFunction.approxProject(agent.getNumberOfIntervals(),
-        agent.getIdStr(), agent.getNumberOfAgents());
-    
+        
+    PiecewiseMultivariateQuadFunction projectedFunction = null;
+    if (agent.algorithm == DcopInfo.APPROX_DPOP) {
+      projectedFunction = combinedFunction.approxProject(agent.getNumberOfIntervals(), agent.getIdStr(),
+          agent.getNumberOfApproxAgents(), agent.isApprox());
+    } else {
+      projectedFunction = combinedFunction.analyticalProject();
+    }
+        
     out.println("Agent " + agent.getIdStr() + " Leaf number of projected function: " + projectedFunction.getFunctionList().size());
     
     agent.setSimulatedTime(
         agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
-    
-//    agent.sendObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
-    
+        
     try {
       agent.sendByteObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
     } catch (IOException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
     }
   }
 	
 	
-	public void internalNodeDoUtilProcess() {			
+	public void internalNodeDoTableUtilProcess() {			
 		List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 			
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
@@ -217,31 +276,35 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
       e1.printStackTrace();
     }
     
-    long maxMemory = Runtime.getRuntime().maxMemory() / 10241024;
-    out.println(agent.getIdStr() + " Max memory BEFORE combining functions: " + maxMemory);
+//    long maxMemory = Runtime.getRuntime().maxMemory() / 10241024;
+//    out.println(agent.getIdStr() + " Max memory BEFORE combining functions: " + maxMemory);
     
     System.out.println("Agent " + agent.getIdStr() + " Internal node functions counts before joining rewards " + combinedFunctionMessage.size());
 
     for (PiecewiseMultivariateQuadFunction pseudoParentFunction : agent.getCurrentFunctionListDPOP()) {
-      System.out.println("Agent " + agent.getIdStr() + " Internal node functions counts when joining " + pseudoParentFunction.size());
       combinedFunctionMessage = combinedFunctionMessage.addPiecewiseFunction(pseudoParentFunction);   
-      System.out.println("Agent " + agent.getIdStr() + " Internal node functions counts after joining " + combinedFunctionMessage.size());
-      // Setting object to null to free the memory
     }
     
-    out.println(agent.getIdStr() + " Max memory AFTER combining functions: " + maxMemory);
     out.println("Agent " + agent.getIdStr() + " Internal node number of combined function: " + combinedFunctionMessage.getFunctionList().size());
     
     combinedFunctionMessage.setOwner(agent.getIdStr());
         
     agent.setAgentViewFunction(combinedFunctionMessage);
         
-    PiecewiseMultivariateQuadFunction projectedFunction = combinedFunctionMessage.approxProject(agent.getNumberOfIntervals(),
-        agent.getIdStr(), agent.getNumberOfAgents());
+    PiecewiseMultivariateQuadFunction projectedFunction;
+    
+    out.println("Agent " + agent.getIdStr() + " Internal node number of combined function: " + combinedFunctionMessage.getFunctionList().size());
+    
+    if (agent.algorithm == DcopInfo.APPROX_DPOP) {
+      projectedFunction = combinedFunctionMessage.approxProject(agent.getNumberOfIntervals(),
+        agent.getIdStr(), agent.getNumberOfApproxAgents(), agent.isApprox());
+    } else {
+      projectedFunction = combinedFunctionMessage.analyticalProject();
+    }
     
     out.println("Agent " + agent.getIdStr() + " Internal node number of projected function: " + projectedFunction.getFunctionList().size());
 
-    out.println(agent.getIdStr() + " Max memory AFTER PROJECTING functions: " + maxMemory);
+//    out.println(agent.getIdStr() + " Max memory AFTER PROJECTING functions: " + maxMemory);
     
     // to free the memory
     combinedFunctionMessage = null;
@@ -253,7 +316,6 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     try {
       agent.sendByteObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
     } catch (IOException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
     }
     
@@ -261,16 +323,16 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
   }
 	
 	public void rootDoFuncUtilProcess() {
+	  agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
+	  
 	  List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 	  agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
     PiecewiseMultivariateQuadFunction combinedFunctionMessage = null;
     try {
       combinedFunctionMessage = combineByteMessageToFunction(receivedUTILmsgList);
     } catch (ClassNotFoundException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
     } catch (IOException e) {
-      // TODO Auto-generated catch block
       e.printStackTrace();
     }
         
@@ -280,7 +342,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     
     combinedFunctionMessage.setOwner(agent.getIdStr());
     
-    out.println("ROOT has received the message");
+//    out.println("ROOT has received the message " + combinedFunctionMessage);
     
     // choose the maximum
     double argmax = -Double.MAX_VALUE; 
@@ -290,7 +352,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     
     for (MultivariateQuadFunction f : combinedFunctionMessage.getFunctionList()) {
       double[] maxAndArgMax = f.getMaxAndArgMax();
-      
+           
       if (Double.compare(maxAndArgMax[0], max) > 0) {
         max = maxAndArgMax[0];
         argmax = maxAndArgMax[1];
@@ -299,9 +361,15 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     
     out.println("MAX VALUE IS " + max);
     out.println("ARGMAX VALUE IS " + argmax);
-	}
+    
+    agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime()
+        - agent.getCurrentStartTime());
+    agent.setTotalGlobalUtility(max);
+    agent.setRootArgMax(argmax);
+    Utilities.writeUtil_Time(agent);	
+  }
 	   
-  public void rootDoUtilProcess() {
+  public void rootDoTableUtilProcess() {
 		List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 				
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
@@ -325,21 +393,16 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 				agent.setChosenValue(row.getValueAtPosition(0));
 			}
 		}
-			
+					
 		out.println("CHOSEN: " + agent.getChosenValue());
 		
-
-		if (agent.algorithm == DCOP.LS_SDPOP) {
-		}
-		else if (agent.algorithm == DCOP.SDPOP) {
-		}
-
-		else if (agent.algorithm == DCOP.DPOP) {
-			System.err.println("C_DPOP utility " + maxUtility);
-		}
+		out.println(DCOP.algTypes[agent.algorithm] + " utility " + maxUtility);
 		
 		agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime()
 							- agent.getCurrentStartTime());
+    agent.setTotalGlobalUtility(maxUtility);
+    agent.setRootArgMax(agent.getChosenValue());
+    Utilities.writeUtil_Time(agent);
 	}
 	
 	public List<ACLMessage> waitingForMessageFromChildren(int msgCode) {
@@ -460,8 +523,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 			tableListAtCurrentTS.remove(removeTable);
 		}
 		
-		agent.setCurrentTableListDPOP(tableListAtCurrentTS);
-		
+		agent.setCurrentTableListDPOP(tableListAtCurrentTS);	
 	}
 	
 	/**

@@ -34,7 +34,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 	
 	@Override
 	public void action() {
-		System.out.println("Agent " + agent.getIdStr() + " Start building the pseudotree...");
+//		System.out.println("Agent " + agent.getIdStr() + " Start building the pseudotree...");
 	  if (agent.isRoot()) {
 			agent.setNotVisited(false);
 		
@@ -177,6 +177,8 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_T
 		if (agent.isRoot() == false) {
 			agent.getParentAndPseudoStrList().add(agent.getParentAID().getLocalName());
 		}
+		
+		agent.printTree(agent.isRoot());
 		
     System.out.println("Agent " + agent.getIdStr() + " Done building the pseudotree");
 	}
