@@ -37,7 +37,7 @@ public class Interval implements Serializable {
     this.upperBound = upperBound;
   }
 
-  public double midValue() {
+  public double getMidValue() {
     return 0.5 * (lowerBound + upperBound);
   }
   

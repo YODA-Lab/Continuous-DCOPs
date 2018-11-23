@@ -86,11 +86,11 @@ public class Utilities {
     Interval intervalOfTheResult = null;
     
     if (!isGettingSmallerInterval) {
-      func1.checkSameSelfInterval(func2);
-      intervalOfTheResult = func1.getIntervals().get(func1.getOwner());
+//      func1.checkSameSelfInterval(func2);
+      intervalOfTheResult = func1.getCritFuncIntervalMap().get(func1.getOwner());
     }
     else {
-      intervalOfTheResult = func1.getIntervals().get(func1.getOwner()).intersectInterval(func2.getIntervals().get(func2.getOwner()));
+      intervalOfTheResult = func1.getCritFuncIntervalMap().get(func1.getOwner()).intersectInterval(func2.getCritFuncIntervalMap().get(func2.getOwner()));
       if (null == intervalOfTheResult)
         return valueIntervalSet;
     }
@@ -101,15 +101,6 @@ public class Utilities {
     valueIntervalSet.addAll(diffFunc1Func2.solveForRootsInsideInterval());
     
     return valueIntervalSet;
-    
-    
-//    List<Double> valList = new ArrayList<>(valueIntervalSet.subSet(LB, true, UB, true));    
-      
-//    for (int index = 0; index < valList.size() - 1; index++) {
-//      intervalList.add(new Interval(valList.get(index), valList.get(index + 1)));
-//    }
-//    
-//    return intervalList;
   }
   
  

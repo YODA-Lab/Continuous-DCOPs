@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
@@ -140,8 +141,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	public void createDCOPTableFromFunction(int i) {
 	  List<Table> tableListWithParents = new ArrayList<>();
 	  for (PiecewiseMultivariateQuadFunction pwFunction : agent.getCurrentFunctionListDPOP()) {
-	    MultivariateQuadFunction func = pwFunction.getFunctionList().get(0); //there is only one function in pw at this time
-	    List<Double> varListLabel = func.getVariables().stream().map(key -> Double.valueOf(key)).collect(Collectors.toList());
+	    MultivariateQuadFunction func = pwFunction.getTheFirstFunction(); //there is only one function in pw at this time
+	    List<Double> varListLabel = func.getVariableSet().stream().map(key -> Double.valueOf(key)).collect(Collectors.toList());
 	    Table tableFromFunc = new Table(varListLabel);
 	    
 	    // Always binary functions
@@ -223,7 +224,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
       projectedFunction = combinedFunction.analyticalProject();
     }
         
-    out.println("Agent " + agent.getIdStr() + " Leaf number of projected function: " + projectedFunction.getFunctionList().size());
+    out.println("Agent " + agent.getIdStr() + " Leaf number of projected function: " + projectedFunction.getFunctionMap().size());
     
     agent.setSimulatedTime(
         agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
@@ -285,7 +286,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
       combinedFunctionMessage = combinedFunctionMessage.addPiecewiseFunction(pseudoParentFunction);   
     }
     
-    out.println("Agent " + agent.getIdStr() + " Internal node number of combined function: " + combinedFunctionMessage.getFunctionList().size());
+    out.println("Agent " + agent.getIdStr() + " Internal node number of combined function: " + combinedFunctionMessage.getFunctionMap().size());
     
     combinedFunctionMessage.setOwner(agent.getIdStr());
         
@@ -293,7 +294,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
         
     PiecewiseMultivariateQuadFunction projectedFunction;
     
-    out.println("Agent " + agent.getIdStr() + " Internal node number of combined function: " + combinedFunctionMessage.getFunctionList().size());
+    out.println("Agent " + agent.getIdStr() + " Internal node number of combined function: " + combinedFunctionMessage.getFunctionMap().size());
     
     if (agent.algorithm == DcopInfo.APPROX_DPOP) {
       projectedFunction = combinedFunctionMessage.approxProject(agent.getNumberOfIntervals(),
@@ -302,7 +303,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
       projectedFunction = combinedFunctionMessage.analyticalProject();
     }
     
-    out.println("Agent " + agent.getIdStr() + " Internal node number of projected function: " + projectedFunction.getFunctionList().size());
+    out.println("Agent " + agent.getIdStr() + " Internal node number of projected function: " + projectedFunction.getFunctionMap().size());
 
 //    out.println(agent.getIdStr() + " Max memory AFTER PROJECTING functions: " + maxMemory);
     
@@ -350,13 +351,17 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     
 //    out.println("Root Combined function: " + combinedFunctionMessage);
     
-    for (MultivariateQuadFunction f : combinedFunctionMessage.getFunctionList()) {
-      double[] maxAndArgMax = f.getMaxAndArgMax();
-           
-      if (Double.compare(maxAndArgMax[0], max) > 0) {
-        max = maxAndArgMax[0];
-        argmax = maxAndArgMax[1];
+    for (Entry<MultivariateQuadFunction, Set<Map<String, Interval>>> functionEntry : combinedFunctionMessage.getFunctionMap().entrySet()) {
+      MultivariateQuadFunction function = functionEntry.getKey();
+      for (Map<String, Interval> intervalMap : functionEntry.getValue()) {
+        double[] maxAndArgMax = function.getMaxAndArgMax(intervalMap);
+        
+        if (Double.compare(maxAndArgMax[0], max) > 0) {
+          max = maxAndArgMax[0];
+          argmax = maxAndArgMax[1];
+        }
       }
+
     }
     
     out.println("MAX VALUE IS " + max);
@@ -473,7 +478,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     }
 	  
 	  for (PiecewiseMultivariateQuadFunction pwFunc : agent.getFunctionList()) {
-	    Set<String> variableSet = pwFunc.getVaribleSet();
+	    Set<String> variableSet = new HashSet<>(pwFunc.getVariableSet());
 	    variableSet.retainAll(childAndPseudoChildrenStrList);
 	    
 	    // There is no children or pseudo-children in this function

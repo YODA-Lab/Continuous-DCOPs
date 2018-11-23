@@ -11,9 +11,11 @@ import java.lang.management.ThreadMXBean;
 import java.util.List;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 import static java.lang.System.out;
 
@@ -588,14 +590,19 @@ public class DCOP extends Agent implements DcopInfo {
 				    lineWithSemiColon = lineWithSemiColon.replaceAll("function ", "");
 				    String[] termStrList = lineWithSemiColon.split(" ");
 				    double[] arr = parseFunction(termStrList, selfVar);
-				    MultivariateQuadFunction func = new MultivariateQuadFunction(arr, idStr, String.valueOf((int) arr[6]), globalInterval);
+            String neighbor = String.valueOf((int) arr[6]);
+				    MultivariateQuadFunction func = new MultivariateQuadFunction(arr, idStr, neighbor);
 				    
 				    // Adding the new neighbor to neighborStrList 
-            String neighbor = String.valueOf((int) arr[6]);
             if (!neighborStrList.contains(neighbor)) neighborStrList.add(neighbor);
 
             PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
-            pwFunc.addToFunctionList(func);
+            // creating the interval map
+            Map<String, Interval> intervalMap = new HashMap<>();
+            intervalMap.put(idStr, globalInterval);
+            intervalMap.put(neighbor, globalInterval);
+            
+            pwFunc.addToFunctionMapWithInterval(func, intervalMap);
             functionList.add(pwFunc);
 
 //				    out.println("Agent " + idStr + " function " + pwFunc);
