@@ -602,7 +602,7 @@ public class DCOP extends Agent implements DcopInfo {
             intervalMap.put(idStr, globalInterval);
             intervalMap.put(neighbor, globalInterval);
             
-            pwFunc.addToFunctionMapWithInterval(func, intervalMap);
+            pwFunc.addToFunctionMapWithInterval(func, intervalMap, false);
             functionList.add(pwFunc);
 
 //				    out.println("Agent " + idStr + " function " + pwFunc);

@@ -13,8 +13,8 @@ import java.util.TreeSet;
 
 import com.google.common.collect.Sets;
 
-import agent.DcopInfo;
 import function.Interval;
+import static java.lang.Double.*;
 
 /**
  * @author khoihd
@@ -38,11 +38,33 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
     functionMap = new HashMap<>();
   }
 
-  public void addToFunctionMapWithInterval(MultivariateQuadFunction function, Map<String, Interval> intervalMap) {
+  public void addToFunctionMapWithInterval(MultivariateQuadFunction function, Map<String, Interval> intervalMap, boolean isOptimized) {
     Set<Map<String, Interval>> setOfIntervalMap = null;
     if (functionMap.containsKey(function)) {
       setOfIntervalMap = functionMap.get(function);
-      setOfIntervalMap.add(intervalMap);
+      
+      if (isOptimized == false) {
+        setOfIntervalMap.add(intervalMap);
+      } else if (isOptimized == true) {
+        String inputAgent = new ArrayList<>(intervalMap.keySet()).get(0);
+        Interval inputInterval = intervalMap.get(inputAgent);
+        
+        // traverse the setOfIntervalMap
+        for (Map<String, Interval> entry : setOfIntervalMap) {
+          Interval funcInterval = entry.get(inputAgent);
+          // Now comparing the functInterval with the inputInterval
+          // If match the criteria, then modify funcInterval
+          // 1. funcInterval <= inputInterval
+          if (compare(funcInterval.getUpperBound(), inputInterval.getLowerBound()) == 0) {
+            Interval newInterval = new Interval(funcInterval.getLowerBound(), inputInterval.getUpperBound());
+            entry.put(inputAgent, newInterval);
+          } else if (compare(inputInterval.getUpperBound(), funcInterval.getLowerBound()) == 0) {
+            // 2. inputInterval <= funcInterval 
+            Interval newInterval = new Interval(inputInterval.getLowerBound(), funcInterval.getUpperBound());
+            entry.put(inputAgent, newInterval);
+          }
+        }
+      }
       // no need to re-add the function with interval map
     } else {
       setOfIntervalMap = new HashSet<>();
@@ -68,7 +90,7 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
       for (Map<String, Interval> intervalMap : setOfIntervalMap) {
         PiecewiseMultivariateQuadFunction newPiecewise = function.approxProject(intervalMap, numberOfIntervals, agentID, numberOfAgents, isApprox);
 
-        pwFunc.addPiecewiseToMap(newPiecewise);
+        pwFunc.addPiecewiseToMap(newPiecewise, false);
       }
     }
     return pwFunc;
@@ -83,17 +105,17 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
       
       for (Map<String, Interval> intervalMap : functionEntry.getValue()) {
         PiecewiseMultivariateQuadFunction newPiecewise = function.analyticalProject(intervalMap);
-        pwFunc.addPiecewiseToMap(newPiecewise);
+        pwFunc.addPiecewiseToMap(newPiecewise, true);
       }
     }
     return pwFunc;
   }
 
-  public void addPiecewiseToMap(PiecewiseMultivariateQuadFunction newPiecewise) {
+  public void addPiecewiseToMap(PiecewiseMultivariateQuadFunction newPiecewise, boolean isOptimized) {
     // TODO Reduce the for loop here by addAll
     for (Entry<MultivariateQuadFunction, Set<Map<String, Interval>>> functionEntry : newPiecewise.getFunctionMap().entrySet()) {
       for (Map<String, Interval> interval : functionEntry.getValue())
-        addToFunctionMapWithInterval(functionEntry.getKey(), interval);
+        addToFunctionMapWithInterval(functionEntry.getKey(), interval, isOptimized);
     }
   }
 
@@ -160,7 +182,7 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
                     domainMapToAdd.computeIfAbsent(entry.getKey(), k -> entry.getValue());
                   }
                   
-                  addedPwFunction.addToFunctionMapWithInterval(addedFunc, domainMapToAdd);
+                  addedPwFunction.addToFunctionMapWithInterval(addedFunc, domainMapToAdd, false);
                 }
               }
             }

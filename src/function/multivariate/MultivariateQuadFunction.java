@@ -328,7 +328,7 @@ public class MultivariateQuadFunction implements Serializable {
       
       unaryEvaluatedFunction = midPointedFunction.evaluate(owner, argmax);
 
-      mpwFunc.addToFunctionMapWithInterval(unaryEvaluatedFunction, intervalsOfNewFunction);
+      mpwFunc.addToFunctionMapWithInterval(unaryEvaluatedFunction, intervalsOfNewFunction, false);
     }
 
     return mpwFunc;
@@ -397,7 +397,7 @@ public class MultivariateQuadFunction implements Serializable {
       domain.put(getOtherAgent(), interval);
 //      functionToAdd.setIntervals(domain);
       
-      pwFunction.addToFunctionMapWithInterval(functionToAdd, domain);
+      pwFunction.addToFunctionMapWithInterval(functionToAdd, domain, true);
     }
         
     return pwFunction;
