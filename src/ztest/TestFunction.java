@@ -35,7 +35,7 @@ class TestFunction {
     intervalMap.put("1", int_1);
     intervalMap.put("2", int_2);
     
-    f.addToFunctionMapWithInterval(f1, intervalMap);
+    f.addToFunctionMapWithInterval(f1, intervalMap, false);
     f.setOwner("1");
     
     out.println("BEFORE projecting:\n" + f);
@@ -123,7 +123,7 @@ class TestFunction {
     intervalMap.put("2", int_2);
     intervalMap.put("3", int_3);
     
-    f.addToFunctionMapWithInterval(f1, intervalMap);
+    f.addToFunctionMapWithInterval(f1, intervalMap, false);
     f.setOwner("1");
     
     System.out.println(f.approxProject(2, "1", 2, true));
