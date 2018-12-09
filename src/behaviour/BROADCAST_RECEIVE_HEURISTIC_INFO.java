@@ -9,9 +9,10 @@ import jade.lang.acl.UnreadableException;
 import java.util.ArrayList;
 
 import agent.DCOP;
+import static agent.DcopInfo.*;
 
 //MAX-DEGREE HEURISTIC
-public class BROADCAST_RECEIVE_HEURISTIC_INFO extends OneShotBehaviour implements MESSAGE_TYPE{
+public class BROADCAST_RECEIVE_HEURISTIC_INFO extends OneShotBehaviour {
 	private static final long serialVersionUID = 7277049523059465622L;
 
 	DCOP agent;
@@ -27,11 +28,11 @@ public class BROADCAST_RECEIVE_HEURISTIC_INFO extends OneShotBehaviour implement
 		
 		//broadcast to neighbors
 		for (AID neighbor:agent.getNeighborAIDList()) {
-			agent.sendObjectMessage(neighbor, maxDegreeHeuristic, INFO);
+			agent.sendObjectMessage(neighbor, maxDegreeHeuristic, PSEUDO_INFO);
 		}
 		
 		//receive messages from neighbors
-		ArrayList<ACLMessage> messageList = waitingForMessageFromNeighbors(INFO);
+		ArrayList<ACLMessage> messageList = waitingForMessageFromNeighbors(PSEUDO_INFO);
 		for (ACLMessage message:messageList) {
 			Integer infoFromMessage = null;
 			AID sender = message.getSender();

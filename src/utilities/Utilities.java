@@ -2,7 +2,6 @@ package utilities;
 
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
-import static java.lang.Double.*;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -22,9 +21,6 @@ import agent.DCOP;
 import agent.DcopInfo;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
-//import function.binary.CubicUnaryFunction;
-//import function.binary.QuadraticBinaryFunction;
-//import function.binary.QuadraticUnaryFunction;
 
 public class Utilities {	
 	public static String headerLine = "ID" + "\t" + "Alg" + "\t" + "noAgent" + "\t" + "Time (ms)" + "\t" + "Utility" + "\t" + "RootArgMax";

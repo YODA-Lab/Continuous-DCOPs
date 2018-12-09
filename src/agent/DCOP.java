@@ -17,7 +17,6 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
-import static java.lang.System.out;
 
 import behaviour.AGENT_TERMINATE;
 import behaviour.BROADCAST_RECEIVE_HEURISTIC_INFO;
@@ -25,11 +24,11 @@ import behaviour.DPOP_UTIL;
 import behaviour.PSEUDOTREE_GENERATION;
 
 import behaviour.SEARCH_NEIGHBORS;
+import behaviour.SEND_RECEIVE_FUNCTION_TO_VARIABLE;
+import behaviour.SEND_RECEIVE_VARIABLE_TO_FUNCTION;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
-//import function.binary.PiecewiseFunction;
-//import function.binary.QuadraticBinaryFunction;
 import table.Row;
 import table.Table;
 
@@ -41,6 +40,10 @@ import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
+import maxsum.MaxSumMessage;
+
+import static java.lang.System.out;
+import static java.lang.Double.*;
 
 /* Each agent is a node in the graph
  * The graph is presented as pseudo-tree
@@ -70,14 +73,16 @@ import jade.lang.acl.ACLMessage;
  * ****PROCESS OF DPOP
  * DPOP starts when the PSEUDOTREE PROCESS FINISHED
  */
+/**
+ * @author khoihd
+ *
+ */
 public class DCOP extends Agent implements DcopInfo {
 	
 	private static final long serialVersionUID = 2919994686894853596L;
 	
   public int algorithm;
-  public int h;   //timeStep where the Markov chain is converged
   public String inputFileName;
-	public String varDecisionFileName;
 	public int domainMax; //from 0 - domain
 	public Interval globalInterval;
 
@@ -93,8 +98,7 @@ public class DCOP extends Agent implements DcopInfo {
 	private List<AID> pseudoParentAIDList;
 	private List<AID> pseudoChildrenAIDList;
 	private List<String> parentAndPseudoStrList;
-	private List<String> neighborStrList;
-//	private List<String> childrenStrList;
+	private Set<String> neighborStrSet;
 	
 	private List<Table> currentTableListDPOP;
 	private List<Table> constraintTableWithoutRandomList;
@@ -107,7 +111,7 @@ public class DCOP extends Agent implements DcopInfo {
 	private Table collapsedSwitchingCostTable;
 	
 	//VALUE phase
-	HashMap<String, Double> valuesToSendInVALUEPhase;
+	HashMap<Double, Double> valuesToSendInVALUEPhase;
 	
 	//used for LOCAL SEARCH
 	private HashMap<Integer, Double> valueAtEachTSMap;
@@ -139,24 +143,34 @@ public class DCOP extends Agent implements DcopInfo {
   //for reuse information
   private HashMap<AID, Integer> constraintInfoMap;
   private boolean notVisited = true;
-	
-//	List<String> neighborWithRandList;
-	
+		
   private double oldLSUtility = 0;
-	private double oldLSRunningTime = 0; //old running time because compare to see if old iteration is converged
-	private boolean stop = false;
+	private double oldLSRunningTime = 0; //old running time needed to compare to see if old iteration is converged
 
 	private double utilityAndCost;
 	private String lastLine;
 	private int rootFromInput = Integer.MAX_VALUE;
 	
-	private List<PiecewiseMultivariateQuadFunction> functionList;
+	// for Continuous DPOP
+	private List<PiecewiseMultivariateQuadFunction> functionList = new ArrayList<>(); 
 	private PiecewiseMultivariateQuadFunction agentViewFunction;
-	private List<PiecewiseMultivariateQuadFunction> currentFunctionListDPOP;
-	
+	private List<PiecewiseMultivariateQuadFunction> currentFunctionListDPOP = new ArrayList<>();
 	private int numberOfIntervals;
 	private int numberOfApproxAgents;
 	private boolean isApprox;
+	
+	// for Hybrid Max-Sum
+	private Map<String, PiecewiseMultivariateQuadFunction> MSFunctionMap = new HashMap<>();
+	private Set<AID> functionIOwn = new HashSet<>();
+	private Set<AID> functionOwnedByOther = new HashSet<>();
+	private Map<AID, MaxSumMessage> received_FUNCTION_TO_VARIABLE = new HashMap<>();
+	private Map<AID, MaxSumMessage> received_VARIABLE_TO_FUNCTION = new HashMap<>();
+	private Map<AID, MaxSumMessage> stored_FUNCTION_TO_VARIABLE = new HashMap<>();
+	private Map<AID, MaxSumMessage> stored_VARIABLE_TO_FUNCTION = new HashMap<>();
+	private double gradientScalingFactor;
+	
+	private int numberOfMSValues = 100;
+	private Set<Double> MSvalueSet = new HashSet<>();
 
 	// for writing output purposes
 	public int instanceID;
@@ -174,7 +188,6 @@ public class DCOP extends Agent implements DcopInfo {
 		currentTS = 0;
 		functionList = new ArrayList<>();
     idStr = getLocalName();
-    h = 0;
 	}
 	
 	//done with LS-RAND
@@ -192,6 +205,7 @@ public class DCOP extends Agent implements DcopInfo {
     numberOfApproxAgents = Integer.parseInt((String) args[3]);
     
     isApprox = true;
+    gradientScalingFactor = 0.01;
 	}
 	
   protected void setup() {
@@ -209,20 +223,6 @@ public class DCOP extends Agent implements DcopInfo {
 				
 		// add constraints table FROM constraintTableWithoutRandomList TO organizedConstraintTableList
 		reorganizeConstaintTable();
-		
-//		if (algorithm == DSA) {
-//		    createNonProcessTable();
-//		    createProcessedTable();
-//		}
-
-//		if (algorithm == BASE_DPOP) {
-//			addExpectedRandomTableToListAllTS();
-//			addConstraintTableToListAllTS();
-//		}		
-//		else if (algorithm == DSA) {
-//			addConstraintTableToListAllTS();
-//		}
-		
 
 		startTime = System.currentTimeMillis();
 		bean = ManagementFactory.getThreadMXBean();
@@ -233,17 +233,32 @@ public class DCOP extends Agent implements DcopInfo {
 		mainSequentialBehaviourList.addSubBehaviour(new BROADCAST_RECEIVE_HEURISTIC_INFO(this));
 		mainSequentialBehaviourList.addSubBehaviour(new PSEUDOTREE_GENERATION(this));
 		
-		// Adding UTIL and VALUE behavior
-		if (algorithm == BASE_DPOP || algorithm == ANALYTICAL_DPOP || algorithm == APPROX_DPOP) {
+		// Adding behaviors
+		if (algorithm == DISCRETE_DPOP || algorithm == ANALYTICAL_DPOP || algorithm == APPROX_DPOP) {
 			mainSequentialBehaviourList.addSubBehaviour(new DPOP_UTIL(this));
-//			mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
+		} else if (algorithm == HYBRID_MAXSUM) {
+		  initializeDiscretization(numberOfIntervals);
+		  for (int i = 0; i < MAX_ITERATION; i++) {
+	      mainSequentialBehaviourList.addSubBehaviour(new SEND_RECEIVE_VARIABLE_TO_FUNCTION(this));
+	      mainSequentialBehaviourList.addSubBehaviour(new SEND_RECEIVE_FUNCTION_TO_VARIABLE(this));
+//	      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
+		  }
 		}
 		
 		mainSequentialBehaviourList.addSubBehaviour(new AGENT_TERMINATE(this));
 		addBehaviour(mainSequentialBehaviourList); 
 	}
 	
-	//JADE function: stop the Agent
+	private void initializeDiscretization(int numberOfValues) {
+	  double increment = (globalInterval.getUpperBound() - globalInterval.getLowerBound()) / numberOfValues;
+	  double currentLB = globalInterval.getLowerBound();
+	  for (int i = 0; i < numberOfValues; i++) {
+	    MSvalueSet.add(0.5 * (currentLB * 2 + increment));
+	    currentLB += increment;
+	  }
+  }
+
+  //JADE function: stop the Agent
 	protected void takeDown() {	
 		endTime = System.currentTimeMillis();
 		out.println("Agent " + idStr + " has RUNNING TIME: " + (endTime - startTime) + "ms");
@@ -260,7 +275,7 @@ public class DCOP extends Agent implements DcopInfo {
 	}
 
 	public void initializeArguments() {
-		neighborStrList = new ArrayList<>();
+		neighborStrSet = new HashSet<>();
 		neighborAIDList = new ArrayList<>();
 		childrenAIDList = new ArrayList<>();
 		pseudoParentAIDList = new ArrayList<>();
@@ -278,7 +293,7 @@ public class DCOP extends Agent implements DcopInfo {
 		currentGlobalUtilityList = new ArrayList<>();
 		bestImproveValueList = new ArrayList<String>();
 		constraintInfoMap = new HashMap<AID, Integer>();
-		valuesToSendInVALUEPhase = new HashMap<String, Double>();
+		valuesToSendInVALUEPhase = new HashMap<Double, Double>();
 		pickedRandomMap = new HashMap<Integer, String>();
 		lastLine = "";
 	}
@@ -346,7 +361,7 @@ public class DCOP extends Agent implements DcopInfo {
 			Table newTable = new Table(decLabel);
 
 			// at each timeStep, traverse rows
-			for (Row row : decTable.getTable()) {
+			for (Row row : decTable.getRowList()) {
 				double updatedUtility = 0;
 				updatedUtility = row.getUtility();
 				newTable.addRow(new Row(row.getValueList(), updatedUtility));
@@ -377,97 +392,6 @@ public class DCOP extends Agent implements DcopInfo {
 		
 		return false;
 	}
-
-	double getUtilityFromTableGivenDecAndRand(Table table, List<Double> decValueList, List<Double> randIterationValue) {
-		List<Row> tableToTraversed = table.getTable();
-		for (Row row:tableToTraversed) {
-			boolean isRowFound = true;
-			//System.err.println("Utility of this row " + row.getUtility());
-			List<Double> rowValueList = row.getValueList();
-			List<Double> rowRandomList= row.getRandomList();
-
-			if (rowValueList.size() != decValueList.size() || rowRandomList.size() != randIterationValue.size()) {
-				System.err.println("!!!!!!Different size!!!!!!!!!");
-				System.err.println("!!!!!!Recheck your code!!!!!!");
-			}
-			for (int index=0; index<decValueList.size(); index++) {
-				if (rowValueList.get(index).equals(decValueList.get(index)) == false) {
-					isRowFound = false;
-					break;
-				}
-			}
-			
-			if (isRowFound == false)	continue;
-			
-			for (int index=0; index<randIterationValue.size(); index++) {
-				if (rowRandomList.get(index).equals(randIterationValue.get(index)) == false) {
-					isRowFound = false;
-					break;
-				}
-			}
-			
-			if (isRowFound == false)	continue;
-			
-			return row.getUtility();
-		}
-		out.println("Not found!!!!!!!!!!!!!!");
-		return Integer.MIN_VALUE;
-	}
-
-	@SuppressWarnings("unused")
-  private List<Double> gaussian(double arr[][], int N) {
-		List<Double> longtermUtilityList = new ArrayList<Double>();
-		// take each line as pivot, except for the last line
-		for (int pivotIndex = 0; pivotIndex < N - 1; pivotIndex++) {
-			// go from the line below line pivotIndex, to the last line
-			boolean isNotZeroRowFound = false;
-			if (arr[pivotIndex][pivotIndex] == 0) {
-				int notZeroRow;
-				for (notZeroRow = pivotIndex + 1; notZeroRow < N; notZeroRow++) {
-					if (arr[notZeroRow][pivotIndex] != 0) {
-						isNotZeroRowFound = true;
-						break;
-					}
-				}
-
-				if (isNotZeroRowFound) {
-					// swap row pivotIndex and row notZeroRow
-					for (int columnToSwapIndex = 0; columnToSwapIndex < N + 1; columnToSwapIndex++) {
-						double tempForSwap = arr[pivotIndex][columnToSwapIndex];
-						arr[pivotIndex][columnToSwapIndex] = arr[notZeroRow][columnToSwapIndex];
-						arr[notZeroRow][columnToSwapIndex] = tempForSwap;
-					}
-				} else {
-					continue;
-				}
-			}
-
-			for (int rowForGauss = pivotIndex + 1; rowForGauss < N; rowForGauss++) {
-				double factor = arr[rowForGauss][pivotIndex]
-						/ arr[pivotIndex][pivotIndex];
-				for (int columnForGauss = 0; columnForGauss < N + 1; columnForGauss++) {
-					arr[rowForGauss][columnForGauss] = arr[rowForGauss][columnForGauss]
-							- factor * arr[pivotIndex][columnForGauss];
-				}
-			}
-		}
-
-		for (int columnPivot = N - 1; columnPivot >= 1; columnPivot--) {
-			for (int rowAbovePivot = columnPivot - 1; rowAbovePivot >= 0; rowAbovePivot--) {
-				double fraction = arr[rowAbovePivot][columnPivot]
-						/ arr[columnPivot][columnPivot];
-				for (int columnInTheRow = 0; columnInTheRow < N + 1; columnInTheRow++)
-					arr[rowAbovePivot][columnInTheRow] = arr[rowAbovePivot][columnInTheRow]
-							- fraction * arr[columnPivot][columnInTheRow];
-			}
-		}
-		
-		for (int i=0; i<N; i++) { 
-			longtermUtilityList.add(arr[i][N]/arr[i][i]); 
-		}
-		
-		return longtermUtilityList;
-	}
 		
 	public void sendObjectMessage(AID receiver, Object content, int msgCode) {
 		ACLMessage message = new ACLMessage(msgCode);
@@ -490,6 +414,8 @@ public class DCOP extends Agent implements DcopInfo {
 		message.addReceiver(receiver);
 		message.setLanguage(String.valueOf(time));
 		send(message);
+		
+		System.out.println("Agent " + idStr + " send message " + content + " to agent " + receiver.getLocalName());
 	}
 	
 	public void sendByteObjectMessageWithTime(AID receiver, PiecewiseMultivariateQuadFunction content, int msgCode, long time) throws IOException {
@@ -537,7 +463,7 @@ public class DCOP extends Agent implements DcopInfo {
     out.println();
   }
 	
-	public void readMinizincFileThenParseNeighborAndConstraintTable(String inputFileName, int numberOfAgents) {
+	private void readMinizincFileThenParseNeighborAndConstraintTable(String inputFileName, int numberOfAgents) {
 	  int maxNumberOfNeighbors = Integer.MIN_VALUE;
 	  
 	  final String DOMAIN = "domain";
@@ -593,8 +519,8 @@ public class DCOP extends Agent implements DcopInfo {
             String neighbor = String.valueOf((int) arr[6]);
 				    MultivariateQuadFunction func = new MultivariateQuadFunction(arr, idStr, neighbor);
 				    
-				    // Adding the new neighbor to neighborStrList 
-            if (!neighborStrList.contains(neighbor)) neighborStrList.add(neighbor);
+				    // Adding the new neighbor to neighborStrSet
+            neighborStrSet.add(neighbor);
 
             PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
             // creating the interval map
@@ -602,10 +528,15 @@ public class DCOP extends Agent implements DcopInfo {
             intervalMap.put(idStr, globalInterval);
             intervalMap.put(neighbor, globalInterval);
             
-            pwFunc.addToFunctionMapWithInterval(func, intervalMap, false);
+            pwFunc.addToFunctionMapWithInterval(func, intervalMap, NOT_TO_OPTIMIZE_INTERVAL);
             functionList.add(pwFunc);
-
-//				    out.println("Agent " + idStr + " function " + pwFunc);
+            
+            // Own the function
+            if (algorithm == HYBRID_MAXSUM && compare(Double.valueOf(idStr), Double.valueOf(neighbor)) < 0) {
+              // add the function to Maxsum function map
+              // add the neighbor to external-var-agent-set
+              MSFunctionMap.put(neighbor, pwFunc);
+            }
 				}
         if (lineWithSemiColon.startsWith(NEIGHBOR_SET)) {
           lineWithSemiColon = lineWithSemiColon.replace(NEIGHBOR_SET, "");
@@ -631,7 +562,6 @@ public class DCOP extends Agent implements DcopInfo {
 	 * @param selfAgent x_idStr
 	 * @return an array of coefficients. Make sure that the function reads its coefficients first
 	 */
-	// TODO: test this function again
 	public double[] parseFunction(String[] termArray, String selfAgent) {
 	  double coeffArray[] = new double [7];
 	  Arrays.fill(coeffArray, Integer.MIN_VALUE);
@@ -679,11 +609,11 @@ public class DCOP extends Agent implements DcopInfo {
 	public void registerWithDF () {
 		DFAgentDescription dfd = new DFAgentDescription();
 		dfd.setName(getAID());
-		for (int i = 0; i < neighborStrList.size(); i++) {
+		for (String neighbor : neighborStrSet) {
 			ServiceDescription sd = new ServiceDescription();
 			// provide service for neighbor
 			// later on, the neighbor will search for agent providing the service with this neighbor's name
-			sd.setType(neighborStrList.get(i));
+			sd.setType(neighbor);
 			sd.setName(idStr);
 			dfd.addServices(sd);
 		}
@@ -776,12 +706,12 @@ public class DCOP extends Agent implements DcopInfo {
 		this.neighborAIDList = neighborAIDList;
 	}
 
-	public List<String> getNeighborStrList() {
-		return neighborStrList;
+	public Set<String> getNeighborStrSet() {
+		return neighborStrSet;
 	}
 
-	public void setNeighborStrList(List<String> neighborStrList) {
-		this.neighborStrList = neighborStrList;
+	public void setNeighborStrSet(Set<String> neighborStrSet) {
+		this.neighborStrSet = neighborStrSet;
 	}
 
 	public HashMap<AID, Integer> getConstraintInfoMap() {
@@ -1036,14 +966,6 @@ public class DCOP extends Agent implements DcopInfo {
 		this.oldLSUtility = oldLSUtility;
 	}
 	
-	public boolean isStop() {
-		return stop;
-	}
-
-	public void setStop(boolean stop) {
-		this.stop = stop;
-	}
-	
 	public double getOldLSRunningTime() {
 		return oldLSRunningTime;
 	}
@@ -1060,16 +982,16 @@ public class DCOP extends Agent implements DcopInfo {
 		this.utilityAndCost = utilityAndCost;
 	}
 	
-	public HashMap<String, Double> getValuesToSendInVALUEPhase() {
+	public HashMap<Double, Double> getValuesToSendInVALUEPhase() {
 		return valuesToSendInVALUEPhase;
 	}
 
 	public void setValuesToSendInVALUEPhase(
-			HashMap<String, Double> valuesToSendInVALUEPhase) {
+			HashMap<Double, Double> valuesToSendInVALUEPhase) {
 		this.valuesToSendInVALUEPhase = valuesToSendInVALUEPhase;
 	}
 	
-	public void addValuesToSendInValuePhase(String agent, Double value) {
+	public void addValuesToSendInValuePhase(Double agent, Double value) {
 		this.valuesToSendInVALUEPhase.put(agent, value);
 	}
 	
@@ -1167,5 +1089,93 @@ public class DCOP extends Agent implements DcopInfo {
 
   public void setApprox(boolean isApprox) {
     this.isApprox = isApprox;
+  }
+
+  public Set<Double> getMSvalueSet() {
+    return MSvalueSet;
+  }
+
+  public void setMSvalueSet(Set<Double> mSvalueSet) {
+    MSvalueSet = mSvalueSet;
+  }
+
+  public int getNumberOfMSValues() {
+    return numberOfMSValues;
+  }
+
+  public void setNumberOfMSValues(int numberOfMSValues) {
+    this.numberOfMSValues = numberOfMSValues;
+  }
+
+  public Map<String, PiecewiseMultivariateQuadFunction> getMSFunctionMap() {
+    return MSFunctionMap;
+  }
+
+  public void setMSFunctionMap(Map<String, PiecewiseMultivariateQuadFunction> mSFunctionMap) {
+    MSFunctionMap = mSFunctionMap;
+  }
+
+  public Set<AID> getFunctionIOwn() {
+    return functionIOwn;
+  }
+
+  public void setFunctionIOwn(Set<AID> functionIOwn) {
+    this.functionIOwn = functionIOwn;
+  }
+  
+  public void addAgentToFunctionIOwn(AID insideAgent) {
+    this.functionIOwn.add(insideAgent);
+  }
+
+  public Set<AID> getFunctionOwnedByOther() {
+    return functionOwnedByOther;
+  }
+
+  public void setFunctionOwnedByOther(Set<AID> functionOwnedByOther) {
+    this.functionOwnedByOther = functionOwnedByOther;
+  }
+  
+  public void addAgentToFunctionOwnedByOther(AID outsideAgent) {
+    this.functionOwnedByOther.add(outsideAgent);
+  }
+
+  public Map<AID, MaxSumMessage> getReceived_FUNCTION_TO_VARIABLE() {
+    return received_FUNCTION_TO_VARIABLE;
+  }
+
+  public void setReceived_FUNCTION_TO_VARIABLE(Map<AID, MaxSumMessage> received_FUNCTION_TO_VARIABLE) {
+    this.received_FUNCTION_TO_VARIABLE = received_FUNCTION_TO_VARIABLE;
+  }
+
+  public Map<AID, MaxSumMessage> getReceived_VARIABLE_TO_FUNCTION() {
+    return received_VARIABLE_TO_FUNCTION;
+  }
+
+  public void setReceived_VARIABLE_TO_FUNCTION(Map<AID, MaxSumMessage> received_VARIABLE_TO_FUNCTION) {
+    this.received_VARIABLE_TO_FUNCTION = received_VARIABLE_TO_FUNCTION;
+  }
+
+  public Map<AID, MaxSumMessage> getStored_FUNCTION_TO_VARIABLE() {
+    return stored_FUNCTION_TO_VARIABLE;
+  }
+
+  public void setStored_FUNCTION_TO_VARIABLE(Map<AID, MaxSumMessage> stored_FUNCTION_TO_VARIABLE) {
+    this.stored_FUNCTION_TO_VARIABLE = stored_FUNCTION_TO_VARIABLE;
+  }
+
+  public Map<AID, MaxSumMessage> getStored_VARIABLE_TO_FUNCTION() {
+    return stored_VARIABLE_TO_FUNCTION;
+  }
+
+  public void setStored_VARIABLE_TO_FUNCTION(Map<AID, MaxSumMessage> stored_VARIABLE_TO_FUNCTION) {
+    this.stored_VARIABLE_TO_FUNCTION = stored_VARIABLE_TO_FUNCTION;
+  }
+
+  public double getGradientScalingFactor() {
+    return gradientScalingFactor;
+  }
+
+  public void setGradientScalingFactor(double gradientScalingFactor) {
+    this.gradientScalingFactor = gradientScalingFactor;
   }
 }	

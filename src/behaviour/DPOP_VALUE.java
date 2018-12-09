@@ -11,6 +11,7 @@ import java.util.HashMap;
 
 import agent.DCOP;
 import table.Row;
+import static agent.DcopInfo.*;
 /*	1. IF X is a root
  * 		Send the value of root to all the children
  *		PRINT OUT the value picked
@@ -25,7 +26,11 @@ import table.Row;
  *  	PRINT_OUT the picked value
  *  	STOP 
  */
-public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
+/**
+ * @author khoihd
+ *
+ */
+public class DPOP_VALUE extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 4288241761322913640L;
 	
@@ -39,15 +44,15 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 	@SuppressWarnings("unchecked")
 	@Override
 	public void action() {
-		agent.setValuesToSendInVALUEPhase(new HashMap<String, Double>());
+		agent.setValuesToSendInVALUEPhase(new HashMap<Double, Double>());
 		if (agent.isRoot()) {
 			agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-			if (agent.algorithm == DCOP.BASE_DPOP) {
+			if (agent.algorithm == DCOP.DISCRETE_DPOP) {
 				System.out.println(agent.getIdStr() + " choose value " + agent.getChosenValue());
 			}
 			
 			agent.addupSimulatedTime(agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
-			agent.addValuesToSendInValuePhase(agent.getIdStr(), agent.getChosenValue());
+			agent.addValuesToSendInValuePhase(Double.valueOf(agent.getIdStr()), agent.getChosenValue());
 			for (AID childrenAgentAID:agent.getChildrenAIDList()) {
 				agent.sendObjectMessageWithTime(childrenAgentAID, agent.getValuesToSendInVALUEPhase(),
 								DPOP_VALUE, agent.getSimulatedTime());
@@ -58,14 +63,14 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 			agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 			
 			HashMap<Integer, Double> variableAgentViewIndexValueMap = new HashMap<Integer, Double>();
-			HashMap<String, Double> valuesFromParent = new HashMap<String, Double>();
+			HashMap<Double, Double> valuesFromParent = new HashMap<Double, Double>();
 			try {
-				valuesFromParent = (HashMap<String, Double>) receivedMessage.getContentObject();
+				valuesFromParent = (HashMap<Double, Double>) receivedMessage.getContentObject();
 			} catch (UnreadableException e) {
 				e.printStackTrace();
 			}
 
-			for (String agentKey : valuesFromParent.keySet()) {
+			for (Double agentKey : valuesFromParent.keySet()) {
 				int positionInParentMessage = agent.getAgentViewTable().getDecVarLabel().indexOf(agentKey);
 				if (positionInParentMessage == -1) //not in agentView
 					continue;
@@ -78,7 +83,7 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 
 			Row chosenRow = new Row();
 			double maxUtility = Integer.MIN_VALUE;
-			for (Row agentViewRow:agent.getAgentViewTable().getTable()) {
+			for (Row agentViewRow:agent.getAgentViewTable().getRowList()) {
 				boolean isMatch = true;	
 
 				//check for each of index, get values and compared to the agentViewRow's values
@@ -101,9 +106,9 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 			agent.setChosenValue(chosenRow.getValueAtPosition(agentIndex));
 
 			//add its chosen value to the map to send to its children
-			agent.addValuesToSendInValuePhase(agent.getIdStr(), agent.getChosenValue());			
+			agent.addValuesToSendInValuePhase(Double.valueOf(agent.getIdStr()), agent.getChosenValue());			
 			
-			if (agent.algorithm == DCOP.BASE_DPOP) {
+			if (agent.algorithm == DCOP.DISCRETE_DPOP) {
 				System.out.println("Chosen value is " + agent.getChosenValue());
 			}
 			//correct
@@ -123,7 +128,7 @@ public class DPOP_VALUE extends OneShotBehaviour implements MESSAGE_TYPE {
 //				ArrayList<Double> agent_value = new ArrayList<>();
 //				agent_value.add(agent.getIdStr());
 //				agent_value.add(agent.getChosenValue());
-				if (agent.algorithm == DCOP.BASE_DPOP) {
+				if (agent.algorithm == DCOP.DISCRETE_DPOP) {
 					System.out.println("Chosen value is " + agent.getChosenValue());
 				}
 //				agent_value.add(String.valueOf(agent.getCurrentGlobalUtility()));

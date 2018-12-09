@@ -15,6 +15,7 @@ import com.google.common.collect.Sets;
 
 import function.Interval;
 import static java.lang.Double.*;
+import static agent.DcopInfo.*;
 
 /**
  * @author khoihd
@@ -38,6 +39,12 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
     functionMap = new HashMap<>();
   }
 
+  /**
+   * The isOptimized boolean flag is used to reduced the number of intervals when adding functions in analytical 
+   * @param function
+   * @param intervalMap
+   * @param isOptimized
+   */
   public void addToFunctionMapWithInterval(MultivariateQuadFunction function, Map<String, Interval> intervalMap, boolean isOptimized) {
     Set<Map<String, Interval>> setOfIntervalMap = null;
     if (functionMap.containsKey(function)) {
@@ -110,7 +117,24 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
     }
     return pwFunc;
   }
+  
+  public PiecewiseMultivariateQuadFunction takeFirstPartialDerivative(String agentInPartialDerivative) {
+    PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
 
+    for (Entry<MultivariateQuadFunction, Set<Map<String, Interval>>> functionEntry : functionMap.entrySet()) {
+      MultivariateQuadFunction function = functionEntry.getKey();
+      for (Map<String, Interval> interval : functionEntry.getValue()) {
+        pwFunc.addToFunctionMapWithInterval(function.takeFirstPartialDerivative(agentInPartialDerivative), interval, NOT_TO_OPTIMIZE_INTERVAL);
+      }
+    }
+    return pwFunc;
+  }
+
+  /**
+   * Add the newPiecewise function to map
+   * @param newPiecewise
+   * @param isOptimized
+   */
   public void addPiecewiseToMap(PiecewiseMultivariateQuadFunction newPiecewise, boolean isOptimized) {
     // TODO Reduce the for loop here by addAll
     for (Entry<MultivariateQuadFunction, Set<Map<String, Interval>>> functionEntry : newPiecewise.getFunctionMap().entrySet()) {
@@ -182,7 +206,7 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
                     domainMapToAdd.computeIfAbsent(entry.getKey(), k -> entry.getValue());
                   }
                   
-                  addedPwFunction.addToFunctionMapWithInterval(addedFunc, domainMapToAdd, false);
+                  addedPwFunction.addToFunctionMapWithInterval(addedFunc, domainMapToAdd, NOT_TO_OPTIMIZE_INTERVAL);
                 }
               }
             }

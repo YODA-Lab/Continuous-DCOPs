@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import static java.lang.Math.*;
 import static java.lang.Double.*;
 import static java.lang.System.out;
+import static agent.DcopInfo.*;
 
 /**
  * This is the list of function that needs to be tested: ADD, EVALUATE, PROJECT
@@ -328,7 +329,7 @@ public class MultivariateQuadFunction implements Serializable {
       
       unaryEvaluatedFunction = midPointedFunction.evaluate(owner, argmax);
 
-      mpwFunc.addToFunctionMapWithInterval(unaryEvaluatedFunction, intervalsOfNewFunction, false);
+      mpwFunc.addToFunctionMapWithInterval(unaryEvaluatedFunction, intervalsOfNewFunction, NOT_TO_OPTIMIZE_INTERVAL);
     }
 
     return mpwFunc;
@@ -397,10 +398,29 @@ public class MultivariateQuadFunction implements Serializable {
       domain.put(getOtherAgent(), interval);
 //      functionToAdd.setIntervals(domain);
       
-      pwFunction.addToFunctionMapWithInterval(functionToAdd, domain, true);
+      pwFunction.addToFunctionMapWithInterval(functionToAdd, domain, TO_OPTIMIZE_INTERVAL);
     }
         
     return pwFunction;
+  }
+  
+  public MultivariateQuadFunction takeFirstPartialDerivative(String derivativeAgent) {
+    MultivariateQuadFunction firstPartialDerivative = new MultivariateQuadFunction();
+    firstPartialDerivative.setOwner(derivativeAgent);
+    firstPartialDerivative.getCoefficients().put(derivativeAgent, "", coefficients.get(derivativeAgent, derivativeAgent));
+    firstPartialDerivative.getCoefficients().put("", "", coefficients.get(firstPartialDerivative, ""));
+    
+    List<String> tempVarList = new ArrayList<>(getVariableSet());
+    tempVarList.remove(derivativeAgent);
+    String otherAgent = tempVarList.get(0); // assume binary function
+    
+    if (null != coefficients.get(derivativeAgent, otherAgent)) {
+      firstPartialDerivative.getCoefficients().put(otherAgent, "", coefficients.get(derivativeAgent, otherAgent));
+    } else {
+      firstPartialDerivative.getCoefficients().put(otherAgent, "", coefficients.get(otherAgent, derivativeAgent));
+    }
+
+    return firstPartialDerivative;
   }
 
   /**

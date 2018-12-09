@@ -1,13 +1,13 @@
 package behaviour;
 
-
 import agent.DCOP;
+import static agent.DcopInfo.*;
 import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 
-public class PSEUDOTREE_GENERATION extends OneShotBehaviour implements MESSAGE_TYPE {
+public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 4730436360893574779L;
 

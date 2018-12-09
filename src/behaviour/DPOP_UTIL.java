@@ -17,22 +17,17 @@ import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 import static java.lang.System.out;
+import static java.lang.Double.*;
 
-import java.awt.geom.QuadCurve2D;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
 import agent.DCOP;
-import agent.DcopInfo;
-import agent.DcopInfo.SolvingType;
+import static agent.DcopInfo.*;
 import function.Interval;
-//import function.BinaryFunction;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
-//import function.binary.PiecewiseFunction;
-//import function.binary.QuadraticBinaryFunction;
-//import function.binary.QuadraticUnaryFunction;
 import table.Row;
 import table.Table;
 import utilities.Utilities;
@@ -71,34 +66,29 @@ import utilities.Utilities;
  * @author khoihd
  *
  */
-public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
+public class DPOP_UTIL extends OneShotBehaviour {
 
 	private static final long serialVersionUID = -2438558665331658059L;
 
 	DCOP agent;
-	DcopInfo.SolvingType solvingType;
 	
 	public DPOP_UTIL(DCOP agent) {
 		super(agent);
 		this.agent = agent;
-		solvingType = SolvingType.ANALYTICALLY;
 	}
 	
 	@Override
 	public void action() {
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 		agent.setCurrentUTILstartTime(System.currentTimeMillis());
-		
-//    out.println("Start removing children...");
-		
+				
     removeChildrenFunctionFromFunctionList(0);
 		
-    if (agent.algorithm == DCOP.BASE_DPOP) {
+    if (agent.algorithm == DCOP.DISCRETE_DPOP) {
       createDCOPTableFromFunction(0);
     }
     
     // At this point, all three algorithms have the same functions (or transformed to tables)   
-		
 		out.println("Done removing children!");
 				
 		agent.setSimulatedTime(agent.getSimulatedTime()
@@ -106,31 +96,24 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 
 //		agent.printTree(isRoot);
 		
-		if (agent.isLeaf()) {
-      out.println("LEAF " + agent.getIdStr() + " is running");
-      if (agent.algorithm == DCOP.BASE_DPOP) {
-        leafDoTableUtilProcess();
-      } else { 
-        leafDoFuncUtilProcess();
-      }
-			out.println("LEAF " + agent.getIdStr() + " done");
+		if (agent.algorithm == DCOP.DISCRETE_DPOP) {
+		  if (agent.isLeaf()) leafDoTableUtilProcess();
+		  else if (agent.isRoot()) rootDoTableUtilProcess();
+		  else internalNodeDoTableUtilProcess();
 		} 
-		else if (agent.isRoot()){
-      out.println("ROOT node " + agent.getIdStr() + " is running");
-      if (agent.algorithm == DCOP.BASE_DPOP) {
-        rootDoTableUtilProcess();
-      } else { 
-        rootDoFuncUtilProcess();
-      }
+		else if (agent.algorithm == DCOP.ANALYTICAL_DPOP || agent.algorithm == DCOP.APPROX_DPOP) {
+      if (agent.isLeaf()) leafDoFuncUtilProcess();
+      else if (agent.isRoot()) rootDoFuncUtilProcess();
+      else internalNodeDoFuncUtilProcess();
 		}
+		
+
 		else {
-      out.println("INTERNAL node " + agent.getIdStr() + " is running");
-      if (agent.algorithm == DCOP.BASE_DPOP) {
+      if (agent.algorithm == DCOP.DISCRETE_DPOP) {
         internalNodeDoTableUtilProcess();
       } else { 
         internalNodeDoFuncUtilProcess();
       }
-			out.println("INTERNAL node " + agent.getIdStr() + " done");
 		}
 		
 //		long maxMemory = Runtime.getRuntime().maxMemory() / 10241024;
@@ -173,6 +156,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
   }
 
   public void leafDoTableUtilProcess() {
+    out.println("LEAF " + agent.getIdStr() + " is running");
+    
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 		
 		//get the first table
@@ -201,6 +186,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	/*
 	 */
   public void leafDoFuncUtilProcess() {
+    out.println("LEAF " + agent.getIdStr() + " is running");
+
     agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 
     // Combine all functions in the leaf
@@ -217,7 +204,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     agent.setAgentViewFunction(combinedFunction);
         
     PiecewiseMultivariateQuadFunction projectedFunction = null;
-    if (agent.algorithm == DcopInfo.APPROX_DPOP) {
+    if (agent.algorithm == APPROX_DPOP) {
       projectedFunction = combinedFunction.approxProject(agent.getNumberOfIntervals(), agent.getIdStr(),
           agent.getNumberOfApproxAgents(), agent.isApprox());
     } else {
@@ -238,6 +225,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	
 	
 	public void internalNodeDoTableUtilProcess() {			
+    out.println("INTERNAL node " + agent.getIdStr() + " is running");
+	  
 		List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 			
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
@@ -257,9 +246,13 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 					agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
 		agent.sendObjectMessageWithTime(agent.getParentAID(), projectedTable, DPOP_UTIL, agent.getSimulatedTime());
+		
+    System.out.println("Agent " + agent.getIdStr() + " has send an UTIL message to the parent " + agent.getParentAID().getLocalName());
 	}
 	
   public void internalNodeDoFuncUtilProcess() {
+    out.println("INTERNAL node " + agent.getIdStr() + " is running");
+    
     List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
     
     System.out.println("Agent " + agent.getIdStr() + " has received all UTIL messages");
@@ -296,7 +289,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     
     out.println("Agent " + agent.getIdStr() + " Internal node number of combined function: " + combinedFunctionMessage.getFunctionMap().size());
     
-    if (agent.algorithm == DcopInfo.APPROX_DPOP) {
+    if (agent.algorithm == APPROX_DPOP) {
       projectedFunction = combinedFunctionMessage.approxProject(agent.getNumberOfIntervals(),
         agent.getIdStr(), agent.getNumberOfApproxAgents(), agent.isApprox());
     } else {
@@ -304,8 +297,6 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     }
     
     out.println("Agent " + agent.getIdStr() + " Internal node number of projected function: " + projectedFunction.getFunctionMap().size());
-
-//    out.println(agent.getIdStr() + " Max memory AFTER PROJECTING functions: " + maxMemory);
     
     // to free the memory
     combinedFunctionMessage = null;
@@ -313,7 +304,6 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
     agent.setSimulatedTime(
         agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
-//    agent.sendObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
     try {
       agent.sendByteObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
     } catch (IOException e) {
@@ -324,6 +314,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
   }
 	
 	public void rootDoFuncUtilProcess() {
+    out.println("ROOT node " + agent.getIdStr() + " is running");
+	  
 	  agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
 	  
 	  List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
@@ -375,6 +367,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
   }
 	   
   public void rootDoTableUtilProcess() {
+    out.println("ROOT node " + agent.getIdStr() + " is running");
+    
 		List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 				
 		agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
@@ -392,7 +386,7 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		double maxUtility = Integer.MIN_VALUE;
 //		System.err.println("Timestep " +  agent.getCurrentTS() + " Combined messages at root:");
 //		combinedUtilAndConstraintTable.printDecVar();
-		for (Row row:combinedUtilAndConstraintTable.getTable()) {
+		for (Row row:combinedUtilAndConstraintTable.getRowList()) {
 			if (row.getUtility() > maxUtility) {
 				maxUtility = row.getUtility();
 				agent.setChosenValue(row.getValueAtPosition(0));
@@ -714,8 +708,8 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 																			,indexContainedInCommonList2);
 		
 		Table joinedTable = new Table(joinedLabelTable1FirstThenTable2);
-		for (Row row1:table1.getTable()) {
-			for (Row row2:table2.getTable()) {
+		for (Row row1:table1.getRowList()) {
+			for (Row row2:table2.getRowList()) {
 				Row joinedRow = getJoinRow(row1, row2, indexContainedInCommonList1, 
 						indexContainedInCommonList2);
 				if (joinedRow != null)
@@ -798,48 +792,47 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	//	for each tuple2:tuple1->end from the table
 	//		compare to the minimum , and update
 	//	add to new Table
-	public Table projectOperator(Table table, Double variableToProject) {
-		int indexEliminated = getIndexOfContainedVariable(table.getDecVarLabel(), variableToProject);
-		if (indexEliminated == -1) {
+	public static Table projectOperator(Table table, Double variableToProject) {
+		int indexOfVariableToProject = getIndexOfContainedVariable(table.getDecVarLabel(), variableToProject);
+		if (indexOfVariableToProject == -1) {
 			return null;
 		}
 		
 		//create arrayIndex
-		List<Integer> arrayIndex = new ArrayList<Integer>();
+		List<Integer> indexesOfOtherVariables = new ArrayList<Integer>();
 		for (int i=0; i<table.getDecVarLabel().size(); i++) {
-			if (i != indexEliminated)
-				arrayIndex.add(i);
+			if (i != indexOfVariableToProject)
+				indexesOfOtherVariables.add(i);
 		}
 		
 		//create checkedList
-		List<Integer> checkedList = new ArrayList<Integer>();
+		List<Integer> listOfComparedRow = new ArrayList<Integer>();
 		
 		//create projectedLabel
-		List<Double> projectedLabel = createTupleFromList(table.getDecVarLabel(), arrayIndex);
+		List<Double> labelOfProjectedTable = createTupleFromList(table.getDecVarLabel(), indexesOfOtherVariables);
 		
 		//create projectedTable
-		Table projectTable = new Table(projectedLabel);
-		for (int i=0; i<table.getRowCount(); i++) {
-			if (checkedList.contains(i) == true)
+		Table projectTable = new Table(labelOfProjectedTable);
+		for (int rowIndexOfOriginTable = 0; rowIndexOfOriginTable < table.getRowCount(); rowIndexOfOriginTable++) {
+			if (listOfComparedRow.contains(rowIndexOfOriginTable) == true)
 				continue;
-			checkedList.add(i);
-			Row row1 = table.getTable().get(i);
-			List<Double> tuple1 = createTupleFromRow(row1, arrayIndex);
+			listOfComparedRow.add(rowIndexOfOriginTable);
+			Row row1 = table.getRowList().get(rowIndexOfOriginTable);
+			List<Double> tuple1 = createTupleFromRow(row1, indexesOfOtherVariables);
 			double maxUtility = row1.getUtility();
 			List<Double> maxTuple = tuple1;
 			
-			for (int j=i+1; j<table.getRowCount(); j++) {
-				Row row2 = table.getTable().get(j);
-				List<Double> tuple2 = createTupleFromRow(row2, arrayIndex);
+			for (int j=rowIndexOfOriginTable+1; j<table.getRowCount(); j++) {
+				Row row2 = table.getRowList().get(j);
+				List<Double> tuple2 = createTupleFromRow(row2, indexesOfOtherVariables);
 				double row2Utility = row2.getUtility();
 				if (isSameTuple(tuple1, tuple2) == true) {
-					checkedList.add(j);
+					listOfComparedRow.add(j);
 					if (row2Utility > maxUtility) {
 						maxUtility = row2Utility;
 						maxTuple = tuple2;
 					}
 				}
-				
 			}
 			
 			projectTable.addRow(new Row(maxTuple, maxUtility));
@@ -848,47 +841,86 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 		return projectTable;
 	}
 	
-	int getIndexOfContainedVariable(List<Double> list, Double input) {
+	/**
+	 * @param table 
+	 *         The table to project out
+	 * @param agentToProjectOut
+	 *         The agent to project out from the table
+	 * @param valueSet
+	 *         Value list of the agent
+	 * @return
+	 *       The Map containing: <value_of_the_agent_to_project, argmax>
+	 */
+	public static Map<Double, Double> findTheArgmaxInHybridMaxSum(Table table, double agentToProjectOut, Set<Double> valueSet) {
+	  Map<Double, Double> argmaxMap = new HashMap<>();
+	  int indexToProject = table.getDecVarLabel().indexOf(agentToProjectOut);
+
+	  Set<Integer> indexesOfComparedRow = new HashSet<>();
+	  for (double valueToFindArgmax : valueSet) {
+	    double maxUtility = -MAX_VALUE;
+	    Row currentBestRow = null;
+	    for (int rowIndex = 0; rowIndex < table.getRowList().size(); rowIndex++) {
+	      // This row has been used to compared
+	      if (indexesOfComparedRow.contains(rowIndex)) {continue;}
+	      
+	      Row row = table.getRowList().get(rowIndex);
+	      if (compare(row.getValueList().get(indexToProject), valueToFindArgmax) != 0) {continue;}
+	      
+	      if (compare(row.getUtility(), maxUtility) > 0) {
+	        maxUtility = row.getUtility();
+	        currentBestRow = row;
+	        indexesOfComparedRow.add(rowIndex);
+	      }
+	    }
+	    List<Double> valuesOfOtherVariables = new ArrayList<>(currentBestRow.getValueList());
+	    valuesOfOtherVariables.remove(indexToProject);
+	    // Binary constraints
+	    argmaxMap.put(valueToFindArgmax, valuesOfOtherVariables.get(0));
+	  }
+	  
+	  return argmaxMap;
+	}
+	
+	public static int getIndexOfContainedVariable(List<Double> list, Double input) {
 		return list.indexOf(input);
 	}
 	
 	//create tuples from Row and arrayIndex
-	public List<Double> createTupleFromList(List<Double> list, List<Integer> arrayIndex) {
+	public static List<Double> createTupleFromList(List<Double> list, List<Integer> arrayIndex) {
 		if (arrayIndex.size() >= list.size()) {
 //			System.err.println("Cannot create tuple with size: " + arrayIndex + " from Row size: " +
 //									list.size());
 			return null;
 		}
 		List<Double> newTuple = new ArrayList<>();
-		for (Integer index:arrayIndex) {
+		for (Integer index : arrayIndex) {
 			newTuple.add(list.get(index));
 		}
 		return newTuple;
 	}
 	
 	//create tuples from Row and arrayIndex
-	public List<Double> createTupleFromRow(Row row, List<Integer> arrayIndex) {
+	public static List<Double> createTupleFromRow(Row row, List<Integer> arrayIndex) {
 		if (arrayIndex.size() >= row.getVariableCount()) {
 //			System.err.println("Cannot create tuple with size: " + arrayIndex + " from Row size: " +
 //									row.variableCount);
 			return null;
 		}
 		List<Double> newTuple = new ArrayList<>();
-		for (Integer index:arrayIndex) {
+		for (Integer index : arrayIndex) {
 			newTuple.add(row.getValueAtPosition(index));
 		}
 		return newTuple;
 	}
 	
-	//check if two tuples has the same values
-	public boolean isSameTuple(List<Double> tuple1, List<Double> tuple2) {
+	//check if two tuples has the same values with the same ordering
+	public static boolean isSameTuple(List<Double> tuple1, List<Double> tuple2) {
 		if (tuple1.size() != tuple2.size()) {
-			System.err.println("Different size from two tuples: " + tuple1.size() + " and "
-																	+ tuple2.size());
+			System.err.println("Different size from two tuples: " + tuple1.size() + " and " + tuple2.size());
 			return false;
 		}
 		int size = tuple1.size();
-		for (int i=0; i<size; i++) {
+		for (int i = 0; i < size; i++) {
 			if (tuple1.get(i).equals(tuple2.get(i)) == false) {
 				return false;
 			}
@@ -950,7 +982,6 @@ public class DPOP_UTIL extends OneShotBehaviour implements MESSAGE_TYPE {
 	      ObjectInputStream objectIn = new ObjectInputStream(gzipIn);
 	      PiecewiseMultivariateQuadFunction func = (PiecewiseMultivariateQuadFunction) objectIn.readObject();
 	      objectIn.close();
-//	      PiecewiseMultivariateQuadFunction func = SerializationUtils.deserialize(msg.getByteSequenceContent());
 	      listFunction.add(func);
 	    }
 

@@ -21,6 +21,7 @@ public class AGENT_TERMINATE extends OneShotBehaviour {
 		agent.doDelete();
 		if (agent.isRoot()) {
 		  try {
+        @SuppressWarnings("unused")
         Process p = new ProcessBuilder(
             "killall", 
             "-9", 

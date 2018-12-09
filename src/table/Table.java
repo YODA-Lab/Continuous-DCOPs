@@ -37,7 +37,7 @@ public class Table implements Serializable {
 		}
 
 		//add row to new table
-		for (Row row:anotherTable.getTable()) {
+		for (Row row:anotherTable.getRowList()) {
 			this.table.add(new Row(row));
 		}
 	}
@@ -231,8 +231,8 @@ public class Table implements Serializable {
     Table castedTypeTable = (Table) tableToCompare;
       
     // Compare the data members and return accordingly 
-    for (Row row : castedTypeTable.getTable()) {
-      if (!this.getTable().contains(row))
+    for (Row row : castedTypeTable.getRowList()) {
+      if (!this.getRowList().contains(row))
         return false;
     }
     return castedTypeTable.rowCount == this.rowCount && castedTypeTable.variableCount == this.variableCount;
@@ -246,7 +246,7 @@ public class Table implements Serializable {
 		return variableCount;
 	}
 
-	public List<Row> getTable() {
+	public List<Row> getRowList() {
 		return table;
 	}
 
