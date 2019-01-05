@@ -15,17 +15,19 @@ import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
-import behaviour.AGENT_TERMINATE;
-import behaviour.BROADCAST_RECEIVE_HEURISTIC_INFO;
-import behaviour.DPOP_UTIL;
-import behaviour.PSEUDOTREE_GENERATION;
-
-import behaviour.SEARCH_NEIGHBORS;
-import behaviour.SEND_RECEIVE_FUNCTION_TO_VARIABLE;
-import behaviour.SEND_RECEIVE_VARIABLE_TO_FUNCTION;
+import behavior.AGENT_TERMINATE;
+import behavior.BROADCAST_RECEIVE_HEURISTIC_INFO;
+import behavior.DPOP_UTIL;
+import behavior.DPOP_VALUE;
+import behavior.PSEUDOTREE_GENERATION;
+import behavior.RECEIVE_SEND_UTIL_TO_ROOT;
+import behavior.SEARCH_NEIGHBORS;
+import behavior.SEND_RECEIVE_FUNCTION_TO_VARIABLE;
+import behavior.SEND_RECEIVE_VARIABLE_TO_FUNCTION;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
@@ -42,7 +44,7 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
 import maxsum.MaxSumMessage;
 
-import static java.lang.System.out;
+import static java.lang.System.*;
 import static java.lang.Double.*;
 
 /* Each agent is a node in the graph
@@ -82,50 +84,50 @@ public class DCOP extends Agent implements DcopInfo {
 	private static final long serialVersionUID = 2919994686894853596L;
 	
   public int algorithm;
-  public String inputFileName;
+  public String inputFileName = new String();
 	public int domainMax; //from 0 - domain
 	public Interval globalInterval;
 
-	private Map<String, List<Double>> agentView_DPOP_TSMap;
+	private Map<String, Double> neighborValueMap = new HashMap<>();
 
-	private String idStr;
+	private String agentStrID;
 	private boolean isRoot;
 	private boolean isLeaf;
 	
 	private AID	parentAID;
-	private List<AID> childrenAIDList;
-	private List<AID> neighborAIDList; 
-	private List<AID> pseudoParentAIDList;
-	private List<AID> pseudoChildrenAIDList;
-	private List<String> parentAndPseudoStrList;
-	private Set<String> neighborStrSet;
+	private List<AID> childrenAIDList = new ArrayList<>();
+	private List<AID> neighborAIDList = new ArrayList<>(); 
+	private List<AID> pseudoParentAIDList = new ArrayList<>();
+	private List<AID> pseudoChildrenAIDList = new ArrayList<>();
+	private List<String> parentAndPseudoStrList = new ArrayList<>();
+	private Set<String> neighborStrSet = new HashSet<>();
 	
-	private List<Table> currentTableListDPOP;
-	private List<Table> constraintTableWithoutRandomList;
-	private List<Table> organizedConstraintTableList;
+	private List<Table> tableListWithPParents = new ArrayList<>();
+	private List<Table> constraintTableWithoutRandomList = new ArrayList<>();
+	private List<Table> organizedConstraintTableList = new ArrayList<>();
 	
-	private HashMap<String, List<String>> decisionVariableDomainMap;
+	private Map<String, List<String>> decisionVariableDomainMap = new HashMap<>();
 	//map TS -> constraint table list (if local_search)
 	//map TS -> 1 collapsed table list (if collapsed dpop)
-	private HashMap<Integer, List<Table>> constraintTableAtEachTSMap;
+	private Map<Integer, List<Table>> constraintTableAtEachTSMap = new HashMap<>();
 	private Table collapsedSwitchingCostTable;
 	
 	//VALUE phase
-	HashMap<Double, Double> valuesToSendInVALUEPhase;
+	Map<String, Double> valuesToSendInVALUEPhase = new HashMap<>();
 	
 	//used for LOCAL SEARCH
-	private HashMap<Integer, Double> valueAtEachTSMap;
+	private Map<Integer, Double> valueAtEachTSMap = new HashMap<>();
 	//List<Double> utilityAtEachTSList;
 	//agent -> <values0, values1, ..., values_n>
-  private List<Double> currentGlobalUtilityList;
-  private List<String> bestImproveValueList;
+  private List<Double> currentGlobalUtilityList = new ArrayList<>();
+  private List<String> bestImproveValueList = new ArrayList<>();
   private double currentGlobalUtility;
   private double totalGlobalUtility;
-  private double utilFromChildrenLS;
+  private double utilFromChildren;
 	
   private Table agentViewTable;
   private Double chosenValue;
-  private HashMap<Integer, String> pickedRandomMap;
+  private Map<Integer, String> pickedRandomMap = new HashMap<>();
 
 	private int currentTS;
 	
@@ -141,23 +143,24 @@ public class DCOP extends Agent implements DcopInfo {
   private static long delayMessageTime = 0;
   
   //for reuse information
-  private HashMap<AID, Integer> constraintInfoMap;
+  private Map<AID, Integer> constraintInfoMap = new HashMap<>();
   private boolean notVisited = true;
 		
   private double oldLSUtility = 0;
 	private double oldLSRunningTime = 0; //old running time needed to compare to see if old iteration is converged
 
-	private double utilityAndCost;
+	private double aggregatedUtility;
 	private String lastLine;
 	private int rootFromInput = Integer.MAX_VALUE;
 	
-	// for Continuous DPOP
-	private List<PiecewiseMultivariateQuadFunction> functionList = new ArrayList<>(); 
+	// mapping <neighbor, function<>
+	private Map<String, PiecewiseMultivariateQuadFunction> functionMap = new HashMap<>();
 	private PiecewiseMultivariateQuadFunction agentViewFunction;
-	private List<PiecewiseMultivariateQuadFunction> currentFunctionListDPOP = new ArrayList<>();
-	private int numberOfIntervals;
+	private Map<String, PiecewiseMultivariateQuadFunction> pwFunctionWithPParentMap = new HashMap<>();
+
 	private int numberOfApproxAgents;
 	private boolean isApprox;
+	private int discretization;
 	
 	// for Hybrid Max-Sum
 	private Map<String, PiecewiseMultivariateQuadFunction> MSFunctionMap = new HashMap<>();
@@ -168,26 +171,24 @@ public class DCOP extends Agent implements DcopInfo {
 	private Map<AID, MaxSumMessage> stored_FUNCTION_TO_VARIABLE = new HashMap<>();
 	private Map<AID, MaxSumMessage> stored_VARIABLE_TO_FUNCTION = new HashMap<>();
 	private double gradientScalingFactor;
+	private int gradientIteration;
+	private int numberOfPoints;
 	
-	private int numberOfMSValues = 100;
-	private Set<Double> MSvalueSet = new HashSet<>();
+	private Set<Double> currentValueSet = new HashSet<>();
+	private Map<String, Double> neighborChosenValueMap = new HashMap<>();
 
 	// for writing output purposes
 	public int instanceID;
 	public int noAgent;
-	public int domainSize;
-	private double rootArgMax;
 	
 	public DCOP() {
-		initializeArguments();
 		isRoot = false;
 		isLeaf = false;
 		totalGlobalUtility = 0;
 		lsIteration = 0;
-		utilFromChildrenLS = 0;
+		utilFromChildren = 0;
 		currentTS = 0;
-		functionList = new ArrayList<>();
-    idStr = getLocalName();
+    agentStrID = getLocalName();
 	}
 	
 	//done with LS-RAND
@@ -201,21 +202,21 @@ public class DCOP extends Agent implements DcopInfo {
 		instanceID = Integer.parseInt(a[0]);
     noAgent = Integer.parseInt(a[1]);	
     
-    numberOfIntervals = Integer.parseInt((String) args[2]);
-    numberOfApproxAgents = Integer.parseInt((String) args[3]);
+    numberOfPoints = Integer.parseInt((String) args[2]);
+    gradientIteration = Integer.parseInt((String) args[3]);
     
     isApprox = true;
-    gradientScalingFactor = 0.01;
+    gradientScalingFactor = 0.001;
 	}
 	
   protected void setup() {
     readArguments();
-    idStr = getLocalName();
+    agentStrID = getLocalName();
 
 		readMinizincFileThenParseNeighborAndConstraintTable(inputFileName, noAgent);		
-    if (Integer.valueOf(idStr) == rootFromInput) {
+    if (Integer.valueOf(agentStrID) == rootFromInput) {
       isRoot = true;
-      out.println("Agent " + idStr + "is the roort");
+      out.println("Agent " + agentStrID + " is the ROOT");
     }
 		/***** START register neighbors with DF *****/ 
 		registerWithDF();
@@ -232,39 +233,44 @@ public class DCOP extends Agent implements DcopInfo {
 		mainSequentialBehaviourList.addSubBehaviour(new SEARCH_NEIGHBORS(this));
 		mainSequentialBehaviourList.addSubBehaviour(new BROADCAST_RECEIVE_HEURISTIC_INFO(this));
 		mainSequentialBehaviourList.addSubBehaviour(new PSEUDOTREE_GENERATION(this));
+				
 		
-		// Adding behaviors
-		if (algorithm == DISCRETE_DPOP || algorithm == ANALYTICAL_DPOP || algorithm == APPROX_DPOP) {
+    if (isClustering()) {
+      currentValueSet = globalInterval.getMidPointInIntegerRanges();
+    } else {
+      currentValueSet = globalInterval.initializeDiscretization(numberOfPoints);
+    }
+    		
+		// DPOP
+		if (isRunningDPOP()) {
 			mainSequentialBehaviourList.addSubBehaviour(new DPOP_UTIL(this));
-		} else if (algorithm == HYBRID_MAXSUM) {
-		  initializeDiscretization(numberOfIntervals);
+			mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
+			mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
+		} // MAX-SUM 
+		else if (isRunningMaxsum()) {
 		  for (int i = 0; i < MAX_ITERATION; i++) {
 	      mainSequentialBehaviourList.addSubBehaviour(new SEND_RECEIVE_VARIABLE_TO_FUNCTION(this));
 	      mainSequentialBehaviourList.addSubBehaviour(new SEND_RECEIVE_FUNCTION_TO_VARIABLE(this));
-//	      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
 		  }
+      mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
+      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
 		}
 		
 		mainSequentialBehaviourList.addSubBehaviour(new AGENT_TERMINATE(this));
 		addBehaviour(mainSequentialBehaviourList); 
 	}
 	
-	private void initializeDiscretization(int numberOfValues) {
-	  double increment = (globalInterval.getUpperBound() - globalInterval.getLowerBound()) / numberOfValues;
-	  double currentLB = globalInterval.getLowerBound();
-	  for (int i = 0; i < numberOfValues; i++) {
-	    MSvalueSet.add(0.5 * (currentLB * 2 + increment));
-	    currentLB += increment;
-	  }
-  }
+	public boolean isPrinting() {
+	  return agentStrID.equals("3");
+	}
 
   //JADE function: stop the Agent
 	protected void takeDown() {	
 		endTime = System.currentTimeMillis();
-		out.println("Agent " + idStr + " has RUNNING TIME: " + (endTime - startTime) + "ms");
-		out.println("Agent " + idStr + " with threadID " + Thread.currentThread().getId() + 
+		out.println("Agent " + agentStrID + " has RUNNING TIME: " + (endTime - startTime) + "ms");
+		out.println("Agent " + agentStrID + " with threadID " + Thread.currentThread().getId() + 
 								" has SIMULATED TIME: " + simulatedTime/1000000 + "ms");
-		out.println("Agent " + idStr + " with threadID " + Thread.currentThread().getId() + 
+		out.println("Agent " + agentStrID + " with threadID " + Thread.currentThread().getId() + 
 				" has sim TIME: " + bean.getCurrentThreadUserTime()/1000000 + "ms");
 		System.err.println("Agent: " + getAID().getName() + " terminated.");
 		try {
@@ -272,30 +278,6 @@ public class DCOP extends Agent implements DcopInfo {
 		} catch (FIPAException e) {
 			e.printStackTrace();
 		}
-	}
-
-	public void initializeArguments() {
-		neighborStrSet = new HashSet<>();
-		neighborAIDList = new ArrayList<>();
-		childrenAIDList = new ArrayList<>();
-		pseudoParentAIDList = new ArrayList<>();
-		pseudoChildrenAIDList = new ArrayList<>();
-		parentAndPseudoStrList = new ArrayList<>();
-		currentTableListDPOP = new ArrayList<>();
-		constraintTableWithoutRandomList = new ArrayList<>();
-		organizedConstraintTableList = new ArrayList<>();
-		decisionVariableDomainMap = new HashMap<String, List<String>>();
-		constraintTableAtEachTSMap = new HashMap<Integer, List<Table>>();
-		valueAtEachTSMap = new HashMap<Integer, Double>();
-
-		agentView_DPOP_TSMap = new HashMap<String, List<Double>>();
-
-		currentGlobalUtilityList = new ArrayList<>();
-		bestImproveValueList = new ArrayList<String>();
-		constraintInfoMap = new HashMap<AID, Integer>();
-		valuesToSendInVALUEPhase = new HashMap<Double, Double>();
-		pickedRandomMap = new HashMap<Integer, String>();
-		lastLine = "";
 	}
 	
 	@SuppressWarnings("unused")
@@ -355,7 +337,7 @@ public class DCOP extends Agent implements DcopInfo {
 	public void addConstraintTableToList(int timeStep) {
 		// traverse table in organizedConstraintTableList
 		for (Table decTable : organizedConstraintTableList) {
-			List<Double> decLabel = decTable.getDecVarLabel();
+			List<String> decLabel = decTable.getLabel();
 			// for each table, run time step from 0 to allowed
 			// for (int tS=0; tS<=solveTimeStep; tS++) {
 			Table newTable = new Table(decLabel);
@@ -415,7 +397,7 @@ public class DCOP extends Agent implements DcopInfo {
 		message.setLanguage(String.valueOf(time));
 		send(message);
 		
-		System.out.println("Agent " + idStr + " send message " + content + " to agent " + receiver.getLocalName());
+		out.println("Agent " + agentStrID + " send message " + msgTypes[msgCode] + " to agent " + receiver.getLocalName());
 	}
 	
 	public void sendByteObjectMessageWithTime(AID receiver, PiecewiseMultivariateQuadFunction content, int msgCode, long time) throws IOException {
@@ -435,31 +417,15 @@ public class DCOP extends Agent implements DcopInfo {
 	}
 
   public void printTree(boolean isRoot) {
-//    out.println("************");
-//    out.println("My ID is: " + idStr);
-//    if (isRoot == false)
-//      out.println("My parent is: " + parentAID.getLocalName());
-//    out.println("My children are: ");
-//    for (int i = 0; i < childrenAIDList.size(); i++) {
-//      out.print(childrenAIDList.get(i).getLocalName() + " ");
-//    }
-//    out.println();
-//
-//    out.println("My pseudo_parents are: ");
-//    for (int i = 0; i < pseudoParentAIDList.size(); i++) {
-//      out.print(pseudoParentAIDList.get(i).getLocalName() + " ");
-//    }
-//    out.println();
-//
-//    out.println("My pseudo_children are: ");
-//    for (int i = 0; i < pseudoChildrenAIDList.size(); i++) {
-//      out.print(pseudoChildrenAIDList.get(i).getLocalName() + " ");
-//    }
-//    out.println();
-    out.print("Agent " + idStr + " has children: ");
-    for (int i = 0; i < childrenAIDList.size(); i++) {
-      out.print(childrenAIDList.get(i).getLocalName() + " ");
+    out.print("Agent " + agentStrID + " has children: ");
+    for (AID childrenAID : childrenAIDList) {
+      out.print(childrenAID.getLocalName() + " ");
     }
+    out.print("Agent " + agentStrID + " has pseudo-children: ");
+    for (AID pchildAID : pseudoChildrenAIDList) {
+      out.print(pchildAID.getLocalName() + " ");
+    }
+    
     out.println();
   }
 	
@@ -501,15 +467,16 @@ public class DCOP extends Agent implements DcopInfo {
 				if (lineWithSemiColon.startsWith(DOMAIN)) {
 				    lineWithSemiColon = lineWithSemiColon.replaceAll("domain ", "");
 				    domainMax = Integer.parseInt(lineWithSemiColon);
-				    globalInterval = new Interval(-domainMax + 1, domainMax);
-				    domainSize = domainMax * 2;
+//				    globalInterval = new Interval(-domainMax + 1, domainMax);
+				    //TODO: Remove this
+				    globalInterval = new Interval(-100, 100);
 				}
 				
 				/**FUNCTION*/
 				//function -281x_2^2 199x_2 -22x_0^2 252x_0 288x_2x_0 358;
 				//BinaryFunction func = new BinaryFunction(-1, 20, -3, 40, -2, 6, Double.valueOf(idStr), 1.0);
 				if (lineWithSemiColon.startsWith(FUNCTION)) {
-				    String selfVar = "x_" + idStr;
+				    String selfVar = "x_" + agentStrID;
 				    // x_1^ and x_10^
 				    if (!lineWithSemiColon.contains(selfVar + "^")) continue;
 				    
@@ -517,7 +484,7 @@ public class DCOP extends Agent implements DcopInfo {
 				    String[] termStrList = lineWithSemiColon.split(" ");
 				    double[] arr = parseFunction(termStrList, selfVar);
             String neighbor = String.valueOf((int) arr[6]);
-				    MultivariateQuadFunction func = new MultivariateQuadFunction(arr, idStr, neighbor);
+				    MultivariateQuadFunction func = new MultivariateQuadFunction(arr, agentStrID, neighbor);
 				    
 				    // Adding the new neighbor to neighborStrSet
             neighborStrSet.add(neighbor);
@@ -525,14 +492,14 @@ public class DCOP extends Agent implements DcopInfo {
             PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
             // creating the interval map
             Map<String, Interval> intervalMap = new HashMap<>();
-            intervalMap.put(idStr, globalInterval);
+            intervalMap.put(agentStrID, globalInterval);
             intervalMap.put(neighbor, globalInterval);
             
             pwFunc.addToFunctionMapWithInterval(func, intervalMap, NOT_TO_OPTIMIZE_INTERVAL);
-            functionList.add(pwFunc);
+            functionMap.put(neighbor, pwFunc);
             
             // Own the function
-            if (algorithm == HYBRID_MAXSUM && compare(Double.valueOf(idStr), Double.valueOf(neighbor)) < 0) {
+            if (isRunningMaxsum() && compare(Double.valueOf(agentStrID), Double.valueOf(neighbor)) < 0) {
               // add the function to Maxsum function map
               // add the neighbor to external-var-agent-set
               MSFunctionMap.put(neighbor, pwFunc);
@@ -614,7 +581,7 @@ public class DCOP extends Agent implements DcopInfo {
 			// provide service for neighbor
 			// later on, the neighbor will search for agent providing the service with this neighbor's name
 			sd.setType(neighbor);
-			sd.setName(idStr);
+			sd.setName(agentStrID);
 			dfd.addServices(sd);
 		}
 		try {
@@ -625,61 +592,84 @@ public class DCOP extends Agent implements DcopInfo {
 		}
 	}
 	
-	//get utility with parents, pseudoparents
-	//then add its switching cost
-//	public double utilityWithParentAndPseudoAndUnary() {
-//		double sumUtility = 0;
-//
-////		for (int ts=0; ts<=h; ts++) {
-//			List<Table> tableList = constraintTableAtEachTSMap.get(0);
-//	    	for (Table constraintTable:tableList) {
-//				List<String> decVarList = constraintTable.getDecVarLabel();
-//				List<String> decValueList = new List<String>();
-//				
-//				//chi gui với constraint voi parent and pseudoparents
-//				boolean notInParentList = false;
-//				for (String var:decVarList) {
-//					if (var.equals(idStr))
-//						continue;
-//					if (parentAndPseudoStrList.contains(var) == false) {
-//						notInParentList = true;
-//						break;
-//					}
-//				}
-//				
-//				if (notInParentList)
-//					continue;
-//				
-//				for (String agentInList:decVarList) {
-//					if (agentInList.equals(idStr))
-//						decValueList.add(valueAtEachTSMap.get(0));
-//					else
-//						decValueList.add(agentView_DPOP_TSMap.get(agentInList).get(0));
-//				}
-//				sumUtility += constraintTable.getUtilityGivenDecValueList(decValueList);
-//			}
-////		}
-//		return sumUtility;
-//	}
-	
-//	public double calculcatingSwitchingCost() {
-//		double sC = 0;
-//		if (getValueAtEachTSMap().size() == 1) return 0;
-//		for (int i=1; i<getValueAtEachTSMap().size(); i++) {
-////			if (getValueAtEachTSMap().get(i).equals(getValueAtEachTSMap().get(i-1)) == false)
-////				sC += switchingCost;
-//			
-//			sC += sc_func(getValueAtEachTSMap().get(i), getValueAtEachTSMap().get(i-1));
-//		}
-//		return sC;
-//	}
+  /**
+   * Calculate the actual utility by ignoring the agent view
+   * @return
+   */
+  public double utilityFrom_TABLE_WithParentAndPseudo() {
+    double sumUtility = 0;
+    for (Table constraintTable : tableListWithPParents) {
+      List<String> decVarList = constraintTable.getLabel();
+      List<Double> decValueList = new ArrayList<Double>();
+  
+      for (String agentInList : decVarList) {
+        if (agentInList.equals(agentStrID))
+          decValueList.add(chosenValue);
+        else
+          decValueList.add(neighborChosenValueMap.get(agentInList));
+      }
 
-	public String getIdStr() {
-		return idStr;
+      sumUtility += constraintTable.getUtilityGivenDecValueList(decValueList);
+    }
+    
+    return sumUtility;
+  }
+  
+  public double utilityFrom_FUNCTION_WithParentAndPseudo() {
+    double sumUtility = 0;
+    
+    if (isPrinting()) {
+      out.println(pwFunctionWithPParentMap);
+    }
+    
+    for (Entry<String, PiecewiseMultivariateQuadFunction> functionEntry : pwFunctionWithPParentMap.entrySet()) {
+      String pParent = functionEntry.getKey();
+      PiecewiseMultivariateQuadFunction function = functionEntry.getValue();
+      
+      Map<String, Double> valueMap = new HashMap<>();
+      valueMap.put(agentStrID, chosenValue);
+      valueMap.put(pParent, neighborChosenValueMap.get(pParent));
+  
+      sumUtility += function.getTheFirstFunction().evaluateToValueGivenValueMap(valueMap);
+    }
+    
+    return sumUtility;
+  }
+  
+  public boolean isRunningDPOP() {
+    return algorithm == ANALYTICAL_DPOP
+        || algorithm == DISCRETE_DPOP
+        || algorithm == MOVING_DPOP
+        || algorithm == CLUSTERING_DPOP;
+  }
+  
+  public boolean isRunningMaxsum() {
+    return algorithm == DISCRETE_MAXSUM
+        || algorithm == MOVING_MAXSUM
+        || algorithm == CLUSTERING_MAXSUM;
+  }
+  
+  public boolean isClustering() {
+    return algorithm == CLUSTERING_DPOP || algorithm == CLUSTERING_MAXSUM;
+  }
+  
+  public boolean isRunningDiscreteAlg() {
+    return algorithm == DISCRETE_DPOP || algorithm == DISCRETE_MAXSUM;
+  }
+  
+  public boolean isRunningHybridAlg() {
+    return algorithm == MOVING_DPOP 
+        || algorithm == CLUSTERING_DPOP 
+        || algorithm == MOVING_MAXSUM
+        || algorithm == CLUSTERING_MAXSUM;
+  }
+
+	public String getID() {
+		return agentStrID;
 	}
 
-	public void setIdStr(String idStr) {
-		this.idStr = idStr;
+	public void setAgentStrID(String idStr) {
+		this.agentStrID = idStr;
 	}
 
 	public boolean isRoot() {
@@ -714,11 +704,11 @@ public class DCOP extends Agent implements DcopInfo {
 		this.neighborStrSet = neighborStrSet;
 	}
 
-	public HashMap<AID, Integer> getConstraintInfoMap() {
+	public Map<AID, Integer> getConstraintInfoMap() {
 		return constraintInfoMap;
 	}
 
-	public void setConstraintInfoMap(HashMap<AID, Integer> constraintInfoMap) {
+	public void setConstraintInfoMap(Map<AID, Integer> constraintInfoMap) {
 		this.constraintInfoMap = constraintInfoMap;
 	}
 
@@ -786,7 +776,7 @@ public class DCOP extends Agent implements DcopInfo {
 		this.currentStartTime = currentStartTime;
 	}
 
-	public HashMap<String, List<String>> getDecisionVariableDomainMap() {
+	public Map<String, List<String>> getDecisionVariableDomainMap() {
 		return decisionVariableDomainMap;
 	}
 
@@ -795,7 +785,7 @@ public class DCOP extends Agent implements DcopInfo {
 		this.decisionVariableDomainMap = decisionVariableDomainMap;
 	}
 
-	public HashMap<Integer, Double> getValueAtEachTSMap() {
+	public Map<Integer, Double> getValueAtEachTSMap() {
 		return valueAtEachTSMap;
 	}
 
@@ -815,15 +805,15 @@ public class DCOP extends Agent implements DcopInfo {
 		this.simulatedTime += time;
 	}
 
-	public List<Table> getCurrentTableListDPOP() {
-		return currentTableListDPOP;
+	public List<Table> getTableListWithPParents() {
+		return tableListWithPParents;
 	}
 
-	public void setCurrentTableListDPOP(List<Table> currentTableListDPOP) {
-		this.currentTableListDPOP = currentTableListDPOP;
+	public void setTableListWithPParents(List<Table> tableListWithPParents) {
+		this.tableListWithPParents = tableListWithPParents;
 	}
 
-	public HashMap<Integer, List<Table>> getConstraintTableAtEachTSMap() {
+	public Map<Integer, List<Table>> getConstraintTableAtEachTSMap() {
 		return constraintTableAtEachTSMap;
 	}
 
@@ -901,25 +891,24 @@ public class DCOP extends Agent implements DcopInfo {
 		DCOP.delayMessageTime = delayMessageTime;
 	}
 
-	public double getUtilFromChildrenLS() {
-		return utilFromChildrenLS;
+	public double getUtilFromChildren() {
+		return utilFromChildren;
 	}
 
-	public void setUtilFromChildrenLS(double utilFromChildrenLS) {
-		this.utilFromChildrenLS = utilFromChildrenLS;
+	public void setUtilFromChildren(double utilFromChildren) {
+		this.utilFromChildren = utilFromChildren;
 	}
 	
-	public void addtoUtilFromChildrenLS(double util) {
-		this.utilFromChildrenLS += util;
+	public void addtoUtilFromChildren(double util) {
+		this.utilFromChildren += util;
 	}
 
-	public Map<String, List<Double>> getAgentView_DPOP_TSMap() {
-		return agentView_DPOP_TSMap;
+	public Map<String, Double> getNeighborValueMap() {
+		return neighborValueMap;
 	}
 
-	public void setAgentView_DPOP_TSMap(
-			Map<String, List<Double>> agentView_DPOP_TSMap) {
-		this.agentView_DPOP_TSMap = agentView_DPOP_TSMap;
+	public void setNeighborValueMap(Map<String, Double> agentView_DPOP_TSMap) {
+		this.neighborValueMap = agentView_DPOP_TSMap;
 	}
 
 	public long getEndTime() {
@@ -974,28 +963,27 @@ public class DCOP extends Agent implements DcopInfo {
 		this.oldLSRunningTime = oldLSRunningTime;
 	}
 	
-	public double getUtilityAndCost() {
-		return utilityAndCost;
+	public double getAggregatedUtility() {
+		return aggregatedUtility;
 	}
 
-	public void setUtilityAndCost(double utilityAndCost) {
-		this.utilityAndCost = utilityAndCost;
+	public void setAggregatedUtility(double aggregatedUtility) {
+		this.aggregatedUtility = aggregatedUtility;
 	}
 	
-	public HashMap<Double, Double> getValuesToSendInVALUEPhase() {
+	public Map<String, Double> getValuesToSendInVALUEPhase() {
 		return valuesToSendInVALUEPhase;
 	}
 
-	public void setValuesToSendInVALUEPhase(
-			HashMap<Double, Double> valuesToSendInVALUEPhase) {
+	public void setValuesToSendInVALUEPhase(HashMap<String, Double> valuesToSendInVALUEPhase) {
 		this.valuesToSendInVALUEPhase = valuesToSendInVALUEPhase;
 	}
 	
-	public void addValuesToSendInValuePhase(Double agent, Double value) {
+	public void addValuesToSendInVALUEPhase(String agent, Double value) {
 		this.valuesToSendInVALUEPhase.put(agent, value);
 	}
 	
-	public HashMap<Integer, String> getPickedRandomMap() {
+	public Map<Integer, String> getPickedRandomMap() {
 		return pickedRandomMap;
 	}
 
@@ -1027,12 +1015,12 @@ public class DCOP extends Agent implements DcopInfo {
 		this.lastLine = lastLine;
 	}
 
-  public List<PiecewiseMultivariateQuadFunction> getFunctionList() {
-    return functionList;
+  public Map<String, PiecewiseMultivariateQuadFunction> getFunctionMap() {
+    return functionMap;
   }
 
-  public void setFunctionList(List<PiecewiseMultivariateQuadFunction> functionList) {
-    this.functionList = functionList;
+  public void setFunctionMap(Map<String, PiecewiseMultivariateQuadFunction> functionMap) {
+    this.functionMap = functionMap;
   }
 
   public PiecewiseMultivariateQuadFunction getAgentViewFunction() {
@@ -1043,20 +1031,12 @@ public class DCOP extends Agent implements DcopInfo {
     this.agentViewFunction = agentViewFunction;
   }
 
-  public List<PiecewiseMultivariateQuadFunction> getCurrentFunctionListDPOP() {
-    return currentFunctionListDPOP;
+  public Map<String, PiecewiseMultivariateQuadFunction> getPWFunctionWithPParentMap() {
+    return pwFunctionWithPParentMap;
   }
 
-  public void setCurrentFunctionListDPOP(List<PiecewiseMultivariateQuadFunction> currentFunctionListDPOP) {
-    this.currentFunctionListDPOP = currentFunctionListDPOP;
-  }
-
-  public int getNumberOfIntervals() {
-    return numberOfIntervals;
-  }
-
-  public void setNumberOfIntervals(int numberOfIntervals) {
-    this.numberOfIntervals = numberOfIntervals;
+  public void setPWFunctionWithPParentMap(Map<String, PiecewiseMultivariateQuadFunction> pwFunctionWithPParentMap) {
+    this.pwFunctionWithPParentMap = pwFunctionWithPParentMap;
   }
 
   public int getNumberOfApproxAgents() {
@@ -1075,14 +1055,6 @@ public class DCOP extends Agent implements DcopInfo {
     this.globalInterval = globalInterval;
   }
 
-  public double getRootArgMax() {
-    return rootArgMax;
-  }
-
-  public void setRootArgMax(double rootArgMax) {
-    this.rootArgMax = rootArgMax;
-  }
-
   public boolean isApprox() {
     return isApprox;
   }
@@ -1091,20 +1063,17 @@ public class DCOP extends Agent implements DcopInfo {
     this.isApprox = isApprox;
   }
 
-  public Set<Double> getMSvalueSet() {
-    return MSvalueSet;
+  /**
+   * Return getMidPointInIntegerRanges() if clustering
+   * Return initializeDiscretization(numberOfPoints) if NOT clustering
+   * @return
+   */
+  public Set<Double> getCurrentValueSet() {
+    return currentValueSet;
   }
 
-  public void setMSvalueSet(Set<Double> mSvalueSet) {
-    MSvalueSet = mSvalueSet;
-  }
-
-  public int getNumberOfMSValues() {
-    return numberOfMSValues;
-  }
-
-  public void setNumberOfMSValues(int numberOfMSValues) {
-    this.numberOfMSValues = numberOfMSValues;
+  public void setCurrentValueSet(Set<Double> currentValueSet) {
+    this.currentValueSet = currentValueSet;
   }
 
   public Map<String, PiecewiseMultivariateQuadFunction> getMSFunctionMap() {
@@ -1177,5 +1146,41 @@ public class DCOP extends Agent implements DcopInfo {
 
   public void setGradientScalingFactor(double gradientScalingFactor) {
     this.gradientScalingFactor = gradientScalingFactor;
+  }
+
+  public Map<String, Double> getNeighborChosenValueMap() {
+    return neighborChosenValueMap;
+  }
+
+  public void setNeighborChosenValueMap(Map<String, Double> neighborChosenValueMap) {
+    this.neighborChosenValueMap = neighborChosenValueMap;
+  }
+
+  public int getGradientIteration() {
+    return gradientIteration;
+  }
+
+  public void setGradientIteration(int gradientIteration) {
+    this.gradientIteration = gradientIteration;
+  }
+
+  public int getDiscretization() {
+    return discretization;
+  }
+
+  public void setDiscretization(int discretization) {
+    this.discretization = discretization;
+  }
+
+  public int getNumberOfPoints() {
+    return numberOfPoints;
+  }
+
+  public void setNumberOfPoints(int numberOfPoints) {
+    this.numberOfPoints = numberOfPoints;
+  }
+
+  public int getDomainSize() {
+    return globalInterval.getIncrementRange();
   }
 }	

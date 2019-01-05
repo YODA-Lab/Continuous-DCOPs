@@ -24,7 +24,6 @@ import zexception.FunctionException;
 import com.google.common.collect.Sets;
 import static java.lang.Math.*;
 import static java.lang.Double.*;
-import static java.lang.System.out;
 import static agent.DcopInfo.*;
 
 /**
@@ -193,8 +192,13 @@ public class MultivariateQuadFunction implements Serializable {
     MultivariateQuadFunction evaluatedFunc = new MultivariateQuadFunction(this);
 
     // Adding a_ii * xi^2 and a_i * xi to d (x_i = value)
-    evaluatedFunc.updateCoefficient("", "", evaluatedFunc.getCoefficients().get(variable, variable) * Math.pow(value, 2)
-        + evaluatedFunc.getCoefficients().get(variable, "") * value);
+    if (null != evaluatedFunc.getCoefficients().get(variable, variable)) {
+      evaluatedFunc.updateCoefficient("", "", evaluatedFunc.getCoefficients().get(variable, variable) * Math.pow(value, 2)
+          + evaluatedFunc.getCoefficients().get(variable, "") * value);
+    } else {
+      evaluatedFunc.updateCoefficient("", "", evaluatedFunc.getCoefficients().get(variable, "") * value);
+
+    }
 
     // Find aij * (xi, xj)
     // Update a_ij * xi * xj => (a_ij * value) xj
@@ -363,9 +367,7 @@ public class MultivariateQuadFunction implements Serializable {
         sortedPoint.addAll(Utilities.solveUnaryQuadForValues(candidateFuncList.get(first), candidateFuncList.get(second), true));
       }
     }
-    
-//    out.println("Sorted Points " + sortedPoint);
-    
+        
     double LB = intervalMap.get(getOtherAgent()).getLowerBound();
     double UB = intervalMap.get(getOtherAgent()).getUpperBound();
     
@@ -396,7 +398,6 @@ public class MultivariateQuadFunction implements Serializable {
       
       Map<String, Interval> domain = new HashMap<>();
       domain.put(getOtherAgent(), interval);
-//      functionToAdd.setIntervals(domain);
       
       pwFunction.addToFunctionMapWithInterval(functionToAdd, domain, TO_OPTIMIZE_INTERVAL);
     }
@@ -404,11 +405,17 @@ public class MultivariateQuadFunction implements Serializable {
     return pwFunction;
   }
   
+  /**
+   * Take the first derivative of quadratic function
+   * This function is reviewed
+   * @param derivativeAgent
+   * @return
+   */
   public MultivariateQuadFunction takeFirstPartialDerivative(String derivativeAgent) {
     MultivariateQuadFunction firstPartialDerivative = new MultivariateQuadFunction();
-    firstPartialDerivative.setOwner(derivativeAgent);
-    firstPartialDerivative.getCoefficients().put(derivativeAgent, "", coefficients.get(derivativeAgent, derivativeAgent));
-    firstPartialDerivative.getCoefficients().put("", "", coefficients.get(firstPartialDerivative, ""));
+    
+    firstPartialDerivative.getCoefficients().put(derivativeAgent, "", 2 * coefficients.get(derivativeAgent, derivativeAgent));
+    firstPartialDerivative.getCoefficients().put("", "", coefficients.get(derivativeAgent, ""));
     
     List<String> tempVarList = new ArrayList<>(getVariableSet());
     tempVarList.remove(derivativeAgent);
@@ -416,9 +423,11 @@ public class MultivariateQuadFunction implements Serializable {
     
     if (null != coefficients.get(derivativeAgent, otherAgent)) {
       firstPartialDerivative.getCoefficients().put(otherAgent, "", coefficients.get(derivativeAgent, otherAgent));
-    } else {
+    } else if (null != coefficients.get(otherAgent, derivativeAgent)) {
       firstPartialDerivative.getCoefficients().put(otherAgent, "", coefficients.get(otherAgent, derivativeAgent));
     }
+    
+    firstPartialDerivative.setOwner(derivativeAgent);
 
     return firstPartialDerivative;
   }
@@ -430,7 +439,6 @@ public class MultivariateQuadFunction implements Serializable {
    * @return
    */
   public MultivariateQuadFunction evaluateBinaryFunctionX1(double x1, Map<String, Interval> intervalMap) {
-      
     String otherAgent = getOtherAgent();
     
     double a1 = coefficients.get(owner, owner);
@@ -513,10 +521,16 @@ public class MultivariateQuadFunction implements Serializable {
     return func;
   }
   
+  public MultivariateQuadFunction evaluateToFunctionGivenValueMap(Map<String, Double> valueMap) {
+    MultivariateQuadFunction func = new MultivariateQuadFunction(this);
+    for (Map.Entry<String, Double> entry : valueMap.entrySet()) {
+      func = func.evaluate(entry.getKey(), entry.getValue());
+    }
+    
+    return func;
+  }
+  
   public double evaluateToValueGivenValueMap(Map<String, Double> valueMap) {
-//    if (valueMap.size() != intervals.size()) {
-//      throw new FunctionException("Different in size between valueMap and intervalMap: " + valueMap + " " + intervals);
-//    }
     MultivariateQuadFunction func = new MultivariateQuadFunction(this);
     int count = 1;
     for (Map.Entry<String, Double> entry : valueMap.entrySet()) {
@@ -543,14 +557,18 @@ public class MultivariateQuadFunction implements Serializable {
       throw new FunctionException(
           "The number of variable should be ONE in order to be evaluated as a unaryFunction: " + getNumberOfVariable());
 
-    return coefficients.get(variable, variable) * Math.pow(value, 2) + coefficients.get(variable, "") * value
-        + coefficients.get("", "");
+    if (null != coefficients.get(variable, variable)) {
+      return coefficients.get(variable, variable) * Math.pow(value, 2) + coefficients.get(variable, "") * value
+          + coefficients.get("", "");
+    } else {
+      return coefficients.get(variable, "") * value + coefficients.get("", "");
+    }
   }
   
   /**
    * This function is already TESTED 
    * owner is the only variable left
-   * @return max and argmax of the function given the interval
+   * @return max = [0], argmax = [1]
    */
   public double[] getMaxAndArgMax(Map<String, Interval> intervalMap) {
     double[] result = new double[2];
@@ -725,7 +743,7 @@ public class MultivariateQuadFunction implements Serializable {
   }
   
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(Object o) {    
     if (o == this)
       return true;
 
@@ -733,6 +751,7 @@ public class MultivariateQuadFunction implements Serializable {
       return false;
     }
     MultivariateQuadFunction function = (MultivariateQuadFunction) o;
+   
     return this.coefficients.equals(function.getCoefficients())
         && this.owner.equals(function.getOwner());
   }

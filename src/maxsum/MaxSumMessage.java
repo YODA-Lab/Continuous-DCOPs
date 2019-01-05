@@ -67,15 +67,12 @@ public class MaxSumMessage implements Serializable {
   /**
    * Update alpha in MaxSum on graph
    */
-  // TODO: test this function with MaxSum on graph later
   public void updateAlpha() {
-    return ;
-    
-//    int size = valueUtilityMap.size();
-//    double alpha = -valueUtilityMap.values().stream().mapToDouble(value -> value.doubleValue()).sum() / size;
-//    for (Map.Entry<Double, Double> entry : valueUtilityMap.entrySet()) {
-//      entry.setValue(entry.getValue() + alpha);
-//    }
+    int size = valueUtilityMap.size();
+    double alpha = -valueUtilityMap.values().stream().mapToDouble(value -> value.doubleValue()).sum() / size;
+    for (Map.Entry<Double, Double> entry : valueUtilityMap.entrySet()) {
+      entry.setValue(entry.getValue() + alpha);
+    }
   }
   
   public double getBestValue() {

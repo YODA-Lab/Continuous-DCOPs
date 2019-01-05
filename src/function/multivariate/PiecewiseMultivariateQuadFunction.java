@@ -1,6 +1,8 @@
 package function.multivariate;
 
 import java.io.Serializable;
+import java.security.acl.Owner;
+import java.io.ObjectInputStream.GetField;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,14 +31,22 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
   /**
    * 
    */
-
-//  private List<MultivariateQuadFunction> functionList;
   
-  Map<MultivariateQuadFunction, Set<Map<String, Interval>>> functionMap;
-  
+  Map<MultivariateQuadFunction, Set<Map<String, Interval>>> functionMap = new HashMap<>();  
 
   public PiecewiseMultivariateQuadFunction() {
-    functionMap = new HashMap<>();
+  }
+  
+  public PiecewiseMultivariateQuadFunction(PiecewiseMultivariateQuadFunction newPw) {
+    functionMap.putAll(newPw.getFunctionMap());
+  }
+
+  public void addToFunctionMapWithIntervalSet(MultivariateQuadFunction function, Set<Map<String, Interval>> intervalSet) {
+    if (functionMap.containsKey(function)) {
+      functionMap.get(function).addAll(intervalSet);
+    } else {
+      functionMap.put(function, intervalSet);
+    }
   }
 
   /**
@@ -46,7 +56,7 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
    * @param isOptimized
    */
   public void addToFunctionMapWithInterval(MultivariateQuadFunction function, Map<String, Interval> intervalMap, boolean isOptimized) {
-    Set<Map<String, Interval>> setOfIntervalMap = null;
+    Set<Map<String, Interval>> setOfIntervalMap = new HashSet<>();
     if (functionMap.containsKey(function)) {
       setOfIntervalMap = functionMap.get(function);
       
@@ -74,7 +84,6 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
       }
       // no need to re-add the function with interval map
     } else {
-      setOfIntervalMap = new HashSet<>();
       setOfIntervalMap.add(intervalMap);
       functionMap.put(function, setOfIntervalMap);
     }
@@ -123,9 +132,7 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
 
     for (Entry<MultivariateQuadFunction, Set<Map<String, Interval>>> functionEntry : functionMap.entrySet()) {
       MultivariateQuadFunction function = functionEntry.getKey();
-      for (Map<String, Interval> interval : functionEntry.getValue()) {
-        pwFunc.addToFunctionMapWithInterval(function.takeFirstPartialDerivative(agentInPartialDerivative), interval, NOT_TO_OPTIMIZE_INTERVAL);
-      }
+      pwFunc.addToFunctionMapWithIntervalSet(function.takeFirstPartialDerivative(agentInPartialDerivative), functionEntry.getValue());
     }
     return pwFunc;
   }
@@ -151,7 +158,7 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
    * @return the set of common variables from the two functions
    */
   public static Set<String> commonVarSet(PiecewiseMultivariateQuadFunction function1,
-    PiecewiseMultivariateQuadFunction function2) {
+    PiecewiseMultivariateQuadFunction function2) {    
     // Get common variable set
     Set<String> commonVarSet = new HashSet<>(function1.getVariableSet());
     commonVarSet.retainAll(function2.getVariableSet());
@@ -164,18 +171,21 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
    * of common variables 2. For each variable in X, get the atomic ranges =>
    * Create a map <commonVariable, TreeSet<Double>> 3. For each
    * 
+   * THIS FUNCTION IS TESTED WHEN ADDING WITH THE SAME INTERVAL SET
    * @param pmqFunc
    *          which is a PiecewiseMultivariateQuadFunction
    * @return a summation of two functions. The ranges are modified.
    */
   public PiecewiseMultivariateQuadFunction addPiecewiseFunction(PiecewiseMultivariateQuadFunction pmqFunc) {
+    if (this.isEmpty()) return pmqFunc;
+    
     PiecewiseMultivariateQuadFunction addedPwFunction = new PiecewiseMultivariateQuadFunction();
 
+    // Get the Intervals of common variables
     Set<String> commonVarSet = commonVarSet(this, pmqFunc);
-
+    
     Set<List<Interval>> productIntervals = cartesianProductIntervalCommonVariables(this, pmqFunc, commonVarSet);
 
-    // Get the Interval of common variables
     for (List<Interval> intervalOfCommon : productIntervals) {
       Map<String, Interval> commonDomainMap = new HashMap<>();
       int index = 0;
@@ -272,6 +282,41 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
 
     return Sets.cartesianProduct(listOfSortedIntervals);
   }
+  
+  public PiecewiseMultivariateQuadFunction evaluateToUnaryFunction(Map<String, Double> valueMap) {
+    PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
+    for (Entry<MultivariateQuadFunction, Set<Map<String, Interval>>> functionEntry : functionMap.entrySet()) {
+      MultivariateQuadFunction function = functionEntry.getKey();
+      Set<Map<String, Interval>> intervalSet = functionEntry.getValue();
+      function = function.evaluateToFunctionGivenValueMap(valueMap);
+      for (Map<String, Interval> interval : intervalSet) {
+        for (String agent : valueMap.keySet()) {
+          interval.remove(agent);
+        }
+      }
+      pwFunc.addToFunctionMapWithIntervalSet(function, intervalSet);
+    }
+    
+    return pwFunc;
+  }
+  
+  /**
+   * This function is used in Analytical DPOP
+   * @param agentStrID
+   * @param valuesFromParent
+   * @return
+   */
+  public double getArgmaxGivenVariableAndValueMap(String agentStrID, Map<String, Double> valuesFromParent) {
+    Map<String, Double> valueMap = new HashMap<>();
+    // set owner to find the other agent
+    this.setOwner(agentStrID);
+    
+    valueMap.put(getOtherAgent(), valuesFromParent.get(getOtherAgent()));
+    PiecewiseMultivariateQuadFunction unaryFunc = this.evaluateToUnaryFunction(valueMap);
+    double maxArgmax[] = unaryFunc.getTheFirstFunction().getMaxAndArgMax(unaryFunc.getTheFirstIntervalSet().iterator().next());
+    
+    return maxArgmax[1];
+  }
 
   /**
    * @return a list of functions from this PiecewiseMultivariateQuadFunction
@@ -282,6 +327,12 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
   
   public Set<String> getVariableSet() {    
     return getTheFirstFunction().getVariableSet();
+  }
+  
+  public Set<String> getOtherVariableSet(String agent) {
+    Set<String> otherVariableSet = new HashSet<>(getVariableSet());
+    otherVariableSet.remove(agent);
+    return otherVariableSet;
   }
 
   /**
@@ -306,10 +357,13 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
   }
 
   public void setOwner(String idStr) {
-    // TODO Auto-generated method stub
     for (Entry<MultivariateQuadFunction, Set<Map<String, Interval>>> functionEntry : functionMap.entrySet()) {
       functionEntry.getKey().setOwner(idStr);
     }
+  }
+  
+  public String getOtherAgent() {
+    return getTheFirstFunction().getOtherAgent();
   }
   
   // Return the shallow copy of the first function without interval
@@ -317,8 +371,16 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
     List<MultivariateQuadFunction> funcList = new ArrayList<>(functionMap.keySet());
     return funcList.get(0);
   }
+  
+  public Set<Map<String, Interval>> getTheFirstIntervalSet() {
+    return functionMap.get(getTheFirstFunction());
+  }
 
   public long size() {
     return functionMap.size();
+  }
+  
+  public boolean isEmpty() {
+    return functionMap.size() == 0;
   }
 }

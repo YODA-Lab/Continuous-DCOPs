@@ -114,6 +114,10 @@ public class Interval implements Serializable {
     
     return null;
   }
+  
+  public boolean contains(double value) {
+    return compare(lowerBound, value) <= 0 && compare(value, upperBound) <= 0;
+  }
 
 
   @Override
@@ -137,5 +141,26 @@ public class Interval implements Serializable {
   @Override
   public int hashCode() {
     return Objects.hash(lowerBound, upperBound);
+  }
+
+  public int getIncrementRange() {
+    return (int) (upperBound - lowerBound);
+  }
+  
+  public Set<Double> getMidPointInIntegerRanges() {
+    return initializeDiscretization(getIncrementRange());
+  }
+  
+  public Set<Double> initializeDiscretization(int numberOfValues) {
+    Set<Double> valueSet = new HashSet<>();
+    
+    double increment = (upperBound - lowerBound) / numberOfValues;
+    double currentLB = lowerBound;
+    for (int i = 0; i < numberOfValues; i++) {
+      valueSet.add(0.5 * (currentLB * 2 + increment));
+      currentLB += increment;
+    }
+    
+    return valueSet;
   }
 }
