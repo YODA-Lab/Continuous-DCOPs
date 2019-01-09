@@ -23,6 +23,10 @@ public class MaxSumMessage implements Serializable {
   public MaxSumMessage() {
   }
   
+  public MaxSumMessage(MaxSumMessage object) {
+    this(object.getValueUtilityMap(), object.getNewValueSet(), object.getFirstDerivativeMap());
+  }
+  
   public MaxSumMessage(Map<Double, Double> valueUtilityMap) {
     this.valueUtilityMap.putAll(valueUtilityMap);
   }
@@ -30,6 +34,12 @@ public class MaxSumMessage implements Serializable {
   public MaxSumMessage(Map<Double, Double> valueUtilityMap, Set<Double> valueSet) {
     this.valueUtilityMap.putAll(valueUtilityMap);
     this.newValueSet.addAll(valueSet);
+  }
+  
+  public MaxSumMessage(Map<Double, Double> valueUtilityMap, Set<Double> valueSet, Map<Double, Double> firstDerivativeMap) {
+    this.valueUtilityMap.putAll(valueUtilityMap);
+    this.newValueSet.addAll(valueSet);
+    this.firstDerivativeMap.putAll(firstDerivativeMap);
   }
     
   public MaxSumMessage addMessage(MaxSumMessage message) {
@@ -50,10 +60,6 @@ public class MaxSumMessage implements Serializable {
     return resultMsg;
   }
   
-  public MaxSumMessage(MaxSumMessage object) {
-    this.valueUtilityMap.putAll(object.getValueUtilityMap());
-  }
-  
   /**
    * Initialize the MaxSumMessage to <value, 0.0>
    * @param MSvalueSet is the set containing the value
@@ -67,7 +73,7 @@ public class MaxSumMessage implements Serializable {
   /**
    * Update alpha in MaxSum on graph
    */
-  public void updateAlpha() {
+  public void updateAlphaAndValues() {
     int size = valueUtilityMap.size();
     double alpha = -valueUtilityMap.values().stream().mapToDouble(value -> value.doubleValue()).sum() / size;
     for (Map.Entry<Double, Double> entry : valueUtilityMap.entrySet()) {

@@ -68,10 +68,10 @@ public class SEND_RECEIVE_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
       MaxSumMessage msgVAR_TO_FUNC = new MaxSumMessage(agent.getCurrentValueSet());
       msgVAR_TO_FUNC.setNewValueSet(agent.getCurrentValueSet());
       
-      long time = 0;
+      long simulatedRuntime = 0;
       
       for (AID receiver : agent.getFunctionOwnedByOther()) {
-        agent.sendObjectMessageWithTime(receiver, msgVAR_TO_FUNC, VAR_TO_FUNC, time);
+        agent.sendObjectMessageWithTime(receiver, msgVAR_TO_FUNC, VAR_TO_FUNC, simulatedRuntime);
       }
       for (AID store_agent : agent.getFunctionIOwn()) {
         agent.getStored_VARIABLE_TO_FUNCTION().put(store_agent, msgVAR_TO_FUNC);
@@ -97,8 +97,9 @@ public class SEND_RECEIVE_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
       }
       
       MaxSumMessage msgVAR_TO_FUNC = new MaxSumMessage(agent.getCurrentValueSet());
+      
       for (AID neighbor : agent.getNeighborAIDList()) {
-        // process the function that is owned by other agents
+        // process the function that is OWNED BY OTHER AGENTS
         if (agent.getFunctionOwnedByOther().contains(neighbor)) {
           // Add all messages from getReceived_FUNCTION_TO_VARIABLE except for the neighbor
           for (Entry<AID, MaxSumMessage> msgEntry : agent.getReceived_FUNCTION_TO_VARIABLE().entrySet()) {
@@ -108,7 +109,8 @@ public class SEND_RECEIVE_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
           
           // add all messages from getStored_FUNCTION_TO_VARIABLE
           msgVAR_TO_FUNC = msgVAR_TO_FUNC.addAllMessages(agent.getStored_FUNCTION_TO_VARIABLE().values());
-          msgVAR_TO_FUNC.updateAlpha();
+          msgVAR_TO_FUNC.updateAlphaAndValues();
+          
           msgVAR_TO_FUNC.setNewValueSet(agent.getCurrentValueSet());
 
           long time = 0;
@@ -125,7 +127,7 @@ public class SEND_RECEIVE_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
             msgVAR_TO_FUNC = msgVAR_TO_FUNC.addMessage(msgEntry.getValue());
           }
           
-          msgVAR_TO_FUNC.updateAlpha();
+          msgVAR_TO_FUNC.updateAlphaAndValues();
           msgVAR_TO_FUNC.setNewValueSet(agent.getCurrentValueSet());
           
           agent.getStored_VARIABLE_TO_FUNCTION().put(neighbor, msgVAR_TO_FUNC);

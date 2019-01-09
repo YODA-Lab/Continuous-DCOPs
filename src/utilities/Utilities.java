@@ -35,10 +35,11 @@ public class Utilities {
       newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.getDomainSize() + "_numPoints="
           + agent.getNumberOfPoints() + "_numApproxAgents=" + agent.getNumberOfApproxAgents() + ".txt";
     } else {
-//      newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.getDomainSize() + "_numPoints=" 
-//          + agent.getNumberOfPoints() + "_gradientIteration=" +  agent.getGradientIteration() + ".txt";  
-      newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.getDomainSize() + "_numPoints=" 
-          + agent.getNumberOfPoints() + ".txt";  
+      newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.getDomainSize() + "_numPoints="
+          + agent.getNumberOfPoints() + "_gradientIteration=" + agent.getGradientIteration() + "_gradientRate="
+          + agent.getGradientScalingFactor() + ".txt";
+      //      newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.getDomainSize() + "_numPoints=" 
+//          + agent.getNumberOfPoints() + ".txt";  
     }
     
     if (agent.instanceID == 0) {

@@ -47,7 +47,7 @@ public class SEARCH_NEIGHBORS extends OneShotBehaviour {
 		// Add agents to AgentKeepMyFunctionAID and AgentNotOwningFunctionAID
 		if (agent.isRunningMaxsum()) {
   		for (AID agentID : agent.getNeighborAIDList()) {
-  		  if (agent.getMSFunctionMap().keySet().contains(agentID.getLocalName())) {
+  		  if (agent.getMSFunctionMapIOwn().keySet().contains(agentID.getLocalName())) {
   		    agent.addAgentToFunctionIOwn(agentID);
   		  } else {
           agent.addAgentToFunctionOwnedByOther(agentID);

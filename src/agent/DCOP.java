@@ -163,7 +163,7 @@ public class DCOP extends Agent implements DcopInfo {
 	private int discretization;
 	
 	// for Hybrid Max-Sum
-	private Map<String, PiecewiseMultivariateQuadFunction> MSFunctionMap = new HashMap<>();
+	private Map<String, PiecewiseMultivariateQuadFunction> MSFunctionMapIOwn = new HashMap<>();
 	private Set<AID> functionIOwn = new HashSet<>();
 	private Set<AID> functionOwnedByOther = new HashSet<>();
 	private Map<AID, MaxSumMessage> received_FUNCTION_TO_VARIABLE = new HashMap<>();
@@ -206,7 +206,7 @@ public class DCOP extends Agent implements DcopInfo {
     gradientIteration = Integer.parseInt((String) args[3]);
     
     isApprox = true;
-    gradientScalingFactor = 0.001;
+    gradientScalingFactor = Math.pow(10, -3);
 	}
 	
   protected void setup() {
@@ -248,7 +248,7 @@ public class DCOP extends Agent implements DcopInfo {
 			mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
 		} // MAX-SUM 
 		else if (isRunningMaxsum()) {
-		  for (int i = 0; i < MAX_ITERATION; i++) {
+		  for (int i = 0; i < gradientIteration; i++) {
 	      mainSequentialBehaviourList.addSubBehaviour(new SEND_RECEIVE_VARIABLE_TO_FUNCTION(this));
 	      mainSequentialBehaviourList.addSubBehaviour(new SEND_RECEIVE_FUNCTION_TO_VARIABLE(this));
 		  }
@@ -261,7 +261,7 @@ public class DCOP extends Agent implements DcopInfo {
 	}
 	
 	public boolean isPrinting() {
-	  return agentStrID.equals("3");
+	  return agentStrID.equals("1");
 	}
 
   //JADE function: stop the Agent
@@ -467,9 +467,7 @@ public class DCOP extends Agent implements DcopInfo {
 				if (lineWithSemiColon.startsWith(DOMAIN)) {
 				    lineWithSemiColon = lineWithSemiColon.replaceAll("domain ", "");
 				    domainMax = Integer.parseInt(lineWithSemiColon);
-//				    globalInterval = new Interval(-domainMax + 1, domainMax);
-				    //TODO: Remove this
-				    globalInterval = new Interval(-100, 100);
+				    globalInterval = new Interval(-domainMax, domainMax);
 				}
 				
 				/**FUNCTION*/
@@ -502,7 +500,7 @@ public class DCOP extends Agent implements DcopInfo {
             if (isRunningMaxsum() && compare(Double.valueOf(agentStrID), Double.valueOf(neighbor)) < 0) {
               // add the function to Maxsum function map
               // add the neighbor to external-var-agent-set
-              MSFunctionMap.put(neighbor, pwFunc);
+              MSFunctionMapIOwn.put(neighbor, pwFunc);
             }
 				}
         if (lineWithSemiColon.startsWith(NEIGHBOR_SET)) {
@@ -1076,12 +1074,12 @@ public class DCOP extends Agent implements DcopInfo {
     this.currentValueSet = currentValueSet;
   }
 
-  public Map<String, PiecewiseMultivariateQuadFunction> getMSFunctionMap() {
-    return MSFunctionMap;
+  public Map<String, PiecewiseMultivariateQuadFunction> getMSFunctionMapIOwn() {
+    return MSFunctionMapIOwn;
   }
 
-  public void setMSFunctionMap(Map<String, PiecewiseMultivariateQuadFunction> mSFunctionMap) {
-    MSFunctionMap = mSFunctionMap;
+  public void setMSFunctionMapIOwn(Map<String, PiecewiseMultivariateQuadFunction> MSFunctionMapIOwn) {
+    this.MSFunctionMapIOwn = MSFunctionMapIOwn;
   }
 
   public Set<AID> getFunctionIOwn() {

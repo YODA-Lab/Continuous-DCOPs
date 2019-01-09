@@ -75,7 +75,7 @@ public class DPOP_VALUE extends OneShotBehaviour {
       agent.setChosenValue(chooseValue_TABLE(valuesFromParent));
     } else if (agent.algorithm == DCOP.ANALYTICAL_DPOP || agent.algorithm == DCOP.APPROX_DPOP) {
       agent.setChosenValue(chooseValue_FUNCTION(valuesFromParent));
-    } else if (agent.algorithm == DCOP.MOVING_DPOP) {
+    } else if (agent.algorithm == DCOP.MOVING_DPOP | agent.algorithm == DCOP.CLUSTERING_DPOP) {
       agent.setChosenValue(chooseValue_HYBRID(valuesFromParent));
     }    
    

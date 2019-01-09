@@ -292,8 +292,8 @@ public class DPOP_UTIL extends OneShotBehaviour {
       utilTable.addRow(new Row(valueList, max));
     }
     
-    out.println("utilTable");
-    out.println(utilTable);
+//    out.println("utilTable");
+//    out.println(utilTable);
     
     agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
     agent.sendObjectMessageWithTime(agent.getParentAID(), utilTable, DPOP_UTIL, agent.getSimulatedTime());
@@ -592,7 +592,10 @@ public class DPOP_UTIL extends OneShotBehaviour {
             argMax = agent.getAgentViewTable().maxArgmaxHybrid(agent, valueMapOfOtherVariables)[1];
           }
           
-
+//          if (agent.isPrinting()) {
+//            out.println(valueList.get(0) + "," + argMax);
+//          }
+          
           Map<String, Double> valueMap = new HashMap<>();
           valueMap.put(agent.getID(), argMax);
           valueMap.put(ppAgentToMove, ppValueToMove);

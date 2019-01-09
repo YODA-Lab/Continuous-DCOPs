@@ -64,14 +64,14 @@ public class SEND_RECEIVE_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
      */
     
     for (AID functionAgent : agent.getFunctionIOwn()) {
-      PiecewiseMultivariateQuadFunction function = agent.getMSFunctionMap().get(functionAgent.getLocalName());
+      PiecewiseMultivariateQuadFunction function = agent.getMSFunctionMapIOwn().get(functionAgent.getLocalName());
       
       MaxSumMessage var2FuncMsgStored = agent.getStored_VARIABLE_TO_FUNCTION().get(functionAgent);
       MaxSumMessage FUNC_TO_VARmsg_to_send = createFUNC_TO_VAR(function, var2FuncMsgStored, functionAgent, FUNC_TO_VAR_TO_SEND_OUT);
       long time = 0;
       
       agent.sendObjectMessageWithTime(functionAgent, FUNC_TO_VARmsg_to_send, FUNC_TO_VAR, time);
-      System.out.println(FUNC_TO_VARmsg_to_send);
+//      System.out.println(FUNC_TO_VARmsg_to_send);
       
       MaxSumMessage var2FuncMsgReceived = agent.getReceived_VARIABLE_TO_FUNCTION().get(functionAgent);
       MaxSumMessage FUNC_TO_VARmsg_to_store = createFUNC_TO_VAR(function, var2FuncMsgReceived, functionAgent, FUNC_TO_VAR_TO_STORE);
@@ -113,7 +113,6 @@ public class SEND_RECEIVE_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
    * @return
    */
   private MaxSumMessage createFUNC_TO_VAR(PiecewiseMultivariateQuadFunction function, MaxSumMessage var2FuncMsg, AID functionAgent, int toSendOrStore) {
-    // Self agent first
     List<Set<Double>> listOfValueSet = new ArrayList<Set<Double>>();
     
     String agentToKeep;
@@ -122,14 +121,16 @@ public class SEND_RECEIVE_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
     String agentToProject;
     Set<Double> agentToProjectValueSet = null;
     
-    if (toSendOrStore == FUNC_TO_VAR_TO_SEND_OUT) {
-      agentToKeepValueSet = agent.getCurrentValueSet();
+    //TODO: Review this if condition later
+    if (toSendOrStore == FUNC_TO_VAR_TO_STORE) {
+//    if (toSendOrStore == FUNC_TO_VAR_TO_SEND_OUT) {
       agentToKeep = agent.getID();
+      agentToKeepValueSet = agent.getCurrentValueSet();
       
+      agentToProject = functionAgent.getLocalName();      
       agentToProjectValueSet = var2FuncMsg.getNewValueSet();
-      agentToProject = functionAgent.getLocalName();
     }
-    else { // if (toSendOrStore == FUNC_TO_VAR_TO_STORE) {
+    else { // if (toSendOrStore == FUNC_TO_VAR_TO_SEND) {
       agentToKeep = functionAgent.getLocalName();
       agentToKeepValueSet = var2FuncMsg.getNewValueSet();
 
@@ -155,9 +156,9 @@ public class SEND_RECEIVE_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
       mapValue.put(agentToKeep, agentToKeepValue);
       mapValue.put(agentToProject, agentToProjectValue);
 
-      double evalutedValue = function.getTheFirstFunction().evaluateToValueGivenValueMap(mapValue);
-      evalutedValue += var2FuncMsg.getValueUtilityMap().get(agentToKeepValue);
-      discretizedFunction.addRow(new Row(listValueEntry, evalutedValue));
+      double evaluatedValue = function.getTheFirstFunction().evaluateToValueGivenValueMap(mapValue);
+      evaluatedValue += var2FuncMsg.getValueUtilityMap().get(agentToKeepValue);
+      discretizedFunction.addRow(new Row(listValueEntry, evaluatedValue));
     }
     // Project out the DCOP
     Table projectedTable = behavior.DPOP_UTIL.projectOperator(discretizedFunction, agentToProject);
@@ -165,10 +166,12 @@ public class SEND_RECEIVE_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
     
     // Convert the Table to Map<Double, Double>
     Map<Double, Double> valueUtilMap = new HashMap<>();
-
+    
     for (Row row : projectedTable.getRowList()) {
       valueUtilMap.put(row.getValueAtPosition(0), row.getUtility());
     }
+    
+    // TODO: Create the first derivative
 
     return new MaxSumMessage(valueUtilMap);
   }
