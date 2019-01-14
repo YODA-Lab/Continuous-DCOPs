@@ -18,7 +18,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static java.lang.Double.*;
-import static org.junit.Assert.assertNotNull;
 
 public class Table implements Serializable {
 	

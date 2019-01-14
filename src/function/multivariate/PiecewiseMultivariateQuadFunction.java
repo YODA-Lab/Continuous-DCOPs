@@ -1,8 +1,6 @@
 package function.multivariate;
 
 import java.io.Serializable;
-import java.security.acl.Owner;
-import java.io.ObjectInputStream.GetField;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -313,9 +311,21 @@ public class PiecewiseMultivariateQuadFunction implements Serializable {
     
     valueMap.put(getOtherAgent(), valuesFromParent.get(getOtherAgent()));
     PiecewiseMultivariateQuadFunction unaryFunc = this.evaluateToUnaryFunction(valueMap);
-    double maxArgmax[] = unaryFunc.getTheFirstFunction().getMaxAndArgMax(unaryFunc.getTheFirstIntervalSet().iterator().next());
     
-    return maxArgmax[1];
+    double max = -Double.MAX_VALUE;
+    double argMax = -Double.MAX_VALUE;
+  
+    for (Map<String, Interval> interval : unaryFunc.getTheFirstIntervalSet()) {
+      double maxArgmax[] = unaryFunc.getTheFirstFunction().getMaxAndArgMax(interval);
+      
+      if (compare(maxArgmax[0], max) > 0) {
+        max = maxArgmax[0];
+        argMax = maxArgmax[1];
+      }
+    }
+    
+    
+    return argMax;
   }
 
   /**

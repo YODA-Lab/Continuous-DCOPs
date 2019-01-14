@@ -22,12 +22,10 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
 	
 	@Override
 	public void action() {		
-		double totalUtilityFromChildren = sumUtilityFromChildren();
+		double totalUtilityFromChildren = sumUtilityFromChildrenWithTime();
 				
 		System.out.println("Agent " +  agent.getID() + " has utility from children is: " + totalUtilityFromChildren);
-		
-		agent.addupSimulatedTime(DCOP.getDelayMessageTime());
-		
+				
 		agent.setAggregatedUtility(totalUtilityFromChildren + agent.utilityFrom_FUNCTION_WithParentAndPseudo());   
 		
 		System.out.println("Agent " +  agent.getID() + " send utility: " + agent.getAggregatedUtility());
@@ -36,7 +34,6 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
 			agent.sendObjectMessageWithTime(agent.getParentAID(), agent.getAggregatedUtility(), UTILITY_TO_THE_ROOT, agent.getSimulatedTime());
 		else {
 			agent.setEndTime(System.currentTimeMillis());
-			agent.setOldLSRunningTime(agent.getEndTime() - agent.getStartTime());
 			
 			System.out.println("AGGREGATED UTILITY: " + agent.getAggregatedUtility());
 			System.out.println("RUNNING TIME: " + (agent.getEndTime() - agent.getStartTime()) + "ms");
@@ -45,9 +42,10 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
 		}
 	}
 
-  private double sumUtilityFromChildren() {
-    double totalUtility = 0;
+  private double sumUtilityFromChildrenWithTime() {
+    agent.startSimulatedTiming();    
     
+    double totalUtility = 0;
     int noMessageCount = 0;
     
     while (noMessageCount < agent.getChildrenAIDList().size()) {
@@ -64,8 +62,11 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
         }
         
         long timeFromReceiveMessage = Long.parseLong(receivedMessage.getLanguage());
-        if (timeFromReceiveMessage > agent.getSimulatedTime())
+        if (timeFromReceiveMessage > agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime()) {
           agent.setSimulatedTime(timeFromReceiveMessage);
+        } else {
+          agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+        }
       }
       else
         block();

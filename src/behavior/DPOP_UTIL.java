@@ -86,9 +86,8 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
   @Override
   public void action() {
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-    agent.setCurrentUTILstartTime(System.currentTimeMillis());
-
+    agent.startSimulatedTiming();
+    
     if (agent.isRunningDiscreteAlg()) {
       createDCOPTableFromFunction();
     }
@@ -96,7 +95,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     // transformed to tables)
     out.println("Done removing children!");
 
-    agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+    agent.setSimulatedTime(agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
     if (agent.isRunningDiscreteAlg()) {
       doUtil_TABLE();
@@ -174,10 +173,9 @@ public class DPOP_UTIL extends OneShotBehaviour {
   }
 
   private void leaf_TABLE() {
+    agent.startSimulatedTiming();
+    
     out.println("LEAF " + agent.getID() + " is running");
-
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-
     // get the first table
     Table combinedTable = agent.getTableListWithPParents().get(0);
     // combinedTable.printDecVar();
@@ -197,16 +195,15 @@ public class DPOP_UTIL extends OneShotBehaviour {
     agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
     agent.sendObjectMessageWithTime(agent.getParentAID(), projectedTable, DPOP_UTIL, agent.getSimulatedTime());
-    // projectedTable.printDecVar();
   }
 
   /*
    */
-  private void leaf_FUNC() {
+  private void leaf_FUNC() { 
+    agent.startSimulatedTiming();
+  
     out.println("LEAF " + agent.getID() + " is running");
 
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-    
     List<PiecewiseMultivariateQuadFunction> pwFuncList = new ArrayList<>();
     pwFuncList.addAll(agent.getPWFunctionWithPParentMap().values());
     PiecewiseMultivariateQuadFunction combinedFunction = pwFuncList.get(0);
@@ -245,9 +242,10 @@ public class DPOP_UTIL extends OneShotBehaviour {
    *  - Agent_view is not needed.
    */
   private void leaf_HYBRID() {
+    agent.startSimulatedTiming();
+
     out.println("LEAF " + agent.getID() + " is running");
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-        
+    
     // Sum up all functions to create agentViewFunction
     PiecewiseMultivariateQuadFunction sumFunction = new PiecewiseMultivariateQuadFunction();
     for (String ppAgent : agent.getParentAndPseudoStrList()) {
@@ -284,10 +282,16 @@ public class DPOP_UTIL extends OneShotBehaviour {
       }
       
       PiecewiseMultivariateQuadFunction unaryFunction = sumFunction.evaluateToUnaryFunction(valueMapOfOtherVariables);
-
-      double maxArgmax[] = unaryFunction.getTheFirstFunction()
-                                .getMaxAndArgMax(sumFunction.getTheFirstIntervalSet().iterator().next());
-      double max = maxArgmax[0];
+      
+      double max = -Double.MAX_VALUE;
+      
+      for (Map<String, Interval> interval : sumFunction.getTheFirstIntervalSet()) {
+        double maxArgmax[] = unaryFunction.getTheFirstFunction().getMaxAndArgMax(interval);
+        
+        if (compare(maxArgmax[0], max) > 0) {
+          max = maxArgmax[0];
+        }
+      }
       
       utilTable.addRow(new Row(valueList, max));
     }
@@ -304,8 +308,9 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-
+    // Start of processing 
+    agent.startSimulatedTiming();
+    
     // After combined, it becomes a unary function
     Table combinedUtilAndConstraintTable = combineMessage(receivedUTILmsgList);
 
@@ -317,8 +322,8 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     Table projectedTable = projectOperator(combinedUtilAndConstraintTable, agent.getLocalName());
 
-    agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
-
+    agent.pauseSimulatedTiming();
+    
     agent.sendObjectMessageWithTime(agent.getParentAID(), projectedTable, DPOP_UTIL, agent.getSimulatedTime());
   }
 
@@ -326,11 +331,11 @@ public class DPOP_UTIL extends OneShotBehaviour {
     out.println("INTERNAL node " + agent.getID() + " is running");
 
     List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
-
+    
+    agent.startSimulatedTiming();
+    
     System.out.println("Agent " + agent.getID() + " has received all UTIL messages");
-
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-
+    
     // UnaryPiecewiseFunction
     // PiecewiseMultivariateQuadFunction combinedFunctionMessage =
     // combineMessageToFunction(receivedUTILmsgList);
@@ -372,10 +377,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     out.println("Agent " + agent.getID() + " Internal node number of projected function: "
         + projectedFunction.getFunctionMap().size());
 
-    // to free the memory
-    combinedFunctionMessage = null;
-
-    agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+    agent.pauseSimulatedTiming();
 
     try {
       agent.sendByteObjectMessageWithTime(agent.getParentAID(), projectedFunction, DPOP_UTIL, agent.getSimulatedTime());
@@ -402,11 +404,12 @@ public class DPOP_UTIL extends OneShotBehaviour {
    * Add the corresponding utility functions to the joinedTable
    * Then send this UTIL message to the parent
    */
-  public void internalNode_HYBRID() {
+  public void internalNode_HYBRID() {    
     out.println("INTERNAL node " + agent.getID() + " is running");
 
     List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
+    
+    agent.startSimulatedTiming();
     
     Set<Table> tableSet = createTableSet(receivedUTILmsgList);
     
@@ -421,7 +424,8 @@ public class DPOP_UTIL extends OneShotBehaviour {
         
     Table utilTable = createUtilTableFromValueSet(joinedTable, productPPValues);
      
-    agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+    agent.pauseSimulatedTiming();
+    
     agent.sendObjectMessageWithTime(agent.getParentAID(), utilTable, DPOP_UTIL, agent.getSimulatedTime());
   }
 
@@ -586,15 +590,19 @@ public class DPOP_UTIL extends OneShotBehaviour {
           if (flag == DONE_AT_LEAF) {
             PiecewiseMultivariateQuadFunction unaryFunction = agent.getAgentViewFunction().evaluateToUnaryFunction(valueMapOfOtherVariables);
 
-            // agentViewFunction and unaryFunction have only one function
-            argMax = unaryFunction.getTheFirstFunction().getMaxAndArgMax(unaryFunction.getTheFirstIntervalSet().iterator().next())[1];
+            double max = -Double.MAX_VALUE;
+            
+            for (Map<String, Interval> interval : unaryFunction.getTheFirstIntervalSet()) {
+              double maxArgmax[] = unaryFunction.getTheFirstFunction().getMaxAndArgMax(interval);
+              
+              if (compare(maxArgmax[0], max) > 0) {
+                max = maxArgmax[0];
+                argMax = maxArgmax[1];
+              }
+            }
           } else if (flag == DONE_AT_INTERNAL_NODE){
             argMax = agent.getAgentViewTable().maxArgmaxHybrid(agent, valueMapOfOtherVariables)[1];
           }
-          
-//          if (agent.isPrinting()) {
-//            out.println(valueList.get(0) + "," + argMax);
-//          }
           
           Map<String, Double> valueMap = new HashMap<>();
           valueMap.put(agent.getID(), argMax);
@@ -623,10 +631,11 @@ public class DPOP_UTIL extends OneShotBehaviour {
   private void root_FUNC() {
     out.println("ROOT node " + agent.getID() + " is running");
 
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-
     List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
+    
+    // Start of processing time
+    agent.startSimulatedTiming();
+    
     PiecewiseMultivariateQuadFunction combinedFunctionMessage = null;
     try {
       combinedFunctionMessage = combineByteMessageToFunction(receivedUTILmsgList);
@@ -667,16 +676,17 @@ public class DPOP_UTIL extends OneShotBehaviour {
     out.println("ARGMAX VALUE IS " + argmax);
 
     agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
-    agent.setTotalGlobalUtility(max);
-    agent.setChosenValue(argmax);
+    
+    agent.pauseSimulatedTiming();
   }
 
   private void root_TABLE() {
     out.println("ROOT node " + agent.getID() + " is running");
-
+    
     List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
 
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
+    // Start of processing time
+    agent.startSimulatedTiming();
 
     Table combinedUtilAndConstraintTable = combineMessage(receivedUTILmsgList);
     // combinedUtilAndConstraintTable.printDecVar();
@@ -705,8 +715,8 @@ public class DPOP_UTIL extends OneShotBehaviour {
     out.println(DCOP.algTypes[agent.algorithm] + " utility " + maxUtility);
 
     agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
-    agent.setTotalGlobalUtility(maxUtility);
-    agent.setChosenValue(agent.getChosenValue());
+    
+    agent.pauseSimulatedTiming();
   }
   
   /**
@@ -714,9 +724,12 @@ public class DPOP_UTIL extends OneShotBehaviour {
    */
   private void root_HYBRID() {
     out.println("ROOT " + agent.getID() + " is running");
-
+    
     List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
+
+    // Start of processing time
+    agent.startSimulatedTiming();
+    
     Set<Table> tableSet = createTableSet(receivedUTILmsgList);
     
     // Interpolate points and join all the tables
@@ -728,7 +741,6 @@ public class DPOP_UTIL extends OneShotBehaviour {
     
     // Find the maxUtility and argmax from the joinedTable
     for (Row row : joinedTable.getRowList()) {
-      double value = row.getValueList().get(0);
       if (compare(row.getUtility(), maxUtility) > 0) {
         // only choose the row with value in the interval
         maxUtility = row.getUtility();
@@ -740,7 +752,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     out.println(DCOP.algTypes[agent.algorithm] + " utility " + maxUtility);
 
-    agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+    agent.pauseSimulatedTiming();
   }
   
   /**
@@ -838,33 +850,16 @@ public class DPOP_UTIL extends OneShotBehaviour {
     return centroids;
   }
 
-  public List<ACLMessage> waitingForMessageFromChildren(int msgCode) {
-    List<ACLMessage> messageList = new ArrayList<ACLMessage>();
-    while (messageList.size() < agent.getChildrenAIDList().size()) {
-      MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
-      ACLMessage receivedMessage = myAgent.receive(template);
-      if (receivedMessage != null) {
-        messageList.add(receivedMessage);
-      } else
-        block();
-    }
-    return messageList;
-  }
-
-  public List<ACLMessage> waitingFromRandChildren(int msgCode, int noRandChild) {
-    List<ACLMessage> messageList = new ArrayList<ACLMessage>();
-    while (messageList.size() < noRandChild) {
-      MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
-      ACLMessage receivedMessage = myAgent.receive(template);
-      if (receivedMessage != null) {
-        messageList.add(receivedMessage);
-      } else
-        block();
-    }
-    return messageList;
-  }
-
-  public List<ACLMessage> waitingForMessageFromChildrenWithTime(int msgCode) {
+  /**
+   * Agent is waiting for and then process received messages from children. <br>
+   * The simulated time is computed properly.
+   * @param msgCode
+   * @return
+   */
+  private List<ACLMessage> waitingForMessageFromChildrenWithTime(int msgCode) {
+    // Start of waiting time for the message
+    agent.startSimulatedTiming();    
+    
     List<ACLMessage> messageList = new ArrayList<ACLMessage>();
 
     while (messageList.size() < agent.getChildrenAIDList().size()) {
@@ -873,13 +868,17 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
       if (receivedMessage != null) {
         long timeFromReceiveMessage = Long.parseLong(receivedMessage.getLanguage());
-        if (timeFromReceiveMessage > agent.getSimulatedTime())
+        if (timeFromReceiveMessage > agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime()) {
           agent.setSimulatedTime(timeFromReceiveMessage);
+        } else {
+          agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+        }
+        
         messageList.add(receivedMessage);
       } else
         block();
     }
-    agent.setSimulatedTime(agent.getSimulatedTime() + DCOP.getDelayMessageTime());
+    
     return messageList;
   }
 
@@ -1183,7 +1182,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
   // for each value of X
   // for each message received from the children
   // sum the utility that received from the children
-  Table combineMessage(List<ACLMessage> list) {
+  private Table combineMessage(List<ACLMessage> list) {
     List<Table> listTable = new ArrayList<Table>();
     for (ACLMessage msg : list) {
       try {
@@ -1203,7 +1202,8 @@ public class DPOP_UTIL extends OneShotBehaviour {
     return table;
   }
 
-  PiecewiseMultivariateQuadFunction combineMessageToFunction(List<ACLMessage> list) {
+  @SuppressWarnings("unused")
+  private PiecewiseMultivariateQuadFunction combineMessageToFunction(List<ACLMessage> list) {
     List<PiecewiseMultivariateQuadFunction> listFunction = new ArrayList<>();
     for (ACLMessage msg : list) {
       try {
@@ -1223,7 +1223,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     return function;
   }
 
-  PiecewiseMultivariateQuadFunction combineByteMessageToFunction(List<ACLMessage> list)
+  private PiecewiseMultivariateQuadFunction combineByteMessageToFunction(List<ACLMessage> list)
       throws IOException, ClassNotFoundException {
     List<PiecewiseMultivariateQuadFunction> listFunction = new ArrayList<>();
     for (ACLMessage msg : list) {

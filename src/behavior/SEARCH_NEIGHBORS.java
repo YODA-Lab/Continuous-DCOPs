@@ -8,8 +8,6 @@ import jade.domain.FIPAException;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 
-import static agent.DcopInfo.*;
-
 public class SEARCH_NEIGHBORS extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 6680449924898094747L;

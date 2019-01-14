@@ -5,9 +5,7 @@ import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
-import table.Row;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -19,7 +17,6 @@ import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 
 import static agent.DcopInfo.*;
-import static java.lang.Double.*;
 import static java.lang.System.*;
 /*	1. IF X is a root
  * 		Send the value of root to all the children
@@ -54,19 +51,22 @@ public class DPOP_VALUE extends OneShotBehaviour {
 	public void action() {
 	  // Root do the same thing for all algorithms
 	  if (agent.isRoot()) {
-	    rootSendChosenValue();
+	    rootSendChosenValueWithTime();
 	    return ;
 	  }
 	  
 	  nonRootChooseAndSendValue();
+	  
+	  out.println("Agent " + agent.getID() + " choose value: " + agent.getChosenValue());
 	}
 
   /**
    * Non-root agent chooses and sends value to its children
    */
   private void nonRootChooseAndSendValue() {
-    HashMap<String, Double> valuesFromParent = waitingForValuesFromParent(DPOP_VALUE);
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
+    HashMap<String, Double> valuesFromParent = waitingForValuesFromParentWithTime(DPOP_VALUE);
+    
+    agent.startSimulatedTiming();
     
     agent.getNeighborChosenValueMap().putAll(valuesFromParent);
     
@@ -81,11 +81,12 @@ public class DPOP_VALUE extends OneShotBehaviour {
    
     //add its chosen value to the map to send to its children
     agent.setValuesToSendInVALUEPhase(valuesFromParent);
+    
     agent.addValuesToSendInVALUEPhase(agent.getID(), agent.getChosenValue());     
     
     System.out.println("Agent " + agent.getID() + " has CHOSEN VALUE is " + agent.getChosenValue());
     
-    agent.addupSimulatedTime(agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+    agent.pauseSimulatedTiming();
     
     if (agent.isLeaf() == false) {      
       for (AID children : agent.getChildrenAIDList()) {
@@ -118,11 +119,13 @@ public class DPOP_VALUE extends OneShotBehaviour {
       MultivariateQuadFunction function = entry.getKey();
       Set<Map<String, Interval>> intervalSet = entry.getValue();
       
-      double[] maxArgmax = function.getMaxAndArgMax(intervalSet.iterator().next());
-            
-      if (Double.compare(maxArgmax[0], currentMax) > 0) {
-        currentMax = maxArgmax[0];
-        currentChosenValue = maxArgmax[1];
+      for (Map<String, Interval> interval : intervalSet) {
+        double[] maxArgmax = function.getMaxAndArgMax(interval);
+              
+        if (Double.compare(maxArgmax[0], currentMax) > 0) {
+          currentMax = maxArgmax[0];
+          currentChosenValue = maxArgmax[1];
+        }
       }
     }
     
@@ -169,38 +172,24 @@ public class DPOP_VALUE extends OneShotBehaviour {
   }
 
   /**
-   * Send value to the children. The value is already chosen in the UTIL phase
+   * Send value to the children. The value is already chosen in the UTIL phase. <br> 
+   * The simulated processing time is ignore here because of lightweight operations.
    */
-  private void rootSendChosenValue() {
-    agent.setCurrentStartTime(agent.getBean().getCurrentThreadUserTime());
-
+  private void rootSendChosenValueWithTime() {    
     System.out.println(agent.getID() + " choose value " + agent.getChosenValue());
 
-    agent.addupSimulatedTime(agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
     agent.addValuesToSendInVALUEPhase(agent.getID(), agent.getChosenValue());
+    
     for (AID childrenAgentAID : agent.getChildrenAIDList()) {
       agent.sendObjectMessageWithTime(childrenAgentAID, agent.getValuesToSendInVALUEPhase(), DPOP_VALUE,
           agent.getSimulatedTime());
     }
   }
-
-  public ArrayList<ACLMessage> waitingForMessageFromPseudoParent(int msgCode) {
-		ArrayList<ACLMessage> messageList = new ArrayList<ACLMessage>();
-		//no of messages are no of pseudoParent + 1 (parent)
-		while (messageList.size() < agent.getPseudoParentAIDList().size() + 1) {
-			MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
-			ACLMessage receivedMessage = myAgent.receive(template);
-			if (receivedMessage != null) {
-				messageList.add(receivedMessage);
-			}
-			else
-				block();
-		}
-		return messageList;
-	}
 	
 	@SuppressWarnings("unchecked")
-  public HashMap<String, Double> waitingForValuesFromParent(int msgCode) {
+  private HashMap<String, Double> waitingForValuesFromParentWithTime(int msgCode) {
+    agent.startSimulatedTiming();    
+	  
 		ACLMessage receivedMessage = null;
     HashMap<String, Double> valuesFromParent = new HashMap<String, Double>();
 
@@ -208,18 +197,19 @@ public class DPOP_VALUE extends OneShotBehaviour {
   		MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
   		receivedMessage = myAgent.receive(template);
   		if (receivedMessage != null) {
-  			long timeFromReceiveMessage = Long.parseLong(receivedMessage.getLanguage());
-  			if (timeFromReceiveMessage > agent.getSimulatedTime()) {
-  				agent.setSimulatedTime(timeFromReceiveMessage);
-  			}
+        long timeFromReceiveMessage = Long.parseLong(receivedMessage.getLanguage());
+        if (timeFromReceiveMessage > agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime()) {
+          agent.setSimulatedTime(timeFromReceiveMessage);
+        } else {
+          agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+        }
+        
   			break;
   		}
   		else
   			block();
 		}
-		
-		agent.addupSimulatedTime(DCOP.getDelayMessageTime());
-		
+				
     try {
       valuesFromParent = (HashMap<String, Double>) receivedMessage.getContentObject();
     } catch (UnreadableException e) {

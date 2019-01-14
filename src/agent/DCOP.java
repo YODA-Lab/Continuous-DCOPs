@@ -79,6 +79,10 @@ import static java.lang.Double.*;
  * @author khoihd
  *
  */
+/**
+ * @author khoihd
+ *
+ */
 public class DCOP extends Agent implements DcopInfo {
 	
 	private static final long serialVersionUID = 2919994686894853596L;
@@ -132,23 +136,22 @@ public class DCOP extends Agent implements DcopInfo {
 	private int currentTS;
 	
   private long startTime;
-  private long endTime;
-  private long currentUTILstartTime;
+  private long actualEndTime;
 	private int lsIteration;
 
 	//simulated time
 	private ThreadMXBean bean;
   private long simulatedTime = 0;
   private long currentStartTime;
+  /**
+   * Time needed to send a message
+   */
   private static long delayMessageTime = 0;
   
   //for reuse information
   private Map<AID, Integer> constraintInfoMap = new HashMap<>();
   private boolean notVisited = true;
 		
-  private double oldLSUtility = 0;
-	private double oldLSRunningTime = 0; //old running time needed to compare to see if old iteration is converged
-
 	private double aggregatedUtility;
 	private String lastLine;
 	private int rootFromInput = Integer.MAX_VALUE;
@@ -225,7 +228,6 @@ public class DCOP extends Agent implements DcopInfo {
 		// add constraints table FROM constraintTableWithoutRandomList TO organizedConstraintTableList
 		reorganizeConstaintTable();
 
-		startTime = System.currentTimeMillis();
 		bean = ManagementFactory.getThreadMXBean();
 		bean.setThreadContentionMonitoringEnabled(true);
 		
@@ -261,13 +263,13 @@ public class DCOP extends Agent implements DcopInfo {
 	}
 	
 	public boolean isPrinting() {
-	  return agentStrID.equals("1");
+	  return agentStrID.equals("9");
 	}
 
   //JADE function: stop the Agent
 	protected void takeDown() {	
-		endTime = System.currentTimeMillis();
-		out.println("Agent " + agentStrID + " has RUNNING TIME: " + (endTime - startTime) + "ms");
+		actualEndTime = System.currentTimeMillis();
+		out.println("Agent " + agentStrID + " has RUNNING TIME: " + (actualEndTime - startTime) + "ms");
 		out.println("Agent " + agentStrID + " with threadID " + Thread.currentThread().getId() + 
 								" has SIMULATED TIME: " + simulatedTime/1000000 + "ms");
 		out.println("Agent " + agentStrID + " with threadID " + Thread.currentThread().getId() + 
@@ -397,7 +399,9 @@ public class DCOP extends Agent implements DcopInfo {
 		message.setLanguage(String.valueOf(time));
 		send(message);
 		
-		out.println("Agent " + agentStrID + " send message " + msgTypes[msgCode] + " to agent " + receiver.getLocalName());
+//		out.println("Agent " + agentStrID + " send message " + msgTypes[msgCode] + " to agent " + receiver.getLocalName());
+		out.println("Agent " + agentStrID + " send message " + content + " to agent " + receiver.getLocalName());
+
 	}
 	
 	public void sendByteObjectMessageWithTime(AID receiver, PiecewiseMultivariateQuadFunction content, int msgCode, long time) throws IOException {
@@ -616,10 +620,6 @@ public class DCOP extends Agent implements DcopInfo {
   public double utilityFrom_FUNCTION_WithParentAndPseudo() {
     double sumUtility = 0;
     
-    if (isPrinting()) {
-      out.println(pwFunctionWithPParentMap);
-    }
-    
     for (Entry<String, PiecewiseMultivariateQuadFunction> functionEntry : pwFunctionWithPParentMap.entrySet()) {
       String pParent = functionEntry.getKey();
       PiecewiseMultivariateQuadFunction function = functionEntry.getValue();
@@ -770,6 +770,20 @@ public class DCOP extends Agent implements DcopInfo {
 		return currentStartTime;
 	}
 
+	/**
+	 * Set currentStartTime
+	 */
+	public void startSimulatedTiming() {
+	  setCurrentStartTime(getBean().getCurrentThreadUserTime());
+	}
+	
+	/**
+	 * Compute the simulated runtime up to this point
+	 */
+	public void pauseSimulatedTiming() {
+    setSimulatedTime(getSimulatedTime() + getBean().getCurrentThreadUserTime() - getCurrentStartTime());
+	}
+	
 	public void setCurrentStartTime(long currentStartTime) {
 		this.currentStartTime = currentStartTime;
 	}
@@ -881,6 +895,9 @@ public class DCOP extends Agent implements DcopInfo {
 		this.totalGlobalUtility = totalGlobalUtility;
 	}
 
+	/**
+	 * @return the time needed to send the message
+	 */
 	public static long getDelayMessageTime() {
 		return delayMessageTime;
 	}
@@ -910,11 +927,11 @@ public class DCOP extends Agent implements DcopInfo {
 	}
 
 	public long getEndTime() {
-		return endTime;
+		return actualEndTime;
 	}
 
 	public void setEndTime(long endTime) {
-		this.endTime = endTime;
+		this.actualEndTime = endTime;
 	}
 
 	public long getStartTime() {
@@ -943,22 +960,6 @@ public class DCOP extends Agent implements DcopInfo {
 
 	public void setBestImproveValueList(List<String> bestImproveValueList) {
 		this.bestImproveValueList = bestImproveValueList;
-	}
-
-	public double getOldLSUtility() {
-		return oldLSUtility;
-	}
-
-	public void setOldLSUtility(double oldLSUtility) {
-		this.oldLSUtility = oldLSUtility;
-	}
-	
-	public double getOldLSRunningTime() {
-		return oldLSRunningTime;
-	}
-
-	public void setOldLSRunningTime(double oldLSRunningTime) {
-		this.oldLSRunningTime = oldLSRunningTime;
 	}
 	
 	public double getAggregatedUtility() {
@@ -995,14 +996,6 @@ public class DCOP extends Agent implements DcopInfo {
 	
 	public String getPickedRandomAt(Integer timeStep) {
 		return this.pickedRandomMap.get(timeStep);
-	}
-	
-    public long getCurrentUTILstartTime() {
-		return currentUTILstartTime;
-	}
-
-	public void setCurrentUTILstartTime(long currentUTILstartTime) {
-		this.currentUTILstartTime = currentUTILstartTime;
 	}
 	
 	public String getLastLine() {
