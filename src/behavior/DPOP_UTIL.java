@@ -7,7 +7,6 @@ import jade.lang.acl.UnreadableException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -93,8 +92,6 @@ public class DPOP_UTIL extends OneShotBehaviour {
     }
     // At this point, all three algorithms have the same functions (or
     // transformed to tables)
-    out.println("Done removing children!");
-
     agent.setSimulatedTime(agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
     if (agent.isRunningDiscreteAlg()) {
@@ -262,8 +259,8 @@ public class DPOP_UTIL extends OneShotBehaviour {
    /*
     * After moving, find the max utility from all functions with parent and pseudo-parents
     * For each value list
-    *  Compute the sum of the utility function at each value of the value list
-    *  Find the max
+    *  Evaluate the sumFunction with the given value list to a unary function
+    *  Find the max of that Unary function
     *  Add to the UTIL messages
     * End
     */
@@ -295,9 +292,6 @@ public class DPOP_UTIL extends OneShotBehaviour {
       
       utilTable.addRow(new Row(valueList, max));
     }
-    
-//    out.println("utilTable");
-//    out.println(utilTable);
     
     agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
     agent.sendObjectMessageWithTime(agent.getParentAID(), utilTable, DPOP_UTIL, agent.getSimulatedTime());
@@ -406,24 +400,48 @@ public class DPOP_UTIL extends OneShotBehaviour {
    */
   public void internalNode_HYBRID() {    
     out.println("INTERNAL node " + agent.getID() + " is running");
+    
+    // Sum up all functions to create agentViewFunction
+    PiecewiseMultivariateQuadFunction sumFunction = new PiecewiseMultivariateQuadFunction();
+    for (String ppAgent : agent.getParentAndPseudoStrList()) {
+      sumFunction = sumFunction.addPiecewiseFunction(agent.getPWFunctionWithPParentMap().get(ppAgent));
+    }
+    
+    agent.setAgentViewFunction(sumFunction);
 
     List<ACLMessage> receivedUTILmsgList = waitingForMessageFromChildrenWithTime(DPOP_UTIL);
     
     agent.startSimulatedTiming();
     
-    Set<Table> tableSet = createTableSet(receivedUTILmsgList);
+    List<Table> tableList = createTableList(receivedUTILmsgList);
     
     // Interpolate points and join all the tables
-    Table joinedTable = interpolateAndJoinTable(tableSet, NOT_ADD_POINTS);
+    out.println("Agent " + agent.getID() + " starts interpolating and joining table");
+    Table joinedTable = interpolateAndJoinTable(tableList, NOT_ADD_POINTS);
+    out.println("Agent " + agent.getID() + " finishes interpolating and joining table");
     
+    out.println("Agent " + agent.getID() + " starts adding functions to the table");
     joinedTable = addTheUtilityFunctionsToTheJoinedTable(joinedTable);
-    
+    out.println("Agent " + agent.getID() + " finishes adding functions to the table");
+
     agent.setAgentViewTable(joinedTable);
-        
+    
+    out.println("Agent: " + agent.getID() + " has agentViewTable label: " + agent.getAgentViewTable().getLabel());
+
+    out.println("Agent " + agent.getID() + " starts moving points");
     Set<List<Double>> productPPValues = movingPointsUsingTheGradient(joinedTable, DONE_AT_INTERNAL_NODE);
+    out.println("Agent " + agent.getID() + " finishes moving points");
         
+    out.println("Agent " + agent.getID() + " starts create UTIL tables from values set");
+    if (agent.isPrinting()) {
+      out.println("joinedTable");
+      out.println(joinedTable.getRowCount());
+      out.println("productPPValues");
+      out.println(productPPValues.size());
+    }
     Table utilTable = createUtilTableFromValueSet(joinedTable, productPPValues);
-     
+    out.println("Agent " + agent.getID() + " finishes create UTIL tables from values set");
+
     agent.pauseSimulatedTiming();
     
     agent.sendObjectMessageWithTime(agent.getParentAID(), utilTable, DPOP_UTIL, agent.getSimulatedTime());
@@ -442,13 +460,19 @@ public class DPOP_UTIL extends OneShotBehaviour {
     Table utilTable = new Table(label);
 
     // Interpolate the table to get values for each of the valueList
+    int j = 0;
     for (List<Double> valueList : productPPValues) {     
+      if (agent.isPrinting()) {
+        out.println(j++);
+      }
       Map<String, Double> valueMap = new HashMap<>();
       for (int i = 0; i < valueList.size(); i++) {
         valueMap.put(agent.getParentAndPseudoStrList().get(i), valueList.get(i));
       }
       
-      double maxUtil = agentViewTable.maxArgmaxHybrid(agent, valueMap)[0];
+      //TODO: Optimize the interpolation process in this case
+//      double maxUtil = agentViewTable.maxArgmaxHybrid(agent, valueMap, agent.getCurrentValueSet(), 1)[0];
+      double maxUtil = agentViewTable.maxArgmaxHybrid(agent, valueMap, agent.getCurrentValueSet(), 1)[0];
       
       Row newRow = new Row(valueList, maxUtil);
 
@@ -479,12 +503,12 @@ public class DPOP_UTIL extends OneShotBehaviour {
    * @param joinedTable
    * @return
    */
-  private Table addTheUtilityFunctionsToTheJoinedTable(Table joinedTable) {
+  private Table addTheUtilityFunctionsToTheJoinedTable(Table joinedTable) {    
     for (String pParent : agent.getParentAndPseudoStrList()) {
       PiecewiseMultivariateQuadFunction pFunction = agent.getPWFunctionWithPParentMap().get(pParent);
       // If containing pParent, update the utility 
       if (joinedTable.containsAgent(pParent)) {
-        for (Row row : joinedTable.getRowList()) {
+        for (Row row : joinedTable.getRowSet()) {
           Map<String, Double> valueMap = new HashMap<>();
           valueMap.put(pParent, row.getValueAtPosition(joinedTable.indexOf(pParent)));
           valueMap.put(agent.getID(), row.getValueAtPosition(joinedTable.indexOf(agent.getID())));
@@ -500,7 +524,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
         Set<Double> pValueList = agent.getCurrentValueSet();
         
         for (Double pValue : pValueList) {
-          for (Row row : joinedTable.getRowList()) {
+          for (Row row : joinedTable.getRowSet()) {
             Map<String, Double> valueMap = new HashMap<>();
             valueMap.put(pParent, pValue);
             valueMap.put(agent.getID(), row.getValueAtPosition(joinedTable.indexOf(agent.getID())));
@@ -517,17 +541,17 @@ public class DPOP_UTIL extends OneShotBehaviour {
     return joinedTable;
   }
 
-  private Set<Table> createTableSet(List<ACLMessage> receivedUTILmsgList) {
-    Set<Table> tableSet = new HashSet<>();
+  private List<Table> createTableList(List<ACLMessage> receivedUTILmsgList) {
+    List<Table> tableList = new ArrayList<>();
     for (ACLMessage msg : receivedUTILmsgList) {
       try {
-        tableSet.add((Table) msg.getContentObject());
+        tableList.add((Table) msg.getContentObject());
       } catch (UnreadableException e) {
         e.printStackTrace();
       }
     } 
     
-    return tableSet;
+    return tableList;
   }
 
   /**
@@ -550,6 +574,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
       } // The joined table might contain the PP or not
       else if (flag == DONE_AT_INTERNAL_NODE) {
         Set<Double> valueSetOfPParentToAdd = joinedTable.getValueSetOfGivenAgent(pParent, false);
+        // Add more points if clustering
         if (agent.isClustering()) {
           valueSetOfPParentToAdd.addAll(agent.getCurrentValueSet());
         }
@@ -574,24 +599,35 @@ public class DPOP_UTIL extends OneShotBehaviour {
           String ppAgentToMove = agent.getParentAndPseudoStrList().get(ppToMoveIndex);
           double ppValueToMove = valueList.get(ppToMoveIndex);
 
-          PiecewiseMultivariateQuadFunction derivativePw = agent.getPWFunctionWithPParentMap().get(ppAgentToMove)
-              .takeFirstPartialDerivative(ppAgentToMove);
-
-          // Now find the arg_max
+          PiecewiseMultivariateQuadFunction functionWithPP = agent.getPWFunctionWithPParentMap().get(ppAgentToMove);
+          
+          PiecewiseMultivariateQuadFunction derivativePw = agent.algorithm == MOVING_DPOP
+              ? functionWithPP.takeFirstPartialDerivative(ppAgentToMove)
+              : agent.getAgentViewFunction().takeFirstPartialDerivative(ppAgentToMove);
+          //          PiecewiseMultivariateQuadFunction derivativePw = agent.getAgentViewFunction().takeFirstPartialDerivative(ppAgentToMove);          
+          
+          // Create a map of other agents' values
           Map<String, Double> valueMapOfOtherVariables = new HashMap<>();
-          for (int ppIndex = 0; ppIndex < agent.getParentAndPseudoStrList().size(); ppIndex++) {
-            String ppAgent = agent.getParentAndPseudoStrList().get(ppIndex);
-            double ppValue = valueList.get(ppIndex);
-            
-            valueMapOfOtherVariables.put(ppAgent, ppValue);
+          if (flag == DONE_AT_LEAF) {
+            valueMapOfOtherVariables.put(ppAgentToMove, ppValueToMove);
+          } else if (flag == DONE_AT_INTERNAL_NODE) {
+            for (int ppIndex = 0; ppIndex < agent.getParentAndPseudoStrList().size(); ppIndex++) {
+              String ppAgent = agent.getParentAndPseudoStrList().get(ppIndex);
+              double ppValue = valueList.get(ppIndex);
+              
+              valueMapOfOtherVariables.put(ppAgent, ppValue);
+            }
           }
           
           double argMax = -Double.MAX_VALUE;
+          // TODO: review this piece of code
+          // Finding the arg_max of multivariate agent view function seems wrong
           if (flag == DONE_AT_LEAF) {
-            PiecewiseMultivariateQuadFunction unaryFunction = agent.getAgentViewFunction().evaluateToUnaryFunction(valueMapOfOtherVariables);
-
+//            PiecewiseMultivariateQuadFunction unaryFunction = agent.getAgentViewFunction().evaluateToUnaryFunction(valueMapOfOtherVariables);
+            PiecewiseMultivariateQuadFunction unaryFunction = functionWithPP.evaluateToUnaryFunction(valueMapOfOtherVariables);
             double max = -Double.MAX_VALUE;
             
+            // Find the arg_max of THE agent after evaluating the binary constraint function to unary
             for (Map<String, Interval> interval : unaryFunction.getTheFirstIntervalSet()) {
               double maxArgmax[] = unaryFunction.getTheFirstFunction().getMaxAndArgMax(interval);
               
@@ -600,8 +636,10 @@ public class DPOP_UTIL extends OneShotBehaviour {
                 argMax = maxArgmax[1];
               }
             }
-          } else if (flag == DONE_AT_INTERNAL_NODE){
-            argMax = agent.getAgentViewTable().maxArgmaxHybrid(agent, valueMapOfOtherVariables)[1];
+          } else if (flag == DONE_AT_INTERNAL_NODE){            
+            //TODO: what about clustering
+//            argMax = agent.getAgentViewTable().maxArgmaxHybrid(agent, valueMapOfOtherVariables, agent.getCurrentValueSet(), 1)[1];
+            argMax = agent.getAgentViewTable().maxArgmaxHybrid(agent, valueMapOfOtherVariables, agent.getCurrentValueSet(), 1)[1];
           }
           
           Map<String, Double> valueMap = new HashMap<>();
@@ -619,13 +657,19 @@ public class DPOP_UTIL extends OneShotBehaviour {
         }
       }
     }
+ 
+    return kmeanCluster(mutableProductPPValues, agent.getNumberOfPoints());
     
-    if (agent.isClustering()) {
-      Set<List<Double>> centroids = kmeanCluster(mutableProductPPValues, agent.getNumberOfPoints());
-      return centroids;
-    } else {
-      return mutableProductPPValues;
-    }
+//  Set<List<Double>> centroids = kmeanCluster(mutableProductPPValues,
+//  (int) Math.pow(agent.getParentAndPseudoStrList().size(), agent.getNumberOfPoints()));
+
+    
+//    if (agent.isClustering()) {
+//      Set<List<Double>> centroids = kmeanCluster(mutableProductPPValues, agent.getNumberOfPoints());
+//      return centroids;
+//    } else {
+//      return mutableProductPPValues;
+//    }
   }
 
   private void root_FUNC() {
@@ -703,7 +747,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     // System.err.println("Timestep " + agent.getCurrentTS() + " Combined
     // messages at root:");
     // combinedUtilAndConstraintTable.printDecVar();
-    for (Row row : combinedUtilAndConstraintTable.getRowList()) {
+    for (Row row : combinedUtilAndConstraintTable.getRowSet()) {
       if (row.getUtility() > maxUtility) {
         maxUtility = row.getUtility();
         agent.setChosenValue(row.getValueAtPosition(0));
@@ -730,17 +774,15 @@ public class DPOP_UTIL extends OneShotBehaviour {
     // Start of processing time
     agent.startSimulatedTiming();
     
-    Set<Table> tableSet = createTableSet(receivedUTILmsgList);
+    List<Table> tableList = createTableList(receivedUTILmsgList);
     
     // Interpolate points and join all the tables
-    Table joinedTable = interpolateAndJoinTable(tableSet, ADD_MORE_POINTS);
-    
-    out.println("Joined table: " + joinedTable);
-    
+    Table joinedTable = interpolateAndJoinTable(tableList, ADD_MORE_POINTS);
+        
     double maxUtility = -Double.MAX_VALUE;
     
     // Find the maxUtility and argmax from the joinedTable
-    for (Row row : joinedTable.getRowList()) {
+    for (Row row : joinedTable.getRowSet()) {
       if (compare(row.getUtility(), maxUtility) > 0) {
         // only choose the row with value in the interval
         maxUtility = row.getUtility();
@@ -759,15 +801,19 @@ public class DPOP_UTIL extends OneShotBehaviour {
    * This function has been REVIEWED
    * Interpolate points that are not common among tables <br>
    * Fill in the table with interpolated points <br>
-   * @param tableCollection
+   * @param tableList
    * @return the joined table after interpolation
    */
-  private Table interpolateAndJoinTable(Collection<Table> tableCollection, boolean isAddingPoints) {    
+  private Table interpolateAndJoinTable(List<Table> tableList, boolean isAddingPoints) {    
     // Find the common variables
     Set<String> commonVariables = new HashSet<>();
-    commonVariables.addAll(tableCollection.iterator().next().getLabel());
-    for (Table utilTable : tableCollection) {
-      commonVariables.retainAll(utilTable.getLabel());
+    
+    for (int i = 0; i < tableList.size() - 1; i++) {
+      for (int j = 1; j < tableList.size(); j++) {
+        Set<String> pairwiseCommonVar = new HashSet<String>(tableList.get(i).getLabel());
+        pairwiseCommonVar.retainAll(tableList.get(j).getLabel());
+        commonVariables.addAll(pairwiseCommonVar);
+      }
     }
             
     /*
@@ -779,12 +825,13 @@ public class DPOP_UTIL extends OneShotBehaviour {
     /*
      * Traverse every table => create the map <Agent, Set<Double>>
      */
-    for (Table utilTable : tableCollection) { 
+    out.println("Agent " + agent.getID() + " start creatings value map from All table");
+    for (Table utilTable : tableList) { 
       for (String commonAgent : commonVariables) {
-        Set<Double> valueSetOtherTableGivenAgent = utilTable.getValueSetOfGivenAgent(commonAgent, true);
+        Set<Double> valueSetOtherTableGivenAgent = utilTable.getValueSetOfGivenAgent(commonAgent, false);
         
         if (isAddingPoints == ADD_MORE_POINTS) {
-          valueSetOtherTableGivenAgent.addAll(agent.getGlobalInterval().getMidPointInIntegerRanges());
+          valueSetOtherTableGivenAgent.addAll(agent.getCurrentValueSet());
         }
         
         if (valueFromAllTableMap.containsKey(commonAgent)) {
@@ -794,27 +841,31 @@ public class DPOP_UTIL extends OneShotBehaviour {
         }
       }
     }
+    out.println("Agent " + agent.getID() + " finishes creatings value map from All table");
+
     
     /*
      * For each table => do the interpolation and add them to the list
      */
-    for (Table utilTable : tableCollection) {
-      interpolatedRowSetOfEachTable.put(utilTable, utilTable.interpolateGivenValueSetMap(valueFromAllTableMap));
+    out.println("Agent " + agent.getID() + " start interpolating tables");
+    for (Table utilTable : tableList) {
+      interpolatedRowSetOfEachTable.put(utilTable, utilTable.interpolateGivenValueSetMap(valueFromAllTableMap, 1));
     }
+    out.println("Agent " + agent.getID() + " finishes interpolating tables");
 
-//    out.println("Interpolated row set: ");
-//    out.println(interpolatedRowSetOfEachTable);
     
     // Add the interpolated row to the corresponding table
     for (Entry<Table, Set<Row>> entry : interpolatedRowSetOfEachTable.entrySet()) {
       entry.getKey().addRowSet(entry.getValue());
     }
     
+    out.println("Agent " + agent.getID() + " start joining tables");
     // Now joining all the tables
     Table joinedTable = null;
     for (Table table : interpolatedRowSetOfEachTable.keySet()) {
       joinedTable = joinTable(joinedTable, table);
     }
+    out.println("Agent " + agent.getID() + " finishes joining tables");
     
     return joinedTable;
   }
@@ -959,8 +1010,8 @@ public class DPOP_UTIL extends OneShotBehaviour {
         indexContainedInCommonList2);
 
     Table joinedTable = new Table(joinedLabelTable1FirstThenTable2);
-    for (Row row1 : table1.getRowList()) {
-      for (Row row2 : table2.getRowList()) {
+    for (Row row1 : table1.getRowSet()) {
+      for (Row row2 : table2.getRowSet()) {
         Row joinedRow = getJoinRow(row1, row2, indexContainedInCommonList1, indexContainedInCommonList2);
         if (joinedRow != null)
           joinedTable.addRow(joinedRow);
@@ -1059,17 +1110,20 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     // create projectedTable
     Table projectTable = new Table(labelOfProjectedTable);
-    for (int rowIndexOfOriginTable = 0; rowIndexOfOriginTable < table.getRowCount(); rowIndexOfOriginTable++) {
+    
+    List<Row> tempRowList = new ArrayList<Row>(table.getRowSet());
+    
+    for (int rowIndexOfOriginTable = 0; rowIndexOfOriginTable < tempRowList.size(); rowIndexOfOriginTable++) {
       if (listOfComparedRow.contains(rowIndexOfOriginTable) == true)
         continue;
       listOfComparedRow.add(rowIndexOfOriginTable);
-      Row row1 = table.getRowList().get(rowIndexOfOriginTable);
+      Row row1 = tempRowList.get(rowIndexOfOriginTable);
       List<Double> tuple1 = createTupleFromRow(row1, indexesOfOtherVariables);
       double maxUtility = row1.getUtility();
       List<Double> maxTuple = tuple1;
 
       for (int j = rowIndexOfOriginTable + 1; j < table.getRowCount(); j++) {
-        Row row2 = table.getRowList().get(j);
+        Row row2 = tempRowList.get(j);
         List<Double> tuple2 = createTupleFromRow(row2, indexesOfOtherVariables);
         double row2Utility = row2.getUtility();
         if (isSameTuple(tuple1, tuple2) == true) {
@@ -1104,13 +1158,16 @@ public class DPOP_UTIL extends OneShotBehaviour {
     for (double valueToFindArgmax : valueSet) {
       double maxUtility = -MAX_VALUE;
       Row currentBestRow = null;
-      for (int rowIndex = 0; rowIndex < table.getRowList().size(); rowIndex++) {
+      
+      List<Row> tempRowList = new ArrayList<Row>(table.getRowSet());
+      
+      for (int rowIndex = 0; rowIndex < tempRowList.size(); rowIndex++) {
         // This row has been used to compared
         if (indexesOfComparedRow.contains(rowIndex)) {
           continue;
         }
 
-        Row row = table.getRowList().get(rowIndex);
+        Row row = tempRowList.get(rowIndex);
         if (compare(row.getValueList().get(indexToProject), valueToFindArgmax) != 0) {
           continue;
         }

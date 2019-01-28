@@ -179,6 +179,8 @@ public class DCOP extends Agent implements DcopInfo {
 	
 	private Set<Double> currentValueSet = new HashSet<>();
 	private Map<String, Double> neighborChosenValueMap = new HashMap<>();
+	
+	private int interpolationStepSize;
 
 	// for writing output purposes
 	public int instanceID;
@@ -210,6 +212,7 @@ public class DCOP extends Agent implements DcopInfo {
     
     isApprox = true;
     gradientScalingFactor = Math.pow(10, -3);
+    interpolationStepSize = 100;
 	}
 	
   protected void setup() {
@@ -263,7 +266,7 @@ public class DCOP extends Agent implements DcopInfo {
 	}
 	
 	public boolean isPrinting() {
-	  return agentStrID.equals("9");
+	  return agentStrID.equals("2");
 	}
 
   //JADE function: stop the Agent
@@ -345,7 +348,7 @@ public class DCOP extends Agent implements DcopInfo {
 			Table newTable = new Table(decLabel);
 
 			// at each timeStep, traverse rows
-			for (Row row : decTable.getRowList()) {
+			for (Row row : decTable.getRowSet()) {
 				double updatedUtility = 0;
 				updatedUtility = row.getUtility();
 				newTable.addRow(new Row(row.getValueList(), updatedUtility));
@@ -399,8 +402,8 @@ public class DCOP extends Agent implements DcopInfo {
 		message.setLanguage(String.valueOf(time));
 		send(message);
 		
-//		out.println("Agent " + agentStrID + " send message " + msgTypes[msgCode] + " to agent " + receiver.getLocalName());
-		out.println("Agent " + agentStrID + " send message " + content + " to agent " + receiver.getLocalName());
+		out.println("Agent " + agentStrID + " send message " + msgTypes[msgCode] + " to agent " + receiver.getLocalName());
+//		out.println("Agent " + agentStrID + " send message " + content + " to agent " + receiver.getLocalName());
 
 	}
 	
@@ -660,6 +663,11 @@ public class DCOP extends Agent implements DcopInfo {
         || algorithm == CLUSTERING_DPOP 
         || algorithm == MOVING_MAXSUM
         || algorithm == CLUSTERING_MAXSUM;
+  }
+  
+  public boolean isRunningHybridDPOP() {
+    return algorithm == MOVING_DPOP
+        || algorithm == CLUSTERING_DPOP;
   }
 
 	public String getID() {
@@ -1173,5 +1181,13 @@ public class DCOP extends Agent implements DcopInfo {
 
   public int getDomainSize() {
     return globalInterval.getIncrementRange();
+  }
+
+  public int getInterpolationStepSize() {
+    return interpolationStepSize;
+  }
+
+  public void setInterpolationStepSize(int interpolationStepSize) {
+    this.interpolationStepSize = interpolationStepSize;
   }
 }	

@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.Set;
@@ -131,19 +132,26 @@ public class MultivariateQuadFunction implements Serializable {
 
     // Update quadratic coefficients
     for (Cell<String, String, Double> cellEntry : tobeAddedFunction.getCoefficients().cellSet()) {
-      result.updateCoefficient(cellEntry.getRowKey(), cellEntry.getColumnKey(), cellEntry.getValue());
+      result.addOrUpdate(cellEntry.getRowKey(), cellEntry.getColumnKey(), cellEntry.getValue());
     }
 
     return result;
   }
 
-  public void updateCoefficient(final String key1, final String key2, final double value) {
-    if (coefficients.contains(key1, key2)) {
-      coefficients.put(key1, key2, coefficients.get(key1, key2) + value);
-    } else if (coefficients.contains(key2, key1)) {
-      coefficients.put(key2, key1, coefficients.get(key2, key1) + value);
+  /**
+   * If contains(key1, key2), then add the 'value' <br>
+   * Otherwise, put(key1, key2)
+   * @param key1
+   * @param key2
+   * @param value
+   */
+  public void addOrUpdate(final String key1, final String key2, final double value) {
+    if (this.contains(key1, key2)) {
+      this.put(key1, key2, this.get(key1, key2) + value);
+    } else if (this.contains(key2, key1)) {
+      this.put(key2, key1, this.get(key2, key1) + value);
     } else {
-      coefficients.put(key1, key2, value);
+      this.put(key1, key2, value);
     }
   }
 
@@ -193,10 +201,10 @@ public class MultivariateQuadFunction implements Serializable {
 
     // Adding a_ii * xi^2 and a_i * xi to d (x_i = value)
     if (null != evaluatedFunc.getCoefficients().get(variable, variable)) {
-      evaluatedFunc.updateCoefficient("", "", evaluatedFunc.getCoefficients().get(variable, variable) * Math.pow(value, 2)
+      evaluatedFunc.addOrUpdate("", "", evaluatedFunc.getCoefficients().get(variable, variable) * Math.pow(value, 2)
           + evaluatedFunc.getCoefficients().get(variable, "") * value);
     } else {
-      evaluatedFunc.updateCoefficient("", "", evaluatedFunc.getCoefficients().get(variable, "") * value);
+      evaluatedFunc.addOrUpdate("", "", evaluatedFunc.getCoefficients().get(variable, "") * value);
 
     }
 
@@ -206,7 +214,7 @@ public class MultivariateQuadFunction implements Serializable {
       String variable_j = rowEntry.getKey();
       if (!variable_j.equals("")) {
         double a_ij = rowEntry.getValue();
-        evaluatedFunc.updateCoefficient(variable_j, "", a_ij * value);
+        evaluatedFunc.addOrUpdate(variable_j, "", a_ij * value);
       }
     }
 
@@ -216,7 +224,7 @@ public class MultivariateQuadFunction implements Serializable {
       String variable_j = columnEntry.getKey();
       if (!variable_j.equals("")) {
         double a_ji = columnEntry.getValue();
-        evaluatedFunc.updateCoefficient(variable_j, "", a_ji * value);
+        evaluatedFunc.addOrUpdate(variable_j, "", a_ji * value);
       }
     }
 
@@ -284,9 +292,6 @@ public class MultivariateQuadFunction implements Serializable {
   public PiecewiseMultivariateQuadFunction approxProject(Map<String, Interval> intervalMap, int numberOfIntervals, String agentID, int numberOfAgents, boolean isApprox) {
     PiecewiseMultivariateQuadFunction mpwFunc = new PiecewiseMultivariateQuadFunction();
     Set<List<Interval>> productIntervals = cartesianProductIntervalExcludingOwner(intervalMap, numberOfIntervals, numberOfAgents, isApprox);
-      
-//    out.println("Product Interval: " + productIntervals);
-//    out.println("Interval Map:" + intervalMap);
     
     // for each list of intervals, we have a function 
     // the result of this process is a piecewise multivariate function
@@ -321,16 +326,10 @@ public class MultivariateQuadFunction implements Serializable {
       Map<String, Interval> intervalMapUsedForEvaluation = new HashMap<>();
       intervalMapUsedForEvaluation.putAll(intervalsOfNewFunction);
       
-//      out.println("Before evaluation: " + midPointedFunction);
-//      out.println("Before evaluation: " + intervalsOfNewFunction);
       MultivariateQuadFunction unaryEvaluatedFunction = midPointedFunction.evaluateWithIntervalMap(intervalsOfNewFunction);
-//      out.println("After evaluation: " + unaryEvaluatedFunction);
-//      out.println("After evaluation: " + intervalsOfNewFunction);
       
       double argmax = unaryEvaluatedFunction.getMaxAndArgMax(intervalMap)[1];
-      
-//      out.println("Arg max is " + argmax);
-      
+            
       unaryEvaluatedFunction = midPointedFunction.evaluate(owner, argmax);
 
       mpwFunc.addToFunctionMapWithInterval(unaryEvaluatedFunction, intervalsOfNewFunction, NOT_TO_OPTIMIZE_INTERVAL);
@@ -405,31 +404,81 @@ public class MultivariateQuadFunction implements Serializable {
     return pwFunction;
   }
   
-  /**
+  /*
+   * TODO: rewrite this function to make it take derivative for multivariate function
    * Take the first derivative of quadratic function
-   * This function is reviewed
    * @param derivativeAgent
    * @return
    */
   public MultivariateQuadFunction takeFirstPartialDerivative(String derivativeAgent) {
     MultivariateQuadFunction firstPartialDerivative = new MultivariateQuadFunction();
     
-    firstPartialDerivative.getCoefficients().put(derivativeAgent, "", 2 * coefficients.get(derivativeAgent, derivativeAgent));
-    firstPartialDerivative.getCoefficients().put("", "", coefficients.get(derivativeAgent, ""));
+    // constant => 0
+    firstPartialDerivative.put("", "", 0.0);
     
-    List<String> tempVarList = new ArrayList<>(getVariableSet());
-    tempVarList.remove(derivativeAgent);
-    String otherAgent = tempVarList.get(0); // assume binary function
+    // axy => ay
+    // ax"" => a""
+    // ax^2 => 2ax
+    for (Entry<String, Double> rowEntry : this.getCoefficients().row(derivativeAgent).entrySet()) {
+      if (rowEntry.getKey().equals(derivativeAgent)) {
+        firstPartialDerivative.addOrUpdate(derivativeAgent, "", 2 * rowEntry.getValue());
+      } else {
+        firstPartialDerivative.addOrUpdate(rowEntry.getKey(), "", rowEntry.getValue());
+      }
+    }
     
-    if (null != coefficients.get(derivativeAgent, otherAgent)) {
-      firstPartialDerivative.getCoefficients().put(otherAgent, "", coefficients.get(derivativeAgent, otherAgent));
-    } else if (null != coefficients.get(otherAgent, derivativeAgent)) {
-      firstPartialDerivative.getCoefficients().put(otherAgent, "", coefficients.get(otherAgent, derivativeAgent));
+    // ayx => ay
+    for (Entry<String, Double> rowEntry : this.getCoefficients().column(derivativeAgent).entrySet()) {
+      if (rowEntry.getKey().equals(derivativeAgent)) {
+        continue;
+      }
+      firstPartialDerivative.addOrUpdate(rowEntry.getKey(), "", rowEntry.getValue());
     }
     
     firstPartialDerivative.setOwner(derivativeAgent);
+    
+    firstPartialDerivative.setcritFuncIntervalMap(this.getCritFuncIntervalMap());
 
     return firstPartialDerivative;
+  }
+  
+  /**
+   * Return getCoefficients().get(agent1, agent2);
+   * @param agent1
+   * @param agent2
+   * @return
+   */
+  private Double get(String agent1, String agent2) {
+    return getCoefficients().get(agent1, agent2);
+  }
+  
+  /**
+   * Return getCoefficients().contains(agent1, agent2);
+   * @param agent1
+   * @param agent2
+   * @return
+   */
+  private boolean contains(String agent1, String agent2) {
+    return getCoefficients().contains(agent1, agent2);
+  }
+  
+  /**
+   * getCoefficients().put(agent1, agent2, value);
+   * @param agent1
+   * @param agent2
+   * @param value
+   */
+  private void put(String agent1, String agent2, Double value) {
+    getCoefficients().put(agent1, agent2, value);
+  }
+  
+  /**
+   * getCoefficients().remove(agent1, agent2);
+   * @param agent1
+   * @param agent2
+   */
+  private void remove(String agent1, String agent2) {
+    getCoefficients().remove(agent1, agent2);
   }
 
   /**
@@ -508,16 +557,12 @@ public class MultivariateQuadFunction implements Serializable {
       String variable = entry.getKey();
       double value = entry.getValue().getMidValue();
       func = func.evaluate(variable, value);
-      
-//      System.out.println("Evaluated: " + func);
     }
 
     if (func.getNumberOfVariable() != 1) {
       throw new FunctionException("The number of variables should be ONE after being evaluated by a map: " + func.getCritFuncIntervalMap());
     }
     
-//    System.out.println("After being evaluated with a map: " + func);
-
     return func;
   }
   
@@ -628,9 +673,7 @@ public class MultivariateQuadFunction implements Serializable {
     return coefficients.get("", "");
   }
   
-  public Set<Double> solveForRootsInsideInterval() {
-//    out.println("Function to solve: " + toString());
-    
+  public Set<Double> solveForRootsInsideInterval() {    
     TreeSet<Double> rootsAndBounds = new TreeSet<>();
     
     double a = getA();

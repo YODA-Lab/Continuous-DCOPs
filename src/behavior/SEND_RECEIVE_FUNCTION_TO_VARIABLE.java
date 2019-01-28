@@ -187,7 +187,7 @@ public class SEND_RECEIVE_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
     // Convert the Table to Map<Double, Double>
     Map<Double, Double> valueUtilMap = new HashMap<>();
     
-    for (Row row : projectedTable.getRowList()) {
+    for (Row row : projectedTable.getRowSet()) {
       valueUtilMap.put(row.getValueAtPosition(0), row.getUtility());
     }
     

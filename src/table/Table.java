@@ -18,6 +18,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static java.lang.Double.*;
+import static java.lang.Math.*;
 
 public class Table implements Serializable {
 	
@@ -35,7 +36,7 @@ public class Table implements Serializable {
 
 	public Table(Table anotherTable) {
 		label.addAll(anotherTable.getLabel());
-		rowList.addAll(anotherTable.getRowList());
+		rowList.addAll(anotherTable.getRowSet());
 	}
 	
 	public double getUtilityGivenDecValueList(List<Double> decValueList) {
@@ -51,34 +52,28 @@ public class Table implements Serializable {
 	}
 	
 	public void addRow(Row newRow) {
-		if (!containRow(newRow)) {
-		  rowList.add(newRow);
-		}
+	  rowList.add(0, newRow);
 	}
 	
 	public void addRowSet(Set<Row> rows) {
-	  for (Row newRow : rows) {
-	    if (!containRow(newRow)) {
-	      rowList.add(newRow);
-	    }
-	  }
+	  rowList.addAll(rows);
 	}
 	
-	public void addRow(Row newRow, double key) {
-		this.rowList.add(newRow);
-		
-		Set<Double> currentLoadSet = keyMap.keySet();
-		if (currentLoadSet.contains(key)) {
-			List<Row> rowList = keyMap.get(key);
-			rowList.add(newRow);
-			keyMap.put(key, rowList);
-		}
-		else {
-			List<Row> rowList = new ArrayList<Row>();
-			rowList.add(newRow);
-			keyMap.put(key, rowList);
-		}
-	}
+//	public void addRowWithKey(Row newRow, double key) {
+//		this.rowList.add(0, newRow);
+//		
+//		Set<Double> currentLoadSet = keyMap.keySet();
+//		if (currentLoadSet.contains(key)) {
+//			List<Row> rowList = keyMap.get(key);
+//			rowList.add(newRow);
+//			keyMap.put(key, rowList);
+//		}
+//		else {
+//			List<Row> rowList = new ArrayList<Row>();
+//			rowList.add(newRow);
+//			keyMap.put(key, rowList);
+//		}
+//	}
 	
 	public List<Row> getRowListFromKey(double key) {
 		return keyMap.get(key);
@@ -132,7 +127,7 @@ public class Table implements Serializable {
    * @param valueMap
    * @return
    */
-  public Set<Row> interpolateGivenValueSingleMap(Map<String, Double> valueMap) {
+  public Set<Row> interpolateGivenValueSingleMap(Map<String, Double> valueMap, int stepSize) {
     Set<Row> interpolatedRows = new HashSet<>();
     
     for (Row row : rowList) {
@@ -143,7 +138,7 @@ public class Table implements Serializable {
       for (Entry<String, Double> entry : valueMap.entrySet()) {
         point.set(positionOfVariableInTheLabel(entry.getKey()), entry.getValue());
       }
-      Row interpolatedRow = inverseWeightedInterpolation(point);
+      Row interpolatedRow = inverseWeightedInterpolation(point, stepSize);
       if (null != interpolatedRow) {
         interpolatedRows.add(interpolatedRow);
       }
@@ -152,12 +147,13 @@ public class Table implements Serializable {
     return interpolatedRows;
   }	
 	/**
+	 * TODO: Review this function. Find where the function appears. The map is partial only
 	 * Given a Map<String, Set<Double>>, find the corresponding points and do the interpolation
 	 * Return a set of Row. Used to add to the table later in DPOP UTIL
 	 * @param valueMap
 	 * @return
 	 */
-	public Set<Row> interpolateGivenValueSetMap(Map<String, Set<Double>> valueMap) {
+	public Set<Row> interpolateGivenValueSetMap(Map<String, Set<Double>> valueMap, int stepSize) {
 	  Set<Row> interpolatedRows = new HashSet<>();
 	  
 	  // create all points to be interpolated
@@ -178,10 +174,12 @@ public class Table implements Serializable {
 
         // replace the point at the position of the agent in the label with the value at the given position
         for (Entry<String, Integer> entry : agentPositionInTheValeSet.entrySet()) {
-          point.set(positionOfVariableInTheLabel(entry.getKey()), partialPoint.get(entry.getValue()));
+          if (label.contains(entry.getKey())) {
+            point.set(positionOfVariableInTheLabel(entry.getKey()), partialPoint.get(entry.getValue()));
+          }
         }
         
-        interpolatedRows.add(inverseWeightedInterpolation(point));
+        interpolatedRows.add(inverseWeightedInterpolation(point, stepSize));
       }
     }
     
@@ -189,39 +187,97 @@ public class Table implements Serializable {
 	}
 	
   /**
+   * TODO: REVIEW THIS FUNCTION
    * Find the argmax of this agent given the agentViewTable and the valueMapOfOtherVariables
-   * 1. Create the partial row from the valueMapOfOtherVariables
-   * 2. For each values (from the table and from agent.getGlobalInterval().discretize()
-   * 3. Create the complete row => interpolate => save the current (max, argmax)
+   * 1. Create the missing-one-dimension row from the valueMapOfOtherVariables
+   * 2. Calculate the missing-one-dimension distance to all other points (and save it to the list)
+   * 3. For each value in agentValues, calculate the distance to that dimension, and then compute the whole 
    * 4. Return the argmax
    * @param agentViewTable
    * @param valueMapOfOtherVariables
+   * @param 
    * @return
    */
-  public double[] maxArgmaxHybrid(DCOP agent, Map<String, Double> valueMapOfOtherVariables) {
-    Set<Double> agentValues = getValueSetOfGivenAgent(agent.getID(), false);
-    agentValues.addAll(agent.getGlobalInterval().getMidPointInIntegerRanges());
-    
+  public double[] maxArgmaxHybrid(DCOP agent, Map<String, Double> valueMapOfOtherVariables, Set<Double> agentValues, int stepSize) {    
     double[] maxArgmax = new double[2];
-    
     maxArgmax[0] = -Double.MAX_VALUE;
     maxArgmax[1] = -Double.MAX_VALUE;
     
+    // From the valueMapOfOtherVariables, create the list of missing-one-dimension distance 
+    // For each value in agentValues, calculate the distance to the correct dimension of each row/point
+    // Store the current row with maximum utility
+    // Then return the max and argmax
+        
+    List<Double> pointOutsideTable = new ArrayList<>();
+    int missingIndex = -1;
+    for (int i = 0; i < label.size(); i++) {
+      String tableAgent = label.get(i);
+      if (valueMapOfOtherVariables.containsKey(tableAgent)) {
+        pointOutsideTable.add(valueMapOfOtherVariables.get(tableAgent));
+      } else {
+        pointOutsideTable.add(0.0);
+        missingIndex = i;
+      }
+    }
+        
+    List<Double> partialDistanceList = computePartialDistanceFromAllRow(pointOutsideTable, missingIndex);
+    
+    // For each value, calculate the complete distance to every row, and get the utility of that row as 
     for (double value : agentValues) {      
-      Map<String, Double> tempMap = new HashMap<>(valueMapOfOtherVariables);
-      tempMap.put(agent.getID(), value);
+      double weightedUtility = 0;
+      double weightedSum = 0;
+      for (int rowIndex = 0; rowIndex < rowList.size(); rowIndex++) {
+        Row row = rowList.get(rowIndex);
+        List<Double> point = row.getValueList();
+        
+        double totalDistance = sqrt(pow(partialDistanceList.get(rowIndex), 2) + pow(value - point.get(missingIndex), 2));
+        weightedUtility += 1/totalDistance * row.getUtility();
+        weightedSum += 1/totalDistance;
+      }
       
-      Row interpolatedRow = interpolateGivenPointMap(tempMap);
-      
-      if (compare(interpolatedRow.getUtility(), maxArgmax[0]) > 0) {
-        maxArgmax[0] = interpolatedRow.getUtility();
-        maxArgmax[1] = interpolatedRow.getValueList().get(indexOf(agent.getID()));
+      double interpolatedUtility = weightedUtility / weightedSum;
+      if (compare(interpolatedUtility, maxArgmax[0]) > 0) {
+        maxArgmax[0] = interpolatedUtility;
+        maxArgmax[1] = value;
       }
     }
     
     return maxArgmax;
   }
-  
+
+  /**
+   * Compute the partial distance given the partial point and missingIndex
+   * @param pointOutsideTable
+   * @param missingIndex
+   * @return
+   */
+  private List<Double> computePartialDistanceFromAllRow(List<Double> pointOutsideTable, int missingIndex) {
+    List<Double> partialDistance = new ArrayList<>();
+    
+    for (Row row : rowList) {
+      partialDistance.add(partialDistance(row.getValueList(), pointOutsideTable, missingIndex));
+    }
+    
+    return partialDistance;
+  }
+
+  /**
+   * Compute the partial distance
+   * @param valueList
+   * @param pointOutsideTable
+   * @param missingIndex
+   * @return
+   */
+  private double partialDistance(List<Double> valueList, List<Double> pointOutsideTable, int missingIndex) {
+    double distance = 0;
+    for (int i = 0; i < label.size(); i++) {
+      if (i != missingIndex) {
+        distance += pow(valueList.get(i) - pointOutsideTable.get(i), 2);
+      }
+    }
+    return sqrt(distance);
+  }
+
   public boolean containRow(Row rowToCheck) {
     for (Row row : rowList) {
       if (row.getValueList().equals(rowToCheck.getValueList()))
@@ -236,10 +292,12 @@ public class Table implements Serializable {
    * @param interpolatedPoint
    * @return the row if the point needed to be interpolated is already in the table
    */
-  public Row inverseWeightedInterpolation(List<Double> interpolatedPoint) {
+  public Row inverseWeightedInterpolation(List<Double> interpolatedPoint, int percentageOfTable) {
     List<Double> inverseWeights = new ArrayList<>();
     double interpolatedUtility = 0;
-    for (Row row : this.rowList) {
+    for (int i = 0; i < this.rowList.size(); i+= percentageOfTable) {
+      Row row = this.rowList.get(i);
+      
       double eucliDistance = euclidDistance(row.getValueList(), interpolatedPoint);
       
       // Return null if the interpolatedPoint is already in the table
@@ -256,7 +314,7 @@ public class Table implements Serializable {
     return new Row(interpolatedPoint, interpolatedUtility / sumOfWeights);
   }
   
-  private double euclidDistance(List<Double> pointA, List<Double> pointB) {
+  private double euclidDistance(List<Double> pointA, List<Double> pointB) {    
     double distance = 0;
     for (int index = 0; index < pointA.size(); index++) {
       distance += Math.pow(pointA.get(index) - pointB.get(index), 2);
@@ -276,7 +334,7 @@ public class Table implements Serializable {
     }
     
     Map<String, Double> valueMap = new HashMap<>();
-    for (Row row : addedTable.getRowList()) {
+    for (Row row : addedTable.getRowSet()) {
       for (int varIndex = 0; varIndex < row.getNumberOfVariables(); varIndex++) {
         valueMap.put(label.get(varIndex), row.getValueAtPosition(varIndex));
         row.setUtility(row.getUtility() + pwFunction.getTheFirstFunction().evaluateToValueGivenValueMap(valueMap));
@@ -381,7 +439,7 @@ public class Table implements Serializable {
     Table castedTypeTable = (Table) tableToCompare;
       
     return label.equals(castedTypeTable.getLabel()) 
-        && rowList.equals(castedTypeTable.getRowList());
+        && rowList.equals(castedTypeTable.getRowSet());
   }
 	
   @Override
@@ -397,7 +455,7 @@ public class Table implements Serializable {
 		return label.size();
 	}
 
-	public List<Row> getRowList() {
+	public List<Row> getRowSet() {
 		return rowList;
 	}
 
@@ -418,16 +476,38 @@ public class Table implements Serializable {
   }
 
   /**
-   * Return a interpolated row given a point in Map form
+   * Given the partial pointMap
+   * Create a complete point by taking values from the interval
    * @param pointMap
    * @return
    */
-  public Row interpolateGivenPointMap(Map<String, Double> pointMap) {
-    List<Double> point = new ArrayList<>();
+  public Row interpolateGivenPartialPointMap(Map<String, Double> pointMap, Set<Double> valueSet, int stepSize) {    
+    List<Set<Double>> valueSetList = new ArrayList<Set<Double>>();
     for (String agent : label) {
-      point.add(pointMap.get(agent));
+      if (pointMap.containsKey(agent) == false) {
+//        valueSetList.add(interval.getMidPointInIntegerRanges());
+        valueSetList.add(valueSet);
+      } else {
+        Set<Double> singleValueSet = new HashSet<>();
+        singleValueSet.add(pointMap.get(agent));
+        valueSetList.add(singleValueSet);
+      }
     }
-       
-    return inverseWeightedInterpolation(point);
+    
+    Set<List<Double>> pointSet;
+    pointSet = Sets.cartesianProduct(valueSetList);
+    
+    double max = -Double.MAX_VALUE;
+    Row bestRow = null;
+    
+    for (List<Double> point : pointSet) {
+      Row interpolatedRow = inverseWeightedInterpolation(point, stepSize);
+      if (compare(interpolatedRow.getUtility(), max) > 0) {
+        max = interpolatedRow.getUtility();
+        bestRow = interpolatedRow;
+      }
+    }
+    
+    return bestRow;
   }
 }

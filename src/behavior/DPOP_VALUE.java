@@ -163,12 +163,12 @@ public class DPOP_VALUE extends OneShotBehaviour {
   
   /**
    * This is called by a non-leaf agent in the HYBRID DPOP
-   * 
+   * IN VALUE phase, the agent will find max and arg_max with finer granularity
    * @param valuesFromParent
    * @return
    */
   private double nonLeafValue_HYBRID(HashMap<String, Double> valuesFromParent) {
-    return agent.getAgentViewTable().maxArgmaxHybrid(agent, valuesFromParent)[1];
+    return agent.getAgentViewTable().maxArgmaxHybrid(agent, valuesFromParent, agent.getGlobalInterval().getMidPointInQuarterIntegerRanges(), 1)[1];
   }
 
   /**

@@ -147,8 +147,24 @@ public class Interval implements Serializable {
     return (int) (upperBound - lowerBound);
   }
   
+  public Set<Double> getIntegerValues() {
+    Set<Double> valueSet = new HashSet<>();
+    for (double value = lowerBound; compare(value, upperBound) <=0; value++) {
+      valueSet.add(value);
+    }
+    return valueSet;
+  }
+  
   public Set<Double> getMidPointInIntegerRanges() {
     return initializeDiscretization(getIncrementRange());
+  }
+  
+  public Set<Double> getMidPointInHalfIntegerRanges() {
+    return initializeDiscretization(getIncrementRange() * 2);
+  }
+  
+  public Set<Double> getMidPointInQuarterIntegerRanges() {
+    return initializeDiscretization(getIncrementRange() * 4);
   }
   
   public Set<Double> initializeDiscretization(int numberOfValues) {
