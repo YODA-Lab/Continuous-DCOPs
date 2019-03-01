@@ -19,8 +19,11 @@ public interface DcopInfo {
   
   public static final int APPROX_DPOP = 7;
   
+  public static final int DISCRETE_DSA = 8;
+  public static final int CONTINUOUS_DSA = 9;
+  
   public static final String algTypes[] = { "ANALYTICAL_DPOP", "DISCRETE_DPOP", "MOVING_DPOP", "CLUSTERING_DPOP",
-      "DISCRETE_MAXSUM", "MOVING_MAXSUM", "CLUSTERING_MAXSUM" };
+      "DISCRETE_MAXSUM", "MOVING_MAXSUM", "CLUSTERING_MAXSUM", "DISCRETE_DSA", "CONTINUOUS_DSA"};
   
   public static final int FUNC_TO_VAR_TO_SEND_OUT = 0;
   public static final int FUNC_TO_VAR_TO_STORE = 1;

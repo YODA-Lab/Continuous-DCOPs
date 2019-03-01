@@ -21,9 +21,7 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
 	
 	@Override
 	public void action() {		
-	  
-	  int a = ACLMessage.FAILURE;
-	  
+	  	  
 		double totalUtilityFromChildren = sumUtilityFromChildrenWithTime();
 				
 		System.out.println("Agent " +  agent.getID() + " has utility from children is: " + totalUtilityFromChildren);
