@@ -477,6 +477,7 @@ public class MultivariateQuadFunction implements Serializable {
    * @param agent1
    * @param agent2
    */
+  @SuppressWarnings("unused")
   private void remove(String agent1, String agent2) {
     getCoefficients().remove(agent1, agent2);
   }

@@ -23,23 +23,21 @@ import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
 
 public class Utilities {	
-	public static String headerLine = "ID" + "\t" + "Alg" + "\t" + "noAgent" + "\t" + "Time (ms)" + "\t" + "Utility" + "\t" + "RootArgMax";
-	
-	 //before local search iteration
+  public static String headerLine = "ID" + "\t" + "Alg" + "\t" + "noAgent" + "\t" + "Time (ms)" + "\t" + "Utility" + "\t"
+      + "RootArgMax";
+  	
   public static void writeToFile(DCOP agent) {    
     String alg = algTypes[agent.algorithm];
     
     String newFileName;
-    
+        
     if (agent.algorithm == APPROX_DPOP) {
       newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.getDomainSize() + "_numPoints="
           + agent.getNumberOfPoints() + "_numApproxAgents=" + agent.getNumberOfApproxAgents() + ".txt";
     } else {
       newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.getDomainSize() + "_numPoints="
           + agent.getNumberOfPoints() + "_gradientIteration=" + agent.getGradientIteration() + "_gradientRate="
-          + agent.getGradientScalingFactor() + ".txt";
-      //      newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.getDomainSize() + "_numPoints=" 
-//          + agent.getNumberOfPoints() + ".txt";  
+          + agent.getGradientScalingFactor() + ".txt";  
     }
     
     if (agent.instanceID == 0) {
@@ -50,9 +48,9 @@ public class Utilities {
     df.setRoundingMode(RoundingMode.DOWN);
     String line = null;
     
-    line = "\n" + agent.instanceID + "\t" + alg + "\t" + agent.noAgent + "\t" + 
-        agent.getSimulatedTime()/1000000.0 + "\t" + df.format(agent.getAggregatedUtility()) + "\t" + agent.getChosenValue();
-
+    line = "\n" + agent.instanceID + "\t" + alg + "\t" + agent.noAgent + "\t" + agent.getSimulatedTime() / 1000000.0 + "\t"
+        + df.format(agent.getAggregatedUtility()) + "\t" + agent.getChosenValue();
+    
     writeToFile(line, newFileName);
   }
 	

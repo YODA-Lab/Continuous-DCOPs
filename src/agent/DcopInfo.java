@@ -44,8 +44,9 @@ public interface DcopInfo {
   public static final int FUNC_TO_VAR = 5;
   public static final int PROPAGATE_VALUE = 6;
   public static final int UTILITY_TO_THE_ROOT = 7;
+  public static final int MSG_COUNT_TO_THE_ROOT = 8;
   public static final String msgTypes[] = { "PSEUDOTREE", "PSEUDO_INFO", "DPOP_UTIL", "DPOP_VALUE", "VAR_TO_FUNC", "FUNC_TO_VAR",
-      "PROPAGATE_VALUE", "UTILITY_TO_THE_ROOT" };
+      "PROPAGATE_VALUE", "UTILITY_TO_THE_ROOT", "MSG_COUNT_TO_THE_ROOT"};
   
   public static final int DONE_AT_LEAF = 1;
   public static final int DONE_AT_INTERNAL_NODE = 2;

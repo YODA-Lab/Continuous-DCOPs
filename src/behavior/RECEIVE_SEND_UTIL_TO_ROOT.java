@@ -2,12 +2,11 @@ package behavior;
 
 import agent.DCOP;
 import static agent.DcopInfo.*;
-import utilities.*;
-import jade.core.behaviours.Behaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
+import utilities.Utilities;
 
 public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
 
@@ -22,6 +21,9 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
 	
 	@Override
 	public void action() {		
+	  
+	  int a = ACLMessage.FAILURE;
+	  
 		double totalUtilityFromChildren = sumUtilityFromChildrenWithTime();
 				
 		System.out.println("Agent " +  agent.getID() + " has utility from children is: " + totalUtilityFromChildren);

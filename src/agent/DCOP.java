@@ -24,6 +24,7 @@ import behavior.BROADCAST_RECEIVE_HEURISTIC_INFO;
 import behavior.DPOP_UTIL;
 import behavior.DPOP_VALUE;
 import behavior.PSEUDOTREE_GENERATION;
+import behavior.RECEIVE_SEND_MSG_COUNT_TO_ROOT;
 import behavior.RECEIVE_SEND_UTIL_TO_ROOT;
 import behavior.SEARCH_NEIGHBORS;
 import behavior.SEND_RECEIVE_FUNCTION_TO_VARIABLE;
@@ -186,6 +187,9 @@ public class DCOP extends Agent implements DcopInfo {
 	public int instanceID;
 	public int noAgent;
 	
+	/* If the agent is a leaf, then it sends 1 to the parent */
+	private int messageCount;
+	
 	public DCOP() {
 		isRoot = false;
 		isLeaf = false;
@@ -194,6 +198,7 @@ public class DCOP extends Agent implements DcopInfo {
 		utilFromChildren = 0;
 		currentTS = 0;
     agentStrID = getLocalName();
+    messageCount = 0;
 	}
 	
 	//done with LS-RAND
@@ -239,18 +244,14 @@ public class DCOP extends Agent implements DcopInfo {
 		mainSequentialBehaviourList.addSubBehaviour(new BROADCAST_RECEIVE_HEURISTIC_INFO(this));
 		mainSequentialBehaviourList.addSubBehaviour(new PSEUDOTREE_GENERATION(this));
 				
-		
-    if (isClustering()) {
-      currentValueSet = globalInterval.getMidPointInIntegerRanges();
-    } else {
-      currentValueSet = globalInterval.initializeDiscretization(numberOfPoints);
-    }
+		currentValueSet = globalInterval.getMidPoints(numberOfPoints);
     		
 		// DPOP
 		if (isRunningDPOP()) {
 			mainSequentialBehaviourList.addSubBehaviour(new DPOP_UTIL(this));
 			mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
 			mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
+//	    mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_MSG_COUNT_TO_ROOT(this));
 		} // MAX-SUM 
 		else if (isRunningMaxsum()) {
 		  for (int i = 0; i < gradientIteration; i++) {
@@ -259,11 +260,12 @@ public class DCOP extends Agent implements DcopInfo {
 		  }
       mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
       mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
+//      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_MSG_COUNT_TO_ROOT(this));
 		}
 		
 		mainSequentialBehaviourList.addSubBehaviour(new AGENT_TERMINATE(this));
 		addBehaviour(mainSequentialBehaviourList); 
-	}
+  }
 	
 	public boolean isPrinting() {
 	  return agentStrID.equals("2");
@@ -404,7 +406,6 @@ public class DCOP extends Agent implements DcopInfo {
 		
 		out.println("Agent " + agentStrID + " send message " + msgTypes[msgCode] + " to agent " + receiver.getLocalName());
 //		out.println("Agent " + agentStrID + " send message " + content + " to agent " + receiver.getLocalName());
-
 	}
 	
 	public void sendByteObjectMessageWithTime(AID receiver, PiecewiseMultivariateQuadFunction content, int msgCode, long time) throws IOException {
@@ -1189,5 +1190,17 @@ public class DCOP extends Agent implements DcopInfo {
 
   public void setInterpolationStepSize(int interpolationStepSize) {
     this.interpolationStepSize = interpolationStepSize;
+  }
+
+  public int getMessageCount() {
+    return messageCount;
+  }
+
+  public void setMessageCount(int messageCount) {
+    this.messageCount = messageCount;
+  }
+  
+  public void increaseMessageCount(int increase) {
+    messageCount += increase;
   }
 }	

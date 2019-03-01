@@ -52,7 +52,7 @@ public class Table implements Serializable {
 	}
 	
 	public void addRow(Row newRow) {
-	  rowList.add(0, newRow);
+	  rowList.add(newRow);
 	}
 	
 	public void addRowSet(Set<Row> rows) {
@@ -447,7 +447,7 @@ public class Table implements Serializable {
     return Objects.hash(label, rowList);
   }
 
-	public int getRowCount() {
+	public int size() {
 		return rowList.size();
 	}
 	

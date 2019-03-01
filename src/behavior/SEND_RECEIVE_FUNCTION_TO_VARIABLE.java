@@ -5,15 +5,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import com.google.common.collect.Sets;
 
 import java.util.Set;
 
 import agent.DCOP;
-import function.Interval;
-import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;

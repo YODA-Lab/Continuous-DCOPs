@@ -4,7 +4,6 @@ import agent.DCOP;
 import static agent.DcopInfo.*;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import jade.core.AID;
