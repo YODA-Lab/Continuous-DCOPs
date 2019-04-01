@@ -38,7 +38,7 @@ public class PROPAGATE_RECEIVE_VALUE extends OneShotBehaviour {
 		
 		// SEND VALUE TO NEIGHBORS
 		for (AID neighborAgentAID : agent.getNeighborAIDList()) {
-			agent.sendObjectMessageWithTime(neighborAgentAID, agent.getChosenValue(), PROPAGATE_VALUE, agent.getSimulatedTime());
+			agent.sendObjectMessageWithTime(neighborAgentAID, agent.getValue(), PROPAGATE_VALUE, agent.getSimulatedTime());
 		}
 		
 

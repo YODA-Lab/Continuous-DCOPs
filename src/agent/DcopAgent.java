@@ -105,7 +105,7 @@ public class DcopAgent extends Agent implements DcopInfo {
   private double utilFromChildren;
 	
   private Table agentViewTable;
-  private Double chosenValue;
+  private Double value;
   private Map<Integer, String> pickedRandomMap = new HashMap<>();
 
 	private int currentTS;
@@ -582,7 +582,7 @@ public class DcopAgent extends Agent implements DcopInfo {
   
       for (String agentInList : decVarList) {
         if (agentInList.equals(agenID))
-          decValueList.add(chosenValue);
+          decValueList.add(value);
         else
           decValueList.add(neighborChosenValueMap.get(agentInList));
       }
@@ -601,7 +601,7 @@ public class DcopAgent extends Agent implements DcopInfo {
       PiecewiseMultivariateQuadFunction function = functionEntry.getValue();
       
       Map<String, Double> valueMap = new HashMap<>();
-      valueMap.put(agenID, chosenValue);
+      valueMap.put(agenID, value);
       valueMap.put(pParent, neighborChosenValueMap.get(pParent));
   
       sumUtility += function.getTheFirstFunction().evaluateToValueGivenValueMap(valueMap);
@@ -843,12 +843,12 @@ public class DcopAgent extends Agent implements DcopInfo {
 		this.agentViewTable = agentViewTable;
 	}
 
-	public double getChosenValue() {
-		return chosenValue;
+	public double getValue() {
+		return value;
 	}
 
-	public void setChosenValue(double chosenValue) {
-		this.chosenValue = chosenValue;
+	public void setValue(double value) {
+		this.value = value;
 	}
 
 	public List<Double> getCurrentGlobalUtilityList() {

@@ -32,7 +32,7 @@ import static agent.DcopInfo.*;
  * 
  * @author khoihd
  */
-public class MultivariateQuadFunction implements Serializable {
+public final class MultivariateQuadFunction implements Serializable {
 
   /**
    * 

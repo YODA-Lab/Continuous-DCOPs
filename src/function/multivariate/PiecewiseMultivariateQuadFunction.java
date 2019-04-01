@@ -21,7 +21,7 @@ import static agent.DcopInfo.*;
  * @author khoihd
  *
  */
-public class PiecewiseMultivariateQuadFunction implements Serializable {
+public final class PiecewiseMultivariateQuadFunction implements Serializable {
   /**
    * 
    */

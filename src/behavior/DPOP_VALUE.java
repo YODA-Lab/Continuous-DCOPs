@@ -57,7 +57,7 @@ public class DPOP_VALUE extends OneShotBehaviour {
 	  
 	  nonRootChooseAndSendValue();
 	  
-	  out.println("Agent " + agent.getID() + " choose value: " + agent.getChosenValue());
+	  out.println("Agent " + agent.getID() + " choose value: " + agent.getValue());
 	}
 
   /**
@@ -72,19 +72,19 @@ public class DPOP_VALUE extends OneShotBehaviour {
     
     // Only choose value if running DPOP-like algorithm
     if (DcopAgent.getAlgorithm() == DcopAgent.DISCRETE_DPOP) {
-      agent.setChosenValue(chooseValue_TABLE(valuesFromParent));
+      agent.setValue(chooseValue_TABLE(valuesFromParent));
     } else if (DcopAgent.getAlgorithm() == DcopAgent.ANALYTICAL_DPOP || DcopAgent.getAlgorithm() == DcopAgent.APPROX_DPOP) {
-      agent.setChosenValue(chooseValue_FUNCTION(valuesFromParent));
+      agent.setValue(chooseValue_FUNCTION(valuesFromParent));
     } else if (DcopAgent.getAlgorithm() == DcopAgent.MOVING_DPOP | DcopAgent.getAlgorithm() == DcopAgent.CLUSTERING_DPOP) {
-      agent.setChosenValue(chooseValue_HYBRID(valuesFromParent));
+      agent.setValue(chooseValue_HYBRID(valuesFromParent));
     }    
    
     //add its chosen value to the map to send to its children
     agent.setValuesToSendInVALUEPhase(valuesFromParent);
     
-    agent.addValuesToSendInVALUEPhase(agent.getID(), agent.getChosenValue());     
+    agent.addValuesToSendInVALUEPhase(agent.getID(), agent.getValue());     
     
-    System.out.println("Agent " + agent.getID() + " has CHOSEN VALUE is " + agent.getChosenValue());
+    System.out.println("Agent " + agent.getID() + " has CHOSEN VALUE is " + agent.getValue());
     
     agent.pauseSimulatedTiming();
     
@@ -176,9 +176,9 @@ public class DPOP_VALUE extends OneShotBehaviour {
    * The simulated processing time is ignore here because of lightweight operations.
    */
   private void rootSendChosenValueWithTime() {    
-    System.out.println(agent.getID() + " choose value " + agent.getChosenValue());
+    System.out.println(agent.getID() + " choose value " + agent.getValue());
 
-    agent.addValuesToSendInVALUEPhase(agent.getID(), agent.getChosenValue());
+    agent.addValuesToSendInVALUEPhase(agent.getID(), agent.getValue());
     
     for (AID childrenAgentAID : agent.getChildrenAIDList()) {
       agent.sendObjectMessageWithTime(childrenAgentAID, agent.getValuesToSendInVALUEPhase(), DPOP_VALUE,

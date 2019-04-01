@@ -49,7 +49,7 @@ public class Utilities {
     String line = null;
     
     line = "\n" + DcopAgent.getInstanceID() + "\t" + alg + "\t" + DcopAgent.getNoAgent() + "\t" + agent.getSimulatedTime() / 1000000.0 + "\t"
-        + df.format(agent.getAggregatedUtility()) + "\t" + agent.getChosenValue();
+        + df.format(agent.getAggregatedUtility()) + "\t" + agent.getValue();
     
     writeToFile(line, newFileName);
   }

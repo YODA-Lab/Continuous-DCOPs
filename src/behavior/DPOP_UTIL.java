@@ -709,7 +709,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
       }
     }
     
-    agent.setChosenValue(argmax);
+    agent.setValue(argmax);
 
     out.println("MAX VALUE IS " + max);
     out.println("ARGMAX VALUE IS " + argmax);
@@ -745,11 +745,11 @@ public class DPOP_UTIL extends OneShotBehaviour {
     for (Row row : combinedUtilAndConstraintTable.getRowSet()) {
       if (row.getUtility() > maxUtility) {
         maxUtility = row.getUtility();
-        agent.setChosenValue(row.getValueAtPosition(0));
+        agent.setValue(row.getValueAtPosition(0));
       }
     }
 
-    out.println("CHOSEN: " + agent.getChosenValue());
+    out.println("CHOSEN: " + agent.getValue());
 
     out.println(DcopAgent.algTypes[DcopAgent.getAlgorithm()] + " utility " + maxUtility);
 
@@ -781,11 +781,11 @@ public class DPOP_UTIL extends OneShotBehaviour {
       if (compare(row.getUtility(), maxUtility) > 0) {
         // only choose the row with value in the interval
         maxUtility = row.getUtility();
-        agent.setChosenValue(row.getValueList().get(0));
+        agent.setValue(row.getValueList().get(0));
       }
     }
 
-    out.println("CHOSEN: " + agent.getChosenValue());
+    out.println("CHOSEN: " + agent.getValue());
 
     out.println(DcopAgent.algTypes[DcopAgent.getAlgorithm()] + " utility " + maxUtility);
 

@@ -92,7 +92,7 @@ public class SEND_RECEIVE_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
     double bestValue = calculateTheBestValue();
     System.out.println("Agent " + agent.getID() + " at iteration " + agent.getLsIteration() + " choose the best value: " + bestValue);
     
-    agent.setChosenValue(bestValue);
+    agent.setValue(bestValue);
     
     agent.incrementLsIteration();
   }
