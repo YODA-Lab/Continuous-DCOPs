@@ -4,7 +4,7 @@ import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
@@ -25,9 +25,9 @@ public class SEND_RECEIVE_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
    */
   private static final long serialVersionUID = -6435195074924409292L;
   
-  DCOP agent;
+  DcopAgent agent;
   
-  public SEND_RECEIVE_VARIABLE_TO_FUNCTION(DCOP agent) {
+  public SEND_RECEIVE_VARIABLE_TO_FUNCTION(DcopAgent agent) {
     super(agent);
     this.agent = agent;
   }
@@ -100,7 +100,7 @@ public class SEND_RECEIVE_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
       
       MaxSumMessage msgVAR_TO_FUNC = new MaxSumMessage(agent.getCurrentValueSet());
       
-      if (agent.algorithm == MOVING_MAXSUM) {
+      if (DcopAgent.getAlgorithm() == MOVING_MAXSUM) {
         modifyMSValuesUsingGradient(); 
       }
       
@@ -161,7 +161,7 @@ public class SEND_RECEIVE_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
   private void modifyMSValuesUsingGradient() { 
     System.out.println("Before: " + agent.getCurrentValueSet());
     
-    double scalingFactor = agent.getGradientScalingFactor();
+    double scalingFactor = DcopAgent.GRADIENT_SCALING_FACTOR;
     
     Set<Double> newValueSet = new HashSet<>();
     
@@ -179,7 +179,7 @@ public class SEND_RECEIVE_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
       double newValue = oldValue + scalingFactor * sumGradient;
       
       // Add new value only if it's in the interval
-      if (agent.getGlobalInterval().contains(newValue)) {
+      if (DcopAgent.getGlobalInterval().contains(newValue)) {
         newValueSet.add(newValue);
       } else {
         newValueSet.add(oldValue);

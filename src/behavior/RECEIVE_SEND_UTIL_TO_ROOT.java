@@ -1,6 +1,6 @@
 package behavior;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import static agent.DcopInfo.*;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
@@ -12,9 +12,9 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 4766760189659187968L;
 
-	DCOP agent;
+	DcopAgent agent;
 	
-	public RECEIVE_SEND_UTIL_TO_ROOT(DCOP agent) {
+	public RECEIVE_SEND_UTIL_TO_ROOT(DcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}

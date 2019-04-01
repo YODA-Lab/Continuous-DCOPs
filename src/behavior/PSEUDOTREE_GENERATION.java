@@ -1,6 +1,6 @@
 package behavior;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 
 import static agent.DcopInfo.*;
@@ -18,9 +18,9 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 4730436360893574779L;
 
-	DCOP agent;
+	DcopAgent agent;
 	
-	public PSEUDOTREE_GENERATION(DCOP agent) {
+	public PSEUDOTREE_GENERATION(DcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}
@@ -58,7 +58,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 //							+ childMessage.getContent() + " to Agent " + childrenWithBestInfo.getLocalName());
 		}
 		
-		while (DCOP.WAITING_FOR_MSG) {
+		while (DcopAgent.WAITING_FOR_MSG) {
 			MessageTemplate template = MessageTemplate.MatchPerformative(PSEUDOTREE);
 			ACLMessage receivedMessage = myAgent.receive(template);
 			if (receivedMessage != null) {
@@ -156,7 +156,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 		//waiting for message from the parent
 		//send message to all the children
 		else {
-			while (DCOP.WAITING_FOR_MSG) {
+			while (DcopAgent.WAITING_FOR_MSG) {
 				MessageTemplate template = MessageTemplate.MatchPerformative(PSEUDOTREE);
 				ACLMessage receivedMessage = myAgent.receive(template);
 				if (receivedMessage != null) {
@@ -187,24 +187,6 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 		
 		agent.printTree(agent.isRoot());
 		
-    System.out.println("Agent " + agent.getID() + " Done building the pseudotree");
-    
-    removeChildrenFunctionFromFunctionList();
+    System.out.println("Agent " + agent.getID() + " Done building the pseudotree");    
 	}
-	
-  /**
-   * Remove any function that contains children or pseudoChildren.
-   */
-  private void removeChildrenFunctionFromFunctionList() {
-    Map<String, PiecewiseMultivariateQuadFunction> pwFuncMap = new HashMap<>(agent.getFunctionMap());
-        
-    for (Entry<String, PiecewiseMultivariateQuadFunction> entry : agent.getFunctionMap().entrySet()) {
-      if (!agent.getParentAndPseudoStrList().contains(entry.getKey())) {
-        pwFuncMap.remove(entry.getKey());
-        continue;
-      }
-    }
-    
-    agent.setPWFunctionWithPParentMap(pwFuncMap);
-  }
 }	

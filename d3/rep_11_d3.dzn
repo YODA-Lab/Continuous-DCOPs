@@ -1,0 +1,6 @@
+domain 100;
+function 2.32045x_3^2 7.52486x_3 5.6099x_1^2 16.9919x_1 2.41237x_3x_1 8.94897;
+function 9.03913x_3^2 18.0883x_3 14.2798x_2^2 10.1703x_2 7.49368x_3x_2 5.98071;
+neighbor set: x_1: x_3 ;
+neighbor set: x_2: x_3 ;
+neighbor set: x_3: x_1 x_2 ;

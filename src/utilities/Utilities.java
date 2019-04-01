@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import static agent.DcopInfo.*;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
@@ -26,21 +26,21 @@ public class Utilities {
   public static String headerLine = "ID" + "\t" + "Alg" + "\t" + "noAgent" + "\t" + "Time (ms)" + "\t" + "Utility" + "\t"
       + "RootArgMax";
   	
-  public static void writeToFile(DCOP agent) {    
-    String alg = algTypes[agent.algorithm];
+  public static void writeToFile(DcopAgent agent) {    
+    String alg = algTypes[DcopAgent.getAlgorithm()];
     
     String newFileName;
         
-    if (agent.algorithm == APPROX_DPOP) {
-      newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.getDomainSize() + "_numPoints="
-          + agent.getNumberOfPoints() + "_numApproxAgents=" + agent.getNumberOfApproxAgents() + ".txt";
+    if (DcopAgent.getAlgorithm() == APPROX_DPOP) {
+      newFileName = "alg=" + alg + "_d=" + DcopAgent.getNoAgent() + "_domainSize=" + agent.getDomainSize() + "_numPoints="
+          + DcopAgent.getNumberOfPoints() + "_numApproxAgents=" + agent.getNumberOfApproxAgents() + ".txt";
     } else {
-      newFileName = "alg=" + alg + "_d=" + agent.noAgent + "_domainSize=" + agent.getDomainSize() + "_numPoints="
-          + agent.getNumberOfPoints() + "_gradientIteration=" + agent.getGradientIteration() + "_gradientRate="
-          + agent.getGradientScalingFactor() + ".txt";  
+      newFileName = "alg=" + alg + "_d=" + DcopAgent.getNoAgent() + "_domainSize=" + agent.getDomainSize() + "_numPoints="
+          + DcopAgent.getNumberOfPoints() + "_gradientIteration=" + DcopAgent.getGradientIteration() + "_gradientRate="
+          + DcopAgent.GRADIENT_SCALING_FACTOR + ".txt";  
     }
     
-    if (agent.instanceID == 0) {
+    if (DcopAgent.getInstanceID() == 0) {
       writeHeaderLineToFile(newFileName);
     }
     
@@ -48,7 +48,7 @@ public class Utilities {
     df.setRoundingMode(RoundingMode.DOWN);
     String line = null;
     
-    line = "\n" + agent.instanceID + "\t" + alg + "\t" + agent.noAgent + "\t" + agent.getSimulatedTime() / 1000000.0 + "\t"
+    line = "\n" + DcopAgent.getInstanceID() + "\t" + alg + "\t" + DcopAgent.getNoAgent() + "\t" + agent.getSimulatedTime() / 1000000.0 + "\t"
         + df.format(agent.getAggregatedUtility()) + "\t" + agent.getChosenValue();
     
     writeToFile(line, newFileName);

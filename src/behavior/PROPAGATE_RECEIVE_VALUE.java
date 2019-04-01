@@ -1,6 +1,6 @@
 package behavior;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import static agent.DcopInfo.*;
 
 import java.util.ArrayList;
@@ -16,9 +16,9 @@ public class PROPAGATE_RECEIVE_VALUE extends OneShotBehaviour {
 
 	private static final long serialVersionUID = -9137969826179481705L;
 
-	DCOP agent;
+	DcopAgent agent;
 	
-	public PROPAGATE_RECEIVE_VALUE(DCOP agent) {
+	public PROPAGATE_RECEIVE_VALUE(DcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}
@@ -78,7 +78,7 @@ public class PROPAGATE_RECEIVE_VALUE extends OneShotBehaviour {
 	      else
 	        block();
 	    }
-	    agent.addupSimulatedTime(DCOP.getDelayMessageTime());
+	    agent.addupSimulatedTime(DcopAgent.getDelayMessageTime());
 	    return messageList;
 	  }
 }

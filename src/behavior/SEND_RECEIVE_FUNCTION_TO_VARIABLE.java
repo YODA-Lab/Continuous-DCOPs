@@ -10,7 +10,7 @@ import com.google.common.collect.Sets;
 
 import java.util.Set;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
@@ -35,9 +35,9 @@ public class SEND_RECEIVE_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
    */
   private static final long serialVersionUID = 796364337476910372L;
   
-  DCOP agent;
+  DcopAgent agent;
   
-  public SEND_RECEIVE_FUNCTION_TO_VARIABLE(DCOP agent) {
+  public SEND_RECEIVE_FUNCTION_TO_VARIABLE(DcopAgent agent) {
     super(agent);
     this.agent = agent;
   }

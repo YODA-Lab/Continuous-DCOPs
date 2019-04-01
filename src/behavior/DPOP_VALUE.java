@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
@@ -40,9 +40,9 @@ public class DPOP_VALUE extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 4288241761322913640L;
 	
-	DCOP agent;
+	DcopAgent agent;
 	
-	public DPOP_VALUE(DCOP agent) {
+	public DPOP_VALUE(DcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}
@@ -71,11 +71,11 @@ public class DPOP_VALUE extends OneShotBehaviour {
     agent.getNeighborChosenValueMap().putAll(valuesFromParent);
     
     // Only choose value if running DPOP-like algorithm
-    if (agent.algorithm == DCOP.DISCRETE_DPOP) {
+    if (DcopAgent.getAlgorithm() == DcopAgent.DISCRETE_DPOP) {
       agent.setChosenValue(chooseValue_TABLE(valuesFromParent));
-    } else if (agent.algorithm == DCOP.ANALYTICAL_DPOP || agent.algorithm == DCOP.APPROX_DPOP) {
+    } else if (DcopAgent.getAlgorithm() == DcopAgent.ANALYTICAL_DPOP || DcopAgent.getAlgorithm() == DcopAgent.APPROX_DPOP) {
       agent.setChosenValue(chooseValue_FUNCTION(valuesFromParent));
-    } else if (agent.algorithm == DCOP.MOVING_DPOP | agent.algorithm == DCOP.CLUSTERING_DPOP) {
+    } else if (DcopAgent.getAlgorithm() == DcopAgent.MOVING_DPOP | DcopAgent.getAlgorithm() == DcopAgent.CLUSTERING_DPOP) {
       agent.setChosenValue(chooseValue_HYBRID(valuesFromParent));
     }    
    
@@ -168,7 +168,7 @@ public class DPOP_VALUE extends OneShotBehaviour {
    * @return
    */
   private double nonLeafValue_HYBRID(HashMap<String, Double> valuesFromParent) {
-    return agent.getAgentViewTable().maxArgmaxHybrid(agent, valuesFromParent, agent.getGlobalInterval().getMidPointInQuarterIntegerRanges(), 1)[1];
+    return agent.getAgentViewTable().maxArgmaxHybrid(agent, valuesFromParent, DcopAgent.getGlobalInterval().getMidPointInQuarterIntegerRanges(), 1)[1];
   }
 
   /**

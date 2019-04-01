@@ -2,16 +2,16 @@ package behavior;
 
 import java.io.IOException;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import jade.core.behaviours.OneShotBehaviour;
 
 public class AGENT_TERMINATE extends OneShotBehaviour {
 
 	private static final long serialVersionUID = -5079656778610995797L;
 
-	DCOP agent;
+	DcopAgent agent;
 	
-	public AGENT_TERMINATE(DCOP agent) {
+	public AGENT_TERMINATE(DcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}

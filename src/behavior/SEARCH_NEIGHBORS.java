@@ -1,6 +1,6 @@
 package behavior;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.domain.DFService;
@@ -12,18 +12,18 @@ public class SEARCH_NEIGHBORS extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 6680449924898094747L;
 
-	DCOP agent;
+	DcopAgent agent;
 	
 	/**
 	 * @param agent
 	 */
-	public SEARCH_NEIGHBORS(DCOP agent) {
+	public SEARCH_NEIGHBORS(DcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}
 	
 	@Override
-	public void action() {
+	public void action() {	  
 		DFAgentDescription templateDF = new DFAgentDescription();
 		ServiceDescription serviceDescription = new ServiceDescription();
 		serviceDescription.setType(agent.getID());
@@ -51,6 +51,6 @@ public class SEARCH_NEIGHBORS extends OneShotBehaviour {
           agent.addAgentToFunctionOwnedByOther(agentID);
   		  }
   		}
-		}
+		}		
 	}
 }

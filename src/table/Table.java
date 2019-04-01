@@ -8,7 +8,7 @@ import java.util.Map.Entry;
 
 import com.google.common.collect.Sets;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 import zexception.FunctionException;
 
@@ -198,7 +198,7 @@ public class Table implements Serializable {
    * @param 
    * @return
    */
-  public double[] maxArgmaxHybrid(DCOP agent, Map<String, Double> valueMapOfOtherVariables, Set<Double> agentValues, int stepSize) {    
+  public double[] maxArgmaxHybrid(DcopAgent agent, Map<String, Double> valueMapOfOtherVariables, Set<Double> agentValues, int stepSize) {    
     double[] maxArgmax = new double[2];
     maxArgmax[0] = -Double.MAX_VALUE;
     maxArgmax[1] = -Double.MAX_VALUE;

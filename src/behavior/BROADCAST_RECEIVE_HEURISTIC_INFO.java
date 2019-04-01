@@ -8,16 +8,16 @@ import jade.lang.acl.UnreadableException;
 
 import java.util.ArrayList;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import static agent.DcopInfo.*;
 
 //MAX-DEGREE HEURISTIC
 public class BROADCAST_RECEIVE_HEURISTIC_INFO extends OneShotBehaviour {
 	private static final long serialVersionUID = 7277049523059465622L;
 
-	DCOP agent;
+	DcopAgent agent;
 	
-	public BROADCAST_RECEIVE_HEURISTIC_INFO(DCOP agent) {
+	public BROADCAST_RECEIVE_HEURISTIC_INFO(DcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}

@@ -25,7 +25,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
-import agent.DCOP;
+import agent.DcopAgent;
 import static agent.DcopInfo.*;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
@@ -37,21 +37,7 @@ import weka.core.Attribute;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.SparseInstance;
-//import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.KMedoidsPAM;
-//import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.KMedoidsInitialization;
-//import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.PAMInitialMeans;
-//import de.lmu.ifi.dbs.elki.data.Cluster;
-//import de.lmu.ifi.dbs.elki.data.Clustering;
-//import de.lmu.ifi.dbs.elki.data.DoubleVector;
-//import de.lmu.ifi.dbs.elki.data.model.MedoidModel;
-//import de.lmu.ifi.dbs.elki.data.type.TypeUtil;
-//import de.lmu.ifi.dbs.elki.database.Database;
-//import de.lmu.ifi.dbs.elki.database.StaticArrayDatabase;
-//import de.lmu.ifi.dbs.elki.database.relation.Relation;
-//import de.lmu.ifi.dbs.elki.datasource.ArrayAdapterDatabaseConnection;
-//import de.lmu.ifi.dbs.elki.datasource.DatabaseConnection;
-//import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.EuclideanDistanceFunction;
-//import de.lmu.ifi.dbs.elki.utilities.datastructures.arraylike.ArrayLikeUtil;
+
 /*
  * This is UTIL phrase of DTREE
  * 1. If X is leaf THEN
@@ -90,9 +76,9 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
   private static final long serialVersionUID = -2438558665331658059L;
 
-  DCOP agent;
+  DcopAgent agent;
 
-  public DPOP_UTIL(DCOP agent) {
+  public DPOP_UTIL(DcopAgent agent) {
     super(agent);
     this.agent = agent;
   }
@@ -101,8 +87,10 @@ public class DPOP_UTIL extends OneShotBehaviour {
   public void action() {
     agent.startSimulatedTiming();
     
+    removeChildrenFunctionFromFunctionList();
+    
     if (agent.isRunningDiscreteAlg()) {
-      createDCOPTableFromFunction();
+      createDCOPTableFromFunction(agent.getPWFunctionWithPParentMap());
     }
     // At this point, all three algorithms have the same functions (or
     // transformed to tables)
@@ -110,7 +98,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     if (agent.isRunningDiscreteAlg()) {
       doUtil_TABLE();
-    } else if (agent.algorithm == DCOP.ANALYTICAL_DPOP || agent.algorithm == DCOP.APPROX_DPOP) {
+    } else if (DcopAgent.getAlgorithm() == ANALYTICAL_DPOP || DcopAgent.getAlgorithm() == APPROX_DPOP) {
       doUtil_FUNC();
     } else if (agent.isRunningHybridAlg()) {
       doUtil_HYBRID();
@@ -150,9 +138,9 @@ public class DPOP_UTIL extends OneShotBehaviour {
   /**
    * Create the DCOP tables from agent.getCurrentValueSet();
    */
-  public void createDCOPTableFromFunction() {
+  public void createDCOPTableFromFunction(Map<String, PiecewiseMultivariateQuadFunction> functionMap) {
     List<Table> tableListWithParents = new ArrayList<>();
-    for (PiecewiseMultivariateQuadFunction pwFunction : agent.getPWFunctionWithPParentMap().values()) {
+    for (PiecewiseMultivariateQuadFunction pwFunction : functionMap.values()) {
       MultivariateQuadFunction func = pwFunction.getTheFirstFunction(); // there is only one function in pw at this time
 
       List<String> varListLabel = func.getVariableSet().stream().collect(Collectors.toList());
@@ -180,7 +168,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
       }
       tableListWithParents.add(tableFromFunc);
     }
-    agent.setTableListWithPParents(tableListWithParents);
+    agent.setTableList(tableListWithParents);
   }
 
   private void leaf_TABLE() {
@@ -188,12 +176,12 @@ public class DPOP_UTIL extends OneShotBehaviour {
     
     out.println("LEAF " + agent.getID() + " is running");
     // get the first table
-    Table combinedTable = agent.getTableListWithPParents().get(0);
+    Table combinedTable = agent.getTableList().get(0);
     // combinedTable.printDecVar();
     // joining other tables with table 0
-    int currentTableListDPOPsize = agent.getTableListWithPParents().size();
+    int currentTableListDPOPsize = agent.getTableList().size();
     for (int index = 1; index < currentTableListDPOPsize; index++) {
-      Table pseudoParentTable = agent.getTableListWithPParents().get(index);
+      Table pseudoParentTable = agent.getTableList().get(index);
       // pseudoParentTable.printDecVar(); // KHOI PRINT
       combinedTable = joinTable(combinedTable, pseudoParentTable);
     }
@@ -227,10 +215,10 @@ public class DPOP_UTIL extends OneShotBehaviour {
     agent.setAgentViewFunction(combinedFunction);
 
     PiecewiseMultivariateQuadFunction projectedFunction = null;
-    if (agent.algorithm == APPROX_DPOP) {
-      projectedFunction = combinedFunction.approxProject(agent.getNumberOfPoints(), agent.getID(),
+    if (DcopAgent.getAlgorithm() == APPROX_DPOP) {
+      projectedFunction = combinedFunction.approxProject(DcopAgent.getNumberOfPoints(), agent.getID(),
           agent.getNumberOfApproxAgents(), agent.isApprox());
-    } else if (agent.algorithm == ANALYTICAL_DPOP) {
+    } else if (DcopAgent.getAlgorithm() == ANALYTICAL_DPOP) {
       projectedFunction = combinedFunction.analyticalProject();
     }
 
@@ -326,7 +314,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     
     System.out.println("Agent " + agent.getID() + " is joining tables");
 
-    for (Table pseudoParentTable : agent.getTableListWithPParents()) {
+    for (Table pseudoParentTable : agent.getTableList()) {
       combinedUtilAndConstraintTable = joinTable(combinedUtilAndConstraintTable, pseudoParentTable);
     }
     
@@ -385,10 +373,10 @@ public class DPOP_UTIL extends OneShotBehaviour {
     out.println("Agent " + agent.getID() + " Internal node number of combined function: "
         + combinedFunctionMessage.getFunctionMap().size());
 
-    if (agent.algorithm == APPROX_DPOP) {
-      projectedFunction = combinedFunctionMessage.approxProject(agent.getNumberOfPoints(), agent.getID(),
+    if (DcopAgent.getAlgorithm() == APPROX_DPOP) {
+      projectedFunction = combinedFunctionMessage.approxProject(DcopAgent.getNumberOfPoints(), agent.getID(),
           agent.getNumberOfApproxAgents(), agent.isApprox());
-    } else if (agent.algorithm == ANALYTICAL_DPOP) {
+    } else if (DcopAgent.getAlgorithm() == ANALYTICAL_DPOP) {
       projectedFunction = combinedFunctionMessage.analyticalProject();
     }
 
@@ -603,7 +591,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     }
     
     // Traverse the valueList
-    int maxIteration = flag == DONE_AT_LEAF ? agent.getGradientIteration() : agent.getGradientIteration() / 2;
+    int maxIteration = flag == DONE_AT_LEAF ? DcopAgent.getGradientIteration() : DcopAgent.getGradientIteration() / 2;
     
     for (int movingIteration = 0; movingIteration < maxIteration; movingIteration++) {
 //      System.out.println("Agent " + agent.getID() + " is moving iteration " + movingIteration);
@@ -617,7 +605,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
           PiecewiseMultivariateQuadFunction functionWithPP = agent.getPWFunctionWithPParentMap().get(ppAgentToMove);
           
-          PiecewiseMultivariateQuadFunction derivativePw = agent.algorithm == MOVING_DPOP
+          PiecewiseMultivariateQuadFunction derivativePw = DcopAgent.getAlgorithm() == MOVING_DPOP
               ? functionWithPP.takeFirstPartialDerivative(ppAgentToMove)
               : agent.getAgentViewFunction().takeFirstPartialDerivative(ppAgentToMove);
           //          PiecewiseMultivariateQuadFunction derivativePw = agent.getAgentViewFunction().takeFirstPartialDerivative(ppAgentToMove);          
@@ -662,10 +650,10 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
           double gradient = derivativePw.getTheFirstFunction().evaluateToValueGivenValueMap(valueMap);
           
-          double movedPpValue = ppValueToMove + agent.getGradientScalingFactor() * gradient;
+          double movedPpValue = ppValueToMove + DcopAgent.GRADIENT_SCALING_FACTOR * gradient;
           
           // only move if the new point is within the interval
-          if (agent.getGlobalInterval().contains(movedPpValue)) {         
+          if (DcopAgent.getGlobalInterval().contains(movedPpValue)) {         
             valueList.set(ppToMoveIndex, movedPpValue);
           }
         }
@@ -673,7 +661,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     }
     
     if (agent.isClustering()) {
-      return kmeanCluster(mutableProductPPValues, agent.getNumberOfPoints());
+      return kmeanCluster(mutableProductPPValues, DcopAgent.getNumberOfPoints());
     } else {
       return mutableProductPPValues;
     }
@@ -741,7 +729,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     Table combinedUtilAndConstraintTable = combineMessage(receivedUTILmsgList);
     // combinedUtilAndConstraintTable.printDecVar();
-    for (Table pseudoParentTable : agent.getTableListWithPParents()) {
+    for (Table pseudoParentTable : agent.getTableList()) {
       combinedUtilAndConstraintTable = joinTable(combinedUtilAndConstraintTable, pseudoParentTable);
     }
 
@@ -763,7 +751,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     out.println("CHOSEN: " + agent.getChosenValue());
 
-    out.println(DCOP.algTypes[agent.algorithm] + " utility " + maxUtility);
+    out.println(DcopAgent.algTypes[DcopAgent.getAlgorithm()] + " utility " + maxUtility);
 
     agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
     
@@ -799,7 +787,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     out.println("CHOSEN: " + agent.getChosenValue());
 
-    out.println(DCOP.algTypes[agent.algorithm] + " utility " + maxUtility);
+    out.println(DcopAgent.algTypes[DcopAgent.getAlgorithm()] + " utility " + maxUtility);
 
     agent.pauseSimulatedTiming();
   }
@@ -932,7 +920,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     }
     
     try {
-      kmean.setNumClusters(agent.getNumberOfPoints());
+      kmean.setNumClusters(DcopAgent.getNumberOfPoints());
       kmean.buildClusterer(instances);
       
       Instances centroidsInstance = kmean.getClusterCentroids();
@@ -1353,5 +1341,21 @@ public class DPOP_UTIL extends OneShotBehaviour {
     }
 
     return function;
+  }
+  
+  /**
+   * Remove any function that contains children or pseudoChildren.
+   */
+  private void removeChildrenFunctionFromFunctionList() {
+    Map<String, PiecewiseMultivariateQuadFunction> pwFuncMap = new HashMap<>(agent.getFunctionMap());
+        
+    for (Entry<String, PiecewiseMultivariateQuadFunction> entry : agent.getFunctionMap().entrySet()) {
+      if (!agent.getParentAndPseudoStrList().contains(entry.getKey())) {
+        pwFuncMap.remove(entry.getKey());
+        continue;
+      }
+    }
+    
+    agent.setPWFunctionWithPParentMap(pwFuncMap);
   }
 }
