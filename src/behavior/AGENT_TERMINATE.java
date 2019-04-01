@@ -9,7 +9,7 @@ public class AGENT_TERMINATE extends OneShotBehaviour {
 
 	private static final long serialVersionUID = -5079656778610995797L;
 
-	DcopAgent agent;
+	private DcopAgent agent;
 	
 	public AGENT_TERMINATE(DcopAgent agent) {
 		super(agent);

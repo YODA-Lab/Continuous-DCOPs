@@ -12,7 +12,7 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 4766760189659187968L;
 
-	DcopAgent agent;
+	private DcopAgent agent;
 	
 	public RECEIVE_SEND_UTIL_TO_ROOT(DcopAgent agent) {
 		super(agent);

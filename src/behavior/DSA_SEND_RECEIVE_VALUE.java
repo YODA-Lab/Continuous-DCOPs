@@ -17,7 +17,7 @@ public class DSA_SEND_RECEIVE_VALUE extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 6680449924898094747L;
 
-	DcopAgent agent;
+	private DcopAgent agent;
 	
 	/**
 	 * @param agent

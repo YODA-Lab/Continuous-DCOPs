@@ -18,7 +18,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 4730436360893574779L;
 
-	DcopAgent agent;
+	private DcopAgent agent;
 	
 	public PSEUDOTREE_GENERATION(DcopAgent agent) {
 		super(agent);

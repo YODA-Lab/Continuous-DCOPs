@@ -15,7 +15,7 @@ import static agent.DcopInfo.*;
 public class BROADCAST_RECEIVE_HEURISTIC_INFO extends OneShotBehaviour {
 	private static final long serialVersionUID = 7277049523059465622L;
 
-	DcopAgent agent;
+	private DcopAgent agent;
 	
 	public BROADCAST_RECEIVE_HEURISTIC_INFO(DcopAgent agent) {
 		super(agent);

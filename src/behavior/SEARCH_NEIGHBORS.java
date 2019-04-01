@@ -12,7 +12,7 @@ public class SEARCH_NEIGHBORS extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 6680449924898094747L;
 
-	DcopAgent agent;
+	private DcopAgent agent;
 	
 	/**
 	 * @param agent

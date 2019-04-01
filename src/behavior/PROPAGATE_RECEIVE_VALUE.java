@@ -16,7 +16,7 @@ public class PROPAGATE_RECEIVE_VALUE extends OneShotBehaviour {
 
 	private static final long serialVersionUID = -9137969826179481705L;
 
-	DcopAgent agent;
+	private DcopAgent agent;
 	
 	public PROPAGATE_RECEIVE_VALUE(DcopAgent agent) {
 		super(agent);

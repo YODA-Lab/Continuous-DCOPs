@@ -40,7 +40,7 @@ public class DPOP_VALUE extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 4288241761322913640L;
 	
-	DcopAgent agent;
+	private DcopAgent agent;
 	
 	public DPOP_VALUE(DcopAgent agent) {
 		super(agent);

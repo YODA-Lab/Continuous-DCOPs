@@ -25,7 +25,7 @@ public class SEND_RECEIVE_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
    */
   private static final long serialVersionUID = -6435195074924409292L;
   
-  DcopAgent agent;
+  private DcopAgent agent;
   
   public SEND_RECEIVE_VARIABLE_TO_FUNCTION(DcopAgent agent) {
     super(agent);
