@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
+import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
@@ -212,6 +214,13 @@ public class DcopAgent extends Agent implements DcopInfo {
 		mainSequentialBehaviourList.addSubBehaviour(new PSEUDOTREE_GENERATION(this));
 				
 		currentValueSet = globalInterval.getMidPoints(numberOfPoints);
+		
+		if (isRunningDSA()) {
+	    if (isRunningDiscreteAlg()) {
+	      createDCOPTableFromFunction(getFunctionMap());
+	      initializeDSAValue(currentValueSet);
+	    }
+		}
     		
 		// DPOP
 		if (isRunningDPOP()) {
@@ -237,7 +246,13 @@ public class DcopAgent extends Agent implements DcopInfo {
 		addBehaviour(mainSequentialBehaviourList); 
   }
 	
-	private boolean isRunningDSA() {
+	private void initializeDSAValue(Set<Double> valueSet) {
+	  List<Double> clonedValueList = new ArrayList<>(valueSet);
+	  Collections.shuffle(clonedValueList);
+    setValue(clonedValueList.get(0));
+  }
+
+  private boolean isRunningDSA() {
 	  return algorithm == DISCRETE_DSA || algorithm == CONTINUOUS_DSA;
 	}
 
@@ -550,6 +565,42 @@ public class DcopAgent extends Agent implements DcopInfo {
     }
     return coeffArray;
 	}
+	
+  /**
+   * Create the DCOP tables from agent.getCurrentValueSet();
+   */
+  public void createDCOPTableFromFunction(Map<String, PiecewiseMultivariateQuadFunction> functionMap) {
+    List<Table> tableList = new ArrayList<>();
+    for (PiecewiseMultivariateQuadFunction pwFunction : functionMap.values()) {
+      MultivariateQuadFunction func = pwFunction.getTheFirstFunction(); // there is only one function in pw at this time
+
+      List<String> varListLabel = func.getVariableSet().stream().collect(Collectors.toList());
+      Table tableFromFunc = new Table(varListLabel);
+
+      // Always binary functions
+      String variableOne = varListLabel.get(0);
+      String variableTwo = varListLabel.get(1);
+
+      for (Double valueOne : getCurrentValueSet()) {
+        Map<String, Double> valueMap = new HashMap<>();
+        List<Double> rowValueList = new ArrayList<>();
+        rowValueList.add(valueOne);
+        valueMap.put(variableOne, valueOne);
+        for (double valueTwo : getCurrentValueSet()) {
+          rowValueList.add(valueTwo);
+          valueMap.put(variableTwo, valueTwo);
+          Row newRow = new Row(new ArrayList<>(rowValueList), func.evaluateToValueGivenValueMap(valueMap));
+          tableFromFunc.addRow(newRow);
+          rowValueList.remove(1);
+          valueMap.remove(variableTwo);
+        }
+        rowValueList.clear();
+        valueMap.clear();
+      }
+      tableList.add(tableFromFunc);
+    }
+    setTableList(tableList);
+  }
 	
 	public void registerWithDF () {
 		DFAgentDescription dfd = new DFAgentDescription();
