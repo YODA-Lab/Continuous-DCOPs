@@ -17,7 +17,7 @@ public class Main {
     
     String arg[] = new String[4];
     arg[0] = inputFileName;
-    arg[1] = String.valueOf(DcopInfo.DISCRETE_MAXSUM);
+    arg[1] = String.valueOf(DcopInfo.DISCRETE_DSA);
     arg[2] = String.valueOf(3); // number of points
     arg[3] = String.valueOf(10); // number of iterations
     

@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
@@ -679,7 +678,7 @@ public class DcopAgent extends Agent implements DcopInfo {
   }
   
   public boolean isRunningDiscreteAlg() {
-    return algorithm == DISCRETE_DPOP || algorithm == DISCRETE_MAXSUM || algorithm == DISCRETE_MAXSUM;
+    return algorithm == DISCRETE_DPOP || algorithm == DISCRETE_MAXSUM || algorithm == DISCRETE_DSA;
   }
   
   public boolean isRunningHybridAlg() {
