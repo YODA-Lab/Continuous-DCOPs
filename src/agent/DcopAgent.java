@@ -240,7 +240,7 @@ public class DcopAgent extends Agent implements DcopInfo {
       }
 //      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
 		}
-		else if (isRunningDSA() && isRunningDiscreteAlg()) {
+		else if (isRunningDSA() && !isRunningDiscreteAlg()) {
       for (int i = 0; i < gradientIteration; i++) {
         mainSequentialBehaviourList.addSubBehaviour(new CONTINUOUS_DSA(this));
       }
