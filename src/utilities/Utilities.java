@@ -25,6 +25,11 @@ import function.multivariate.MultivariateQuadFunction;
 public class Utilities {	
   public static String headerLine = "ID" + "\t" + "Alg" + "\t" + "noAgent" + "\t" + "Time (ms)" + "\t" + "Utility" + "\t"
       + "RootArgMax";
+  
+  /**
+   *  Tolerance used in comparing double values.
+   */
+  protected static final double DOUBLE_TOLERANCE = 1E-6;
   	
   public static void writeToFile(DcopAgent agent) {    
     String alg = algTypes[DcopAgent.getAlgorithm()];
@@ -130,4 +135,20 @@ public class Utilities {
 	  System.err.println(x);
 	  }
 	}
+	
+  /**
+   * This function is used to replaced the compareDouble(double, double).
+   * If |a - b| is <= DOUBLE_TOLERANCE, then return 0; // a == b
+   * @param a .
+   * @param b .
+   * @return
+   *   Double.compare(a, b) if the absolute difference is > DOUBLE_TOLERANCE, return 0 otherwise
+   */
+  public static int compareDouble(double a, double b) {
+      double absDiff = Math.abs(a - b);
+      
+      if (Double.compare(absDiff, DOUBLE_TOLERANCE) <= 0) return 0;
+      
+      return Double.compare(a, b);
+  }
 }

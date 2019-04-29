@@ -28,7 +28,7 @@ import static agent.DcopInfo.*;
  * @author khoihd
  *
  */
-public class SEND_RECEIVE_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
+public class MAXSUM_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
 
   /**
    * 
@@ -37,7 +37,7 @@ public class SEND_RECEIVE_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
   
   private DcopAgent agent;
   
-  public SEND_RECEIVE_FUNCTION_TO_VARIABLE(DcopAgent agent) {
+  public MAXSUM_FUNCTION_TO_VARIABLE(DcopAgent agent) {
     super(agent);
     this.agent = agent;
   }

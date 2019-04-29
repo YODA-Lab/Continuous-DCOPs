@@ -24,12 +24,13 @@ import behavior.AGENT_TERMINATE;
 import behavior.BROADCAST_RECEIVE_HEURISTIC_INFO;
 import behavior.DPOP_UTIL;
 import behavior.DPOP_VALUE;
-import behavior.DSA_SEND_RECEIVE_VALUE;
+import behavior.DISCRETE_DSA;
+import behavior.CONTINUOUS_DSA;
 import behavior.PSEUDOTREE_GENERATION;
 import behavior.RECEIVE_SEND_UTIL_TO_ROOT;
 import behavior.SEARCH_NEIGHBORS;
-import behavior.SEND_RECEIVE_FUNCTION_TO_VARIABLE;
-import behavior.SEND_RECEIVE_VARIABLE_TO_FUNCTION;
+import behavior.MAXSUM_FUNCTION_TO_VARIABLE;
+import behavior.MAXSUM_VARIABLE_TO_FUNCTION;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
@@ -214,11 +215,9 @@ public class DcopAgent extends Agent implements DcopInfo {
 				
 		currentValueSet = globalInterval.getMidPoints(numberOfPoints);
 		
-		if (isRunningDSA()) {
-	    if (isRunningDiscreteAlg()) {
-	      createDCOPTableFromFunction(getFunctionMap());
-	      initializeDSAValue(currentValueSet);
-	    }
+		if (isRunningDSA() && isRunningDiscreteAlg()) {
+      createDCOPTableFromFunction(getFunctionMap());
+      initializeDSAValue(currentValueSet);
 		}
     		
 		// DPOP
@@ -229,17 +228,25 @@ public class DcopAgent extends Agent implements DcopInfo {
 		} // MAX-SUM 
 		else if (isRunningMaxsum()) {
 		  for (int i = 0; i < gradientIteration; i++) {
-	      mainSequentialBehaviourList.addSubBehaviour(new SEND_RECEIVE_VARIABLE_TO_FUNCTION(this));
-	      mainSequentialBehaviourList.addSubBehaviour(new SEND_RECEIVE_FUNCTION_TO_VARIABLE(this));
+	      mainSequentialBehaviourList.addSubBehaviour(new MAXSUM_VARIABLE_TO_FUNCTION(this));
+	      mainSequentialBehaviourList.addSubBehaviour(new MAXSUM_FUNCTION_TO_VARIABLE(this));
 		  }
       mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
       mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
 		}
-		else if (isRunningDSA()) {
+		else if (isRunningDSA() && isRunningDiscreteAlg()) {
       for (int i = 0; i < gradientIteration; i++) {
-        mainSequentialBehaviourList.addSubBehaviour(new DSA_SEND_RECEIVE_VALUE(this));
+        mainSequentialBehaviourList.addSubBehaviour(new DISCRETE_DSA(this));
       }
+//      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
 		}
+		else if (isRunningDSA() && isRunningDiscreteAlg()) {
+      for (int i = 0; i < gradientIteration; i++) {
+        mainSequentialBehaviourList.addSubBehaviour(new CONTINUOUS_DSA(this));
+      }
+//      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
+		}
+		
 		
 		mainSequentialBehaviourList.addSubBehaviour(new AGENT_TERMINATE(this));
 		addBehaviour(mainSequentialBehaviourList); 

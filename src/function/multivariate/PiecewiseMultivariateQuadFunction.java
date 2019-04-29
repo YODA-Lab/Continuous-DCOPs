@@ -300,16 +300,16 @@ public final class PiecewiseMultivariateQuadFunction implements Serializable {
   
   /**
    * This function is used in Analytical DPOP
-   * @param agentStrID
-   * @param valuesFromParent
+   * @param variableID is the agent/variable that are being compute the argmax
+   * @param valuesOfOtherVariables is the map containing values of other variables rather than the variableID
    * @return
    */
-  public double getArgmaxGivenVariableAndValueMap(String agentStrID, Map<String, Double> valuesFromParent) {
+  public double getArgmaxGivenVariableAndValueMap(String variableID, Map<String, Double> valuesOfOtherVariables) {
     Map<String, Double> valueMap = new HashMap<>();
     // set owner to find the other agent
-    this.setOwner(agentStrID);
+    this.setOwner(variableID);
     
-    valueMap.put(getOtherAgent(), valuesFromParent.get(getOtherAgent()));
+    valueMap.put(getOtherAgent(), valuesOfOtherVariables.get(getOtherAgent()));
     PiecewiseMultivariateQuadFunction unaryFunc = this.evaluateToUnaryFunction(valueMap);
     
     double max = -Double.MAX_VALUE;

@@ -1,4 +1,4 @@
-package dcop;
+package main;
 
 import agent.DcopInfo;
 import jade.core.Profile;
