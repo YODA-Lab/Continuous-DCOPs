@@ -65,7 +65,7 @@ public class CONTINUOUS_DSA extends OneShotBehaviour {
     System.out.println(this.getAgent().getLocalName());
 
     
-    double chosenValue = combinedFunction.getArgmaxGivenVariableAndValueMap(this.getAgent().getLocalName(), neighborValues);
+    double chosenValue = combinedFunction.getArgmax(this.getAgent().getLocalName(), neighborValues);
     if (chosenValue != agent.getValue()) {
       if (new Random().nextDouble() <= 0.66) {
         System.out.println("									agent " + agent.getLocalName() + " changes its value from " + agent.getValue()
