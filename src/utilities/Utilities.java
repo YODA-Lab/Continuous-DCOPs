@@ -18,7 +18,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import agent.DcopAgent;
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
 

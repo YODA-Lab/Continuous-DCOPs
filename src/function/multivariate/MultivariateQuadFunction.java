@@ -25,7 +25,7 @@ import zexception.FunctionException;
 import com.google.common.collect.Sets;
 import static java.lang.Math.*;
 import static java.lang.Double.*;
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 
 /**
  * This is the list of function that needs to be tested: ADD, EVALUATE, PROJECT

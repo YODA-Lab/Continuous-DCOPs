@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 
 import agent.DcopAgent;
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;

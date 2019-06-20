@@ -3,7 +3,7 @@ package behavior;
 import agent.DcopAgent;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -58,6 +58,7 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 //							+ childMessage.getContent() + " to Agent " + childrenWithBestInfo.getLocalName());
 		}
 		
+	  // Reading for messages
 		while (DcopAgent.WAITING_FOR_MSG) {
 			MessageTemplate template = MessageTemplate.MatchPerformative(PSEUDOTREE);
 			ACLMessage receivedMessage = myAgent.receive(template);

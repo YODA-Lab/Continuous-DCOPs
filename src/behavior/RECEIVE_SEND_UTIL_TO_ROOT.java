@@ -1,7 +1,7 @@
 package behavior;
 
 import agent.DcopAgent;
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;

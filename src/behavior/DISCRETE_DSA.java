@@ -11,7 +11,7 @@ import java.util.Random;
 import java.util.Set;
 
 import agent.DcopAgent;
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 import static utilities.Utilities.compareDouble;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 import table.Row;
@@ -111,7 +111,6 @@ public class DISCRETE_DSA extends OneShotBehaviour {
   
   // update the utilities map for a give neighbor's value
   public Map<Double, Double> updateUtilities(Map<Double, Double> utilities, String sender, Double senderValue) {
-
     List<Table> tables = agent.getTableList();
     // iterate to locate the table of this neighbor and me
     for (Table table : tables) {

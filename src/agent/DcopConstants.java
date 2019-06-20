@@ -4,7 +4,7 @@ package agent;
  * @author khoihd
  *
  */
-public interface DcopInfo {
+public interface DcopConstants {
   public static final boolean WAITING_FOR_MSG = true;
 
   public static final int ANALYTICAL_DPOP = 0;

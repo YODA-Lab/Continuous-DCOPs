@@ -16,7 +16,7 @@ import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 import static java.lang.System.*;
 /*	1. IF X is a root
  * 		Send the value of root to all the children

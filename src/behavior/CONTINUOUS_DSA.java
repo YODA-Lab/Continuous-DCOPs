@@ -1,10 +1,12 @@
 package behavior;
 
-import static agent.DcopInfo.DSA_VALUE;
+import static agent.DcopConstants.DSA_VALUE;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 
 import agent.DcopAgent;
@@ -13,13 +15,14 @@ import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
+import jade.lang.acl.UnreadableException;
 
 public class CONTINUOUS_DSA extends OneShotBehaviour {
   /**
    * 
    */
   private static final long serialVersionUID = 5573433680877118333L;
-  
+
   private DcopAgent agent;
 
   public CONTINUOUS_DSA(DcopAgent agent) {
@@ -28,8 +31,7 @@ public class CONTINUOUS_DSA extends OneShotBehaviour {
   }
 
   @Override
-  public void action() {	
-	  
+  public void action() {
     // send the current value to neighbors
     for (AID neighbor : agent.getNeighborAIDList()) {
       ACLMessage msg = new ACLMessage(DSA_VALUE);
@@ -37,60 +39,60 @@ public class CONTINUOUS_DSA extends OneShotBehaviour {
       msg.setContent(Double.toString(this.agent.getValue()));
       agent.send(msg);
     }
-    
-    // initialization
-    PiecewiseMultivariateQuadFunction combinedFunction = new PiecewiseMultivariateQuadFunction(); //combinedFunction     
-	Map<String,PiecewiseMultivariateQuadFunction>  functionMap = agent.getFunctionMap(); //map for  neighbor->function
-	Map<String, Double> neighborValues = new HashMap<String, Double>(); //map for neighbor->value 
-     
-    // receive the values sent by neighbors
-    int messageCount = 0;
-    while (messageCount < agent.getNeighborAIDList().size()) {
-      MessageTemplate template = MessageTemplate.MatchPerformative(DSA_VALUE);
-      ACLMessage receivedMessage = agent.receive(template);
-      if (receivedMessage != null) {
-        messageCount++;
-        String sender = receivedMessage.getSender().getLocalName();
-        double senderValue = Double.parseDouble(receivedMessage.getContent());
-      	combinedFunction = combinedFunction.addPiecewiseFunction(functionMap.get(sender));  //update the function
-      	neighborValues.put(sender, senderValue); // add new entry into the map for neighbor->value 
-      } else {
-        block();
-      }
-    }
-	
-    // changes to the argmax
-    System.out.println(combinedFunction);
-    System.out.println(neighborValues);
-    System.out.println(this.getAgent().getLocalName());
 
+    // initialization
+    PiecewiseMultivariateQuadFunction combinedFunction = new PiecewiseMultivariateQuadFunction(); // combinedFunction
+
+    Map<String, Double> neighborValueMap = waitingForMessageFromNeighborWithTime(DSA_VALUE);
     
-    double chosenValue = combinedFunction.getArgmax(this.getAgent().getLocalName(), neighborValues);
+    for (Entry<String, Double> entry : neighborValueMap.entrySet()) {
+      combinedFunction.addPiecewiseFunction(agent.getFunctionMap().get(entry.getKey()));
+    }
+
+    double chosenValue = combinedFunction.getArgmax(this.getAgent().getLocalName(), neighborValueMap);
+    
+    // Assign new value
     if (chosenValue != agent.getValue()) {
-      if (new Random().nextDouble() <= 0.66) {
-        System.out.println("									agent " + agent.getLocalName() + " changes its value from " + agent.getValue()
-            + " to " + chosenValue);
+      if (Double.compare(new Random().nextDouble(), DcopAgent.DSA_PROBABILITY) <= 0) {
         agent.setValue(chosenValue);
+        System.out.println("Agent " + agent.getLocalName() + " changes to a better value " + chosenValue);
       } else {
-        System.out.println("									agent " + agent.getLocalName() + " could change to a better value " + chosenValue
+        System.out.println("Agent " + agent.getLocalName() + " could change to a better value " + chosenValue
             + ", but it decides to remain the value " + agent.getValue());
       }
     } else {
-      System.out.println(
-          "									agent " + agent.getLocalName() + " doesn't find a better value and remains " + agent.getValue());
+      System.out.println("Agent " + agent.getLocalName() + " doesn't find a better value and remains " + agent.getValue());
     }
-	//combinedFunction.getArgmaxGivenVariableAndValueMap(variableID, valuesOfOtherVariables)
-    // Add a PMQ function with another PWQ function
+  }
+  
+  private Map<String, Double> waitingForMessageFromNeighborWithTime(int msgCode) {
+    // Start of waiting time for the message
+    agent.startSimulatedTiming();    
     
-	
-//	PiecewiseMultivariateQuadFunction combinedFunction = functionMap.get(0);
-//	for (int i = 1; i < functionMap.size(); i++) {
-//	  combinedFunction = combinedFunction.addPiecewiseFunction(functionMap.get(i));
-//	}
-    // To find the argmax of a function f
-    // First you need to create a map String -> Double containing the values of all other variables
-    // except for the variable you're finding the argmax
-    // Look at the below function from PiecewiseMultivariateQuadFunction 
-    // public double getArgmaxGivenVariableAndValueMap(String variableID, Map<String, Double> valuesOfOtherVariables)
+    Map<String, Double> valueMap = new HashMap<>();
+    
+    while (valueMap.size() < agent.getChildrenAIDList().size()) {
+      MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
+      ACLMessage receivedMessage = myAgent.receive(template);
+
+      if (receivedMessage != null) {
+        long timeFromReceiveMessage = Long.parseLong(receivedMessage.getLanguage());
+        if (timeFromReceiveMessage > agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime()) {
+          agent.setSimulatedTime(timeFromReceiveMessage);
+        } else {
+          agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+        }
+        
+        try {
+          valueMap.put(receivedMessage.getSender().getLocalName(), (Double) receivedMessage.getContentObject());
+        } catch (UnreadableException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }        
+      } else
+        block();
+    }
+    
+    return valueMap;
   }
 }

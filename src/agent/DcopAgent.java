@@ -54,11 +54,13 @@ import static java.lang.Double.*;
  * @author khoihd
  *
  */
-public class DcopAgent extends Agent implements DcopInfo {
+public class DcopAgent extends Agent implements DcopConstants {
 	
 	private static final long serialVersionUID = 2919994686894853596L;
 	
-	public static final double GRADIENT_SCALING_FACTOR = Math.pow(10, -3);;
+	public static final double GRADIENT_SCALING_FACTOR = Math.pow(10, -3);
+	
+	public static final double DSA_PROBABILITY = 0.65;
   
 	private static String inputFileName;
   private static Interval globalInterval;
@@ -219,6 +221,10 @@ public class DcopAgent extends Agent implements DcopInfo {
       createDCOPTableFromFunction(getFunctionMap());
       initializeDSAValue(currentValueSet);
 		}
+		
+    if (isRunningDSA() && !isRunningDiscreteAlg()) {
+      initializeDSAValue(currentValueSet);
+    }
     		
 		// DPOP
 		if (isRunningDPOP()) {

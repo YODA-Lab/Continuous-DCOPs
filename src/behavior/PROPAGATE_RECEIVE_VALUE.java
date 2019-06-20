@@ -1,7 +1,7 @@
 package behavior;
 
 import agent.DcopAgent;
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 
 import java.util.ArrayList;
 import java.util.List;

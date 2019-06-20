@@ -12,7 +12,7 @@ import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
 import maxsum.MaxSumMessage;
 
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 
 /**
  * @author khoihd

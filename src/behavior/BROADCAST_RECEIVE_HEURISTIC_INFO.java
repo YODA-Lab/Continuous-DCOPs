@@ -9,7 +9,7 @@ import jade.lang.acl.UnreadableException;
 import java.util.ArrayList;
 
 import agent.DcopAgent;
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 
 //MAX-DEGREE HEURISTIC
 public class BROADCAST_RECEIVE_HEURISTIC_INFO extends OneShotBehaviour {

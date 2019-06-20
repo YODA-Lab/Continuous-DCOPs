@@ -15,7 +15,7 @@ import com.google.common.collect.Sets;
 
 import function.Interval;
 import static java.lang.Double.*;
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 
 /**
  * @author khoihd

@@ -21,7 +21,7 @@ import maxsum.MaxSumMessage;
 import table.Row;
 import table.Table;
 
-import static agent.DcopInfo.*;
+import static agent.DcopConstants.*;
 
 
 /**
