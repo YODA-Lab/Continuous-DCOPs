@@ -1,5 +1,6 @@
 package behavior;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -20,6 +21,7 @@ import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
+import jade.lang.acl.UnreadableException;
 
 public class DISCRETE_DSA extends OneShotBehaviour {
 
@@ -34,6 +36,21 @@ public class DISCRETE_DSA extends OneShotBehaviour {
 
   @Override
   public void action() {
+    // send the current value to neighbors
+    for (AID neighborAID : agent.getNeighborAIDList()) {
+      ACLMessage msg = new ACLMessage(DSA_VALUE);
+      msg.addReceiver(neighborAID);
+      try {
+        msg.setContentObject(agent.getValue());
+      } catch (IOException e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      }
+      agent.send(msg);
+    }
+    
+    Map<String, Double> neighborValueMap = waitingForMessageFromNeighborWithTime(DSA_VALUE);
+    
     for (Entry<String, PiecewiseMultivariateQuadFunction> entry : agent.getFunctionMap().entrySet()) {
       System.out.println(entry.getKey());
       System.out.println(entry.getValue());
@@ -45,7 +62,6 @@ public class DISCRETE_DSA extends OneShotBehaviour {
       
       System.out.println("Argmax is: " + func.getArgmaxGivenVariableAndValueMap(agent.getID(), valueMap));
     }
-    
     
     // create a map to hold the sum utility of all neighbors combined for each
     // value in the domain of this agent
@@ -91,7 +107,9 @@ public class DISCRETE_DSA extends OneShotBehaviour {
       System.out.println("agent " + agent.getLocalName() + ": if value = " + entry.getKey() + ", then utilities = "
           + entry.getValue().toString());
     }
+    
     double chosenValue = Collections.max(utilities.entrySet(), Map.Entry.comparingByValue()).getKey();
+    
     // System.out.println("agent "+agent.getLocalName()+" choses the value "+
     // chosenValue);
     if (chosenValue != agent.getValue()) {
@@ -137,5 +155,37 @@ public class DISCRETE_DSA extends OneShotBehaviour {
       }
     }
     return utilities;
+  }
+  
+  //TODO: Review the simulated runtime
+  private Map<String, Double> waitingForMessageFromNeighborWithTime(int msgCode) {
+    // Start of waiting time for the message
+    agent.startSimulatedTiming();    
+    
+    Map<String, Double> valueMap = new HashMap<>();
+    
+    while (valueMap.size() < agent.getChildrenAIDList().size()) {
+      MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
+      ACLMessage receivedMessage = myAgent.receive(template);
+
+      if (receivedMessage != null) {
+        long timeFromReceiveMessage = Long.parseLong(receivedMessage.getLanguage());
+        if (timeFromReceiveMessage > agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime()) {
+          agent.setSimulatedTime(timeFromReceiveMessage);
+        } else {
+          agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
+        }
+        
+        try {
+          valueMap.put(receivedMessage.getSender().getLocalName(), (Double) receivedMessage.getContentObject());
+        } catch (UnreadableException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }        
+      } else
+        block();
+    }
+    
+    return valueMap;
   }
 }
