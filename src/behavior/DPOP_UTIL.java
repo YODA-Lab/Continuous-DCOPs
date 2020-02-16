@@ -25,7 +25,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
-import agent.DcopAgent;
+import agent.ContinuousDcopAgent;
 import static agent.DcopConstants.*;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
@@ -76,9 +76,9 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
   private static final long serialVersionUID = -2438558665331658059L;
 
-  private DcopAgent agent;
+  private ContinuousDcopAgent agent;
 
-  public DPOP_UTIL(DcopAgent agent) {
+  public DPOP_UTIL(ContinuousDcopAgent agent) {
     super(agent);
     this.agent = agent;
   }
@@ -98,7 +98,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     if (agent.isRunningDiscreteAlg()) {
       doUtil_TABLE();
-    } else if (DcopAgent.getAlgorithm() == ANALYTICAL_DPOP || DcopAgent.getAlgorithm() == APPROX_DPOP) {
+    } else if (ContinuousDcopAgent.getAlgorithm() == EF_DPOP || ContinuousDcopAgent.getAlgorithm() == DISCRETE_DPOP) {
       doUtil_FUNC();
     } else if (agent.isRunningHybridAlg()) {
       doUtil_HYBRID();
@@ -193,7 +193,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
-    agent.sendObjectMessageWithTime(agent.getParentAID(), projectedTable, DPOP_UTIL, agent.getSimulatedTime());
+    agent.sendObjectMessage(agent.getParentAID(), projectedTable, DPOP_UTIL, agent.getSimulatedTime());
   }
 
   /*
@@ -215,10 +215,10 @@ public class DPOP_UTIL extends OneShotBehaviour {
     agent.setAgentViewFunction(combinedFunction);
 
     PiecewiseMultivariateQuadFunction projectedFunction = null;
-    if (DcopAgent.getAlgorithm() == APPROX_DPOP) {
-      projectedFunction = combinedFunction.approxProject(DcopAgent.getNumberOfPoints(), agent.getID(),
+    if (ContinuousDcopAgent.getAlgorithm() == DISCRETE_DPOP) {
+      projectedFunction = combinedFunction.approxProject(ContinuousDcopAgent.getNumberOfPoints(), agent.getID(),
           agent.getNumberOfApproxAgents(), agent.isApprox());
-    } else if (DcopAgent.getAlgorithm() == ANALYTICAL_DPOP) {
+    } else if (ContinuousDcopAgent.getAlgorithm() == EF_DPOP) {
       projectedFunction = combinedFunction.analyticalProject();
     }
 
@@ -298,7 +298,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
     
     System.out.println("Agent " + agent.getID() + " send utilTable size " + utilTable.size() + " to agent " + agent.getParentAID().getLocalName());
-    agent.sendObjectMessageWithTime(agent.getParentAID(), utilTable, DPOP_UTIL, agent.getSimulatedTime());
+    agent.sendObjectMessage(agent.getParentAID(), utilTable, DPOP_UTIL, agent.getSimulatedTime());
   }
 
   public void internalNode_TABLE() {
@@ -330,7 +330,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     agent.pauseSimulatedTiming();
     
-    agent.sendObjectMessageWithTime(agent.getParentAID(), projectedTable, DPOP_UTIL, agent.getSimulatedTime());
+    agent.sendObjectMessage(agent.getParentAID(), projectedTable, DPOP_UTIL, agent.getSimulatedTime());
   }
 
   public void internalNode_FUNC() {
@@ -373,10 +373,10 @@ public class DPOP_UTIL extends OneShotBehaviour {
     out.println("Agent " + agent.getID() + " Internal node number of combined function: "
         + combinedFunctionMessage.getFunctionMap().size());
 
-    if (DcopAgent.getAlgorithm() == APPROX_DPOP) {
-      projectedFunction = combinedFunctionMessage.approxProject(DcopAgent.getNumberOfPoints(), agent.getID(),
+    if (ContinuousDcopAgent.getAlgorithm() == DISCRETE_DPOP) {
+      projectedFunction = combinedFunctionMessage.approxProject(ContinuousDcopAgent.getNumberOfPoints(), agent.getID(),
           agent.getNumberOfApproxAgents(), agent.isApprox());
-    } else if (DcopAgent.getAlgorithm() == ANALYTICAL_DPOP) {
+    } else if (ContinuousDcopAgent.getAlgorithm() == EF_DPOP) {
       projectedFunction = combinedFunctionMessage.analyticalProject();
     }
 
@@ -427,10 +427,17 @@ public class DPOP_UTIL extends OneShotBehaviour {
     
     List<Table> tableList = createTableList(receivedUTILmsgList);
     
+    System.out.println("Agent " + agent.getID() + " receives the UTIL tables:");
+    for (Table table : tableList) {
+      System.out.println(table);
+    }
+    
     // Interpolate points and join all the tables
     out.println("Agent " + agent.getID() + " starts interpolating and joining table");
     Table joinedTable = interpolateAndJoinTable(tableList, NOT_ADD_POINTS);
     out.println("Agent " + agent.getID() + " finishes interpolating and joining table size " + joinedTable.size());
+    System.out.println("Agent " + agent.getID() + " joined the table:");
+    System.out.println(joinedTable);
     
     out.println("Agent " + agent.getID() + " starts adding functions to the table");
     joinedTable = addTheUtilityFunctionsToTheJoinedTable(joinedTable);
@@ -449,10 +456,11 @@ public class DPOP_UTIL extends OneShotBehaviour {
     Table utilTable = createUtilTableFromValueSet(joinedTable, productPPValues);
     out.println("Agent " + agent.getID() + " finishes create UTIL tables from values set");
 
+    System.out.println("Agent " + agent.getID() + " send utilTable size " + utilTable.size() + " to agent " + agent.getParentAID().getLocalName());
+    
     agent.pauseSimulatedTiming();
     
-    System.out.println("Agent " + agent.getID() + " send utilTable size " + utilTable.size() + " to agent " + agent.getParentAID().getLocalName());
-    agent.sendObjectMessageWithTime(agent.getParentAID(), utilTable, DPOP_UTIL, agent.getSimulatedTime());
+    agent.sendObjectMessage(agent.getParentAID(), utilTable, DPOP_UTIL, agent.getSimulatedTime());
   }
 
   /**
@@ -474,9 +482,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
         valueMap.put(agent.getParentAndPseudoStrList().get(i), valueList.get(i));
       }
       
-      Set<Double> agentValues = agent.getCurrentValueSet();
-//      Set<Double> agentValues = agent.getGlobalInterval().getMidPoints(50);
-      double maxUtil = agentViewTable.maxArgmaxHybrid(agent, valueMap, agentValues, 1)[0];
+      double maxUtil = agentViewTable.maxArgmaxHybrid(valueMap)[0];
       
       Row newRow = new Row(valueList, maxUtil);
 
@@ -591,12 +597,17 @@ public class DPOP_UTIL extends OneShotBehaviour {
     }
     
     // Traverse the valueList
-    int maxIteration = flag == DONE_AT_LEAF ? DcopAgent.getGradientIteration() : DcopAgent.getGradientIteration() / 2;
+    int maxIteration = flag == DONE_AT_LEAF ? ContinuousDcopAgent.getGradientIteration() : ContinuousDcopAgent.getGradientIteration() / 2;
     
     for (int movingIteration = 0; movingIteration < maxIteration; movingIteration++) {
-//      System.out.println("Agent " + agent.getID() + " is moving iteration " + movingIteration);
+      if (agent.isPrinting()) {
+        System.out.println("Agent " + agent.getID() + " is moving iteration " + movingIteration);
+      }
+      
       for (List<Double> valueList : mutableProductPPValues) {
-//        System.out.println("Agent " + agent.getID() + " is moving point " + valueList);
+        if (agent.isPrinting()) {
+          System.out.println("Agent " + agent.getID() + " is moving point " + valueList);
+        }
         
         // For each ppToMove (direction), take the derivative of the utility function
         for (int ppToMoveIndex = 0; ppToMoveIndex < valueList.size(); ppToMoveIndex++) {
@@ -605,7 +616,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
           PiecewiseMultivariateQuadFunction functionWithPP = agent.getPWFunctionWithPParentMap().get(ppAgentToMove);
           
-          PiecewiseMultivariateQuadFunction derivativePw = DcopAgent.getAlgorithm() == MOVING_DPOP
+          PiecewiseMultivariateQuadFunction derivativePw = ContinuousDcopAgent.getAlgorithm() == AF_DPOP
               ? functionWithPP.takeFirstPartialDerivative(ppAgentToMove)
               : agent.getAgentViewFunction().takeFirstPartialDerivative(ppAgentToMove);
           //          PiecewiseMultivariateQuadFunction derivativePw = agent.getAgentViewFunction().takeFirstPartialDerivative(ppAgentToMove);          
@@ -639,9 +650,19 @@ public class DPOP_UTIL extends OneShotBehaviour {
                 argMax = maxArgmax[1];
               }
             }
+            
+            if (agent.isPrinting()) {
+              System.out.println("Unary function: " + unaryFunction);
+              System.out.println("Max of the function: " + max);
+              System.out.println("Argmax of the function: " + argMax);
+            }
+            
           } else if (flag == DONE_AT_INTERNAL_NODE){            
-            Set<Double> agentValues = agent.getCurrentValueSet();
-            argMax = agent.getAgentViewTable().maxArgmaxHybrid(agent, valueMapOfOtherVariables, agentValues, 1)[1];
+            argMax = agent.getAgentViewTable().maxArgmaxHybrid(valueMapOfOtherVariables)[1];
+            
+            if (agent.isPrinting()) {
+              System.out.println("Argmax of the table: " + argMax);
+            }
           }
           
           Map<String, Double> valueMap = new HashMap<>();
@@ -650,10 +671,19 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
           double gradient = derivativePw.getTheFirstFunction().evaluateToValueGivenValueMap(valueMap);
           
-          double movedPpValue = ppValueToMove + DcopAgent.GRADIENT_SCALING_FACTOR * gradient;
+          double movedPpValue = ppValueToMove + ContinuousDcopAgent.GRADIENT_SCALING_FACTOR * gradient;
+          
+          if (agent.isPrinting()) {
+            System.out.println("Agent to move:" + ppAgentToMove);
+            System.out.println("Unary function is: " + functionWithPP);
+            System.out.println("Derivative is: " + derivativePw);
+            System.out.println("ppValueToMove " + ppValueToMove);
+            System.out.println("Argmax value is: " + argMax);
+            System.out.println("Moved value is: " + movedPpValue);
+          }
           
           // only move if the new point is within the interval
-          if (DcopAgent.getGlobalInterval().contains(movedPpValue)) {         
+          if (ContinuousDcopAgent.getGlobalInterval().contains(movedPpValue)) {         
             valueList.set(ppToMoveIndex, movedPpValue);
           }
         }
@@ -661,7 +691,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     }
     
     if (agent.isClustering()) {
-      return kmeanCluster(mutableProductPPValues, DcopAgent.getNumberOfPoints());
+      return kmeanCluster(mutableProductPPValues, ContinuousDcopAgent.getNumberOfPoints());
     } else {
       return mutableProductPPValues;
     }
@@ -751,7 +781,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     out.println("CHOSEN: " + agent.getValue());
 
-    out.println(DcopAgent.algTypes[DcopAgent.getAlgorithm()] + " utility " + maxUtility);
+    out.println(ContinuousDcopAgent.algTypes[ContinuousDcopAgent.getAlgorithm()] + " utility " + maxUtility);
 
     agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
     
@@ -787,7 +817,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     out.println("CHOSEN: " + agent.getValue());
 
-    out.println(DcopAgent.algTypes[DcopAgent.getAlgorithm()] + " utility " + maxUtility);
+    out.println(ContinuousDcopAgent.algTypes[ContinuousDcopAgent.getAlgorithm()] + " utility " + maxUtility);
 
     agent.pauseSimulatedTiming();
   }
@@ -920,7 +950,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     }
     
     try {
-      kmean.setNumClusters(DcopAgent.getNumberOfPoints());
+      kmean.setNumClusters(ContinuousDcopAgent.getNumberOfPoints());
       kmean.buildClusterer(instances);
       
       Instances centroidsInstance = kmean.getClusterCentroids();
@@ -960,6 +990,14 @@ public class DPOP_UTIL extends OneShotBehaviour {
         }
         
         messageList.add(receivedMessage);
+        
+        System.out.println("Agent " + agent.getID() + " receives message from agent " + receivedMessage.getSender().getLocalName());
+        try {
+          System.out.println(receivedMessage.getContentObject());
+        } catch (UnreadableException e) {
+          // TODO Auto-generated catch block
+          e.printStackTrace();
+        }
       } else
         block();
     }

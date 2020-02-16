@@ -7,23 +7,23 @@ package agent;
 public interface DcopConstants {
   public static final boolean WAITING_FOR_MSG = true;
 
-  public static final int ANALYTICAL_DPOP = 0;
+  public static final int EF_DPOP = 0;
   
-  public static final int DISCRETE_DPOP = 1;
-  public static final int MOVING_DPOP = 2;
-  public static final int CLUSTERING_DPOP = 3;
+  public static final int DPOP = 1;
+  public static final int AF_DPOP = 2;
+  public static final int CAF_DPOP = 3;
   
-  public static final int DISCRETE_MAXSUM = 4;
-  public static final int MOVING_MAXSUM = 5;
-  public static final int CLUSTERING_MAXSUM = 6;
+  public static final int MAXSUM = 4;
+  public static final int HYBRID_MAXSUM = 5;
+  public static final int CAF_MAXSUM = 6;
   
-  public static final int APPROX_DPOP = 7;
+  public static final int DISCRETE_DPOP = 7;
   
   public static final int DISCRETE_DSA = 8;
   public static final int CONTINUOUS_DSA = 9;
   
-  public static final String algTypes[] = { "ANALYTICAL_DPOP", "DISCRETE_DPOP", "MOVING_DPOP", "CLUSTERING_DPOP",
-      "DISCRETE_MAXSUM", "MOVING_MAXSUM", "CLUSTERING_MAXSUM", "DISCRETE_DSA", "CONTINUOUS_DSA"};
+  public static final String algTypes[] = { "EF_DPOP", "DPOP", "AF_DPOP", "CAF_DPOP",
+      "MAXSUM", "HYBRID_MAXSUM", "CAF_MAXSUM", "DISCRETE_DPOP", "DISCRETE_DSA", "CONTINUOUS_DSA"};
   
   public static final int FUNC_TO_VAR_TO_SEND_OUT = 0;
   public static final int FUNC_TO_VAR_TO_STORE = 1;

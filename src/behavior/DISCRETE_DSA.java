@@ -11,7 +11,7 @@ import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
 
-import agent.DcopAgent;
+import agent.ContinuousDcopAgent;
 import static agent.DcopConstants.*;
 import static utilities.Utilities.compareDouble;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
@@ -27,9 +27,9 @@ public class DISCRETE_DSA extends OneShotBehaviour {
 
   private static final long serialVersionUID = 6680449924898094747L;
 
-  private DcopAgent agent;
+  private ContinuousDcopAgent agent;
 
-  public DISCRETE_DSA(DcopAgent agent) {
+  public DISCRETE_DSA(ContinuousDcopAgent agent) {
     super(agent);
     this.agent = agent;
   }
@@ -37,7 +37,7 @@ public class DISCRETE_DSA extends OneShotBehaviour {
   @Override
   public void action() {
     // send the current value to neighbors
-    for (AID neighborAID : agent.getNeighborAIDList()) {
+    for (AID neighborAID : agent.getNeighborAIDSet()) {
       ACLMessage msg = new ACLMessage(DSA_VALUE);
       msg.addReceiver(neighborAID);
       try {
@@ -72,7 +72,7 @@ public class DISCRETE_DSA extends OneShotBehaviour {
     }
 
     // send the current value to neighbors
-    for (AID neighbor : agent.getNeighborAIDList()) {
+    for (AID neighbor : agent.getNeighborAIDSet()) {
       ACLMessage msg = new ACLMessage(DSA_VALUE);
       msg.addReceiver(new AID(neighbor.getLocalName(), AID.ISLOCALNAME));
       // msg.setContent(String.valueOf(this.agent.getValue()));
@@ -88,7 +88,7 @@ public class DISCRETE_DSA extends OneShotBehaviour {
 
     // receive the values sent by neighbors and update the utilities map
     int messageCount = 0;
-    while (messageCount < agent.getNeighborAIDList().size()) {
+    while (messageCount < agent.getNeighborAIDSet().size()) {
       MessageTemplate template = MessageTemplate.MatchPerformative(DSA_VALUE);
       ACLMessage receivedMessage = agent.receive(template);
       if (receivedMessage != null) {

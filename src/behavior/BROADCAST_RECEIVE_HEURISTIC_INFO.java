@@ -8,26 +8,26 @@ import jade.lang.acl.UnreadableException;
 
 import java.util.ArrayList;
 
-import agent.DcopAgent;
+import agent.ContinuousDcopAgent;
 import static agent.DcopConstants.*;
 
 //MAX-DEGREE HEURISTIC
 public class BROADCAST_RECEIVE_HEURISTIC_INFO extends OneShotBehaviour {
 	private static final long serialVersionUID = 7277049523059465622L;
 
-	private DcopAgent agent;
+	private ContinuousDcopAgent agent;
 	
-	public BROADCAST_RECEIVE_HEURISTIC_INFO(DcopAgent agent) {
+	public BROADCAST_RECEIVE_HEURISTIC_INFO(ContinuousDcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}
 	
 	@Override
 	public void action() {		
-		Integer maxDegreeHeuristic = agent.getNeighborAIDList().size();
+		Integer maxDegreeHeuristic = agent.getNeighborAIDSet().size();
 		
 		//broadcast to neighbors
-		for (AID neighbor:agent.getNeighborAIDList()) {
+		for (AID neighbor:agent.getNeighborAIDSet()) {
 			agent.sendObjectMessage(neighbor, maxDegreeHeuristic, PSEUDO_INFO);
 		}
 		
@@ -47,7 +47,7 @@ public class BROADCAST_RECEIVE_HEURISTIC_INFO extends OneShotBehaviour {
 	
 	public ArrayList<ACLMessage> waitingForMessageFromNeighbors(int msgCode) {
 		ArrayList<ACLMessage> messageList = new ArrayList<ACLMessage>();
-		while (messageList.size() < agent.getNeighborAIDList().size()) {
+		while (messageList.size() < agent.getNeighborAIDSet().size()) {
 			MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
 			ACLMessage receivedMessage = myAgent.receive(template);
 			if (receivedMessage != null) {

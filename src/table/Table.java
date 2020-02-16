@@ -8,7 +8,7 @@ import java.util.Map.Entry;
 
 import com.google.common.collect.Sets;
 
-import agent.DcopAgent;
+import agent.ContinuousDcopAgent;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 import zexception.FunctionException;
 
@@ -198,7 +198,7 @@ public class Table implements Serializable {
    * @param 
    * @return
    */
-  public double[] maxArgmaxHybrid(DcopAgent agent, Map<String, Double> valueMapOfOtherVariables, Set<Double> agentValues, int stepSize) {    
+  public double[] maxArgmaxHybrid(Map<String, Double> valueMapOfOtherVariables) {    
     double[] maxArgmax = new double[2];
     maxArgmax[0] = -Double.MAX_VALUE;
     maxArgmax[1] = -Double.MAX_VALUE;
@@ -222,8 +222,11 @@ public class Table implements Serializable {
         
     List<Double> partialDistanceList = computePartialDistanceFromAllRow(pointOutsideTable, missingIndex);
     
+    Set<Double> stepSizeAgentValue = new HashSet<>(ContinuousDcopAgent.getGlobalInterval().getMidPointInHalfIntegerRanges());
+
     // For each value, calculate the complete distance to every row, and get the utility of that row as 
-    for (double value : agentValues) {      
+//    for (double value : agentValues) {
+    for (double value : stepSizeAgentValue) {      
       double weightedUtility = 0;
       double weightedSum = 0;
       for (int rowIndex = 0; rowIndex < rowList.size(); rowIndex++) {

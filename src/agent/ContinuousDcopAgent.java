@@ -54,13 +54,13 @@ import static java.lang.Double.*;
  * @author khoihd
  *
  */
-public class DcopAgent extends Agent implements DcopConstants {
+public class ContinuousDcopAgent extends Agent implements DcopConstants {
 	
 	private static final long serialVersionUID = 2919994686894853596L;
 	
 	public static final double GRADIENT_SCALING_FACTOR = Math.pow(10, -3);
 	
-	public static final double DSA_PROBABILITY = 0.65;
+	public static final double DSA_PROBABILITY = 0.6;
   
 	private static String inputFileName;
   private static Interval globalInterval;
@@ -73,13 +73,13 @@ public class DcopAgent extends Agent implements DcopConstants {
 
 	private Map<String, Double> neighborValueMap = new HashMap<>();
 
-	private String agenID;
+	private String agentID;
 	private boolean isRoot;
 	private boolean isLeaf;
 	
 	private AID	parentAID;
 	private List<AID> childrenAIDList = new ArrayList<>();
-	private List<AID> neighborAIDList = new ArrayList<>(); 
+	private Set<AID> neighborAIDSet = new HashSet<>(); 
 	private List<AID> pseudoParentAIDList = new ArrayList<>();
 	private List<AID> pseudoChildrenAIDList = new ArrayList<>();
 	private List<String> parentAndPseudoStrList = new ArrayList<>();
@@ -159,14 +159,10 @@ public class DcopAgent extends Agent implements DcopConstants {
 	
 	private int interpolationStepSize;
 		
-	public DcopAgent() {
+	public ContinuousDcopAgent() {
 		isRoot = false;
 		isLeaf = false;
-		totalGlobalUtility = 0;
-		lsIteration = 0;
-		utilFromChildren = 0;
-		currentTS = 0;
-    agenID = getLocalName();
+    agentID = getLocalName();
 	}
 	
 	//done with LS-RAND
@@ -181,8 +177,8 @@ public class DcopAgent extends Agent implements DcopConstants {
 		instanceID = Integer.parseInt(a[0]);
     noAgent = Integer.parseInt(a[1]);	
     
-    numberOfPoints = Integer.valueOf((String) args[2]);
-    gradientIteration = Integer.valueOf((String) args[3]);
+    gradientIteration = Integer.valueOf((String) args[2]);
+    numberOfPoints = Integer.valueOf((String) args[3]);
     
     isApprox = true;
     interpolationStepSize = 100;
@@ -190,15 +186,15 @@ public class DcopAgent extends Agent implements DcopConstants {
 	
   protected void setup() {
     readArguments();
-    agenID = getLocalName();
+    agentID = getLocalName();
 
 		readMinizincFileThenParseNeighborAndConstraintTable(inputFileName, noAgent);		
     
 		out.println("This is agent " + getLocalName());
 		
-		if (Integer.valueOf(agenID) == rootFromInput) {
+		if (Integer.valueOf(agentID) == rootFromInput) {
       isRoot = true;
-      out.println("Agent " + agenID + " is the ROOT");
+      out.println("Agent " + agentID + " is the ROOT");
     }
 		/***** START register neighbors with DF *****/ 
 		registerWithDF();
@@ -244,15 +240,15 @@ public class DcopAgent extends Agent implements DcopConstants {
       for (int i = 0; i < gradientIteration; i++) {
         mainSequentialBehaviourList.addSubBehaviour(new DISCRETE_DSA(this));
       }
-//      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
+      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
 		}
 		else if (isRunningDSA() && !isRunningDiscreteAlg()) {
       for (int i = 0; i < gradientIteration; i++) {
         mainSequentialBehaviourList.addSubBehaviour(new CONTINUOUS_DSA(this));
       }
-//      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
+      mainSequentialBehaviourList.addSubBehaviour(new DPOP_VALUE(this));
+      mainSequentialBehaviourList.addSubBehaviour(new RECEIVE_SEND_UTIL_TO_ROOT(this));
 		}
-		
 		
 		mainSequentialBehaviourList.addSubBehaviour(new AGENT_TERMINATE(this));
 		addBehaviour(mainSequentialBehaviourList); 
@@ -269,16 +265,16 @@ public class DcopAgent extends Agent implements DcopConstants {
 	}
 
   public boolean isPrinting() {
-	  return agenID.equals("2");
+	  return agentID.equals("3") || agentID.equals("4");
 	}
 
   //JADE function: stop the Agent
 	protected void takeDown() {	
 		actualEndTime = System.currentTimeMillis();
-		out.println("Agent " + agenID + " has RUNNING TIME: " + (actualEndTime - startTime) + "ms");
-		out.println("Agent " + agenID + " with threadID " + Thread.currentThread().getId() + 
+		out.println("Agent " + agentID + " has RUNNING TIME: " + (actualEndTime - startTime) + "ms");
+		out.println("Agent " + agentID + " with threadID " + Thread.currentThread().getId() + 
 								" has SIMULATED TIME: " + simulatedTime/1000000 + "ms");
-		out.println("Agent " + agenID + " with threadID " + Thread.currentThread().getId() + 
+		out.println("Agent " + agentID + " with threadID " + Thread.currentThread().getId() + 
 				" has sim TIME: " + bean.getCurrentThreadUserTime()/1000000 + "ms");
 		System.err.println("Agent: " + getAID().getName() + " terminated.");
 		try {
@@ -394,7 +390,7 @@ public class DcopAgent extends Agent implements DcopConstants {
 		send(message);
 	}
 	
-	public void sendObjectMessageWithTime(AID receiver, Object content, int msgCode, long time) {
+	public void sendObjectMessage(AID receiver, Object content, int msgCode, long time) {
 		ACLMessage message = new ACLMessage(msgCode);
 		try {
 			message.setContentObject((Serializable) content);
@@ -405,8 +401,23 @@ public class DcopAgent extends Agent implements DcopConstants {
 		message.setLanguage(String.valueOf(time));
 		send(message);
 		
-		out.println("Agent " + agenID + " send message " + msgTypes[msgCode] + " to agent " + receiver.getLocalName());
+//		out.println("Iteration " + getLsIteration() + " Agent " + agenID + " send message " + content + " to agent " + receiver.getLocalName());
 	}
+	
+  public void sendObjectMessageWithIteration(AID receiver, Object content, int msgCode, int iteration, long time) {
+    ACLMessage message = new ACLMessage(msgCode);
+    try {
+      message.setContentObject((Serializable) content);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    message.addReceiver(receiver);
+    message.setLanguage(String.valueOf(time));
+    message.setConversationId(String.valueOf(iteration));
+    send(message);
+    
+//    out.println("Iteration " + getLsIteration() + " Agent " + agenID + " send message " + content + " to agent " + receiver.getLocalName());
+  }	
 	
 	public void sendByteObjectMessageWithTime(AID receiver, PiecewiseMultivariateQuadFunction content, int msgCode, long time) throws IOException {
 	  ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -424,11 +435,11 @@ public class DcopAgent extends Agent implements DcopConstants {
 	}
 
   public void printTree(boolean isRoot) {
-    out.print("Agent " + agenID + " has children: ");
+    out.print("Agent " + agentID + " has children: ");
     for (AID childrenAID : childrenAIDList) {
       out.print(childrenAID.getLocalName() + " ");
     }
-    out.print("Agent " + agenID + " has pseudo-children: ");
+    out.print("Agent " + agentID + " has pseudo-children: ");
     for (AID pchildAID : pseudoChildrenAIDList) {
       out.print(pchildAID.getLocalName() + " ");
     }
@@ -481,7 +492,7 @@ public class DcopAgent extends Agent implements DcopConstants {
 				//function -281x_2^2 199x_2 -22x_0^2 252x_0 288x_2x_0 358;
 				//BinaryFunction func = new BinaryFunction(-1, 20, -3, 40, -2, 6, Double.valueOf(idStr), 1.0);
 				if (lineWithSemiColon.startsWith(FUNCTION)) {
-				    String selfVar = "x_" + agenID;
+				    String selfVar = "x_" + agentID;
 				    // x_1^ and x_10^
 				    if (!lineWithSemiColon.contains(selfVar + "^")) continue;
 				    
@@ -489,7 +500,7 @@ public class DcopAgent extends Agent implements DcopConstants {
 				    String[] termStrList = lineWithSemiColon.split(" ");
 				    double[] arr = parseFunction(termStrList, selfVar);
             String neighbor = String.valueOf((int) arr[6]);
-				    MultivariateQuadFunction func = new MultivariateQuadFunction(arr, agenID, neighbor);
+				    MultivariateQuadFunction func = new MultivariateQuadFunction(arr, agentID, neighbor);
 				    
 				    // Adding the new neighbor to neighborStrSet
             neighborStrSet.add(neighbor);
@@ -497,14 +508,14 @@ public class DcopAgent extends Agent implements DcopConstants {
             PiecewiseMultivariateQuadFunction pwFunc = new PiecewiseMultivariateQuadFunction();
             // creating the interval map
             Map<String, Interval> intervalMap = new HashMap<>();
-            intervalMap.put(agenID, globalInterval);
+            intervalMap.put(agentID, globalInterval);
             intervalMap.put(neighbor, globalInterval);
             
             pwFunc.addToFunctionMapWithInterval(func, intervalMap, NOT_TO_OPTIMIZE_INTERVAL);
             functionMap.put(neighbor, pwFunc);
             
             // Own the function
-            if (isRunningMaxsum() && compare(Double.valueOf(agenID), Double.valueOf(neighbor)) < 0) {
+            if (isRunningMaxsum() && compare(Double.valueOf(agentID), Double.valueOf(neighbor)) < 0) {
               // add the function to Maxsum function map
               // add the neighbor to external-var-agent-set
               MSFunctionMapIOwn.put(neighbor, pwFunc);
@@ -622,7 +633,7 @@ public class DcopAgent extends Agent implements DcopConstants {
 			// provide service for neighbor
 			// later on, the neighbor will search for agent providing the service with this neighbor's name
 			sd.setType(neighbor);
-			sd.setName(agenID);
+			sd.setName(agentID);
 			dfd.addServices(sd);
 		}
 		try {
@@ -644,7 +655,7 @@ public class DcopAgent extends Agent implements DcopConstants {
       List<Double> decValueList = new ArrayList<Double>();
   
       for (String agentInList : decVarList) {
-        if (agentInList.equals(agenID))
+        if (agentInList.equals(agentID))
           decValueList.add(value);
         else
           decValueList.add(neighborChosenValueMap.get(agentInList));
@@ -664,7 +675,7 @@ public class DcopAgent extends Agent implements DcopConstants {
       PiecewiseMultivariateQuadFunction function = functionEntry.getValue();
       
       Map<String, Double> valueMap = new HashMap<>();
-      valueMap.put(agenID, value);
+      valueMap.put(agentID, value);
       valueMap.put(pParent, neighborChosenValueMap.get(pParent));
   
       sumUtility += function.getTheFirstFunction().evaluateToValueGivenValueMap(valueMap);
@@ -674,44 +685,44 @@ public class DcopAgent extends Agent implements DcopConstants {
   }
   
   public boolean isRunningDPOP() {
-    return algorithm == ANALYTICAL_DPOP
-        || algorithm == DISCRETE_DPOP
-        || algorithm == MOVING_DPOP
-        || algorithm == CLUSTERING_DPOP;
+    return algorithm == EF_DPOP
+        || algorithm == DPOP
+        || algorithm == AF_DPOP
+        || algorithm == CAF_DPOP;
   }
   
   public boolean isRunningMaxsum() {
-    return algorithm == DISCRETE_MAXSUM
-        || algorithm == MOVING_MAXSUM
-        || algorithm == CLUSTERING_MAXSUM;
+    return algorithm == MAXSUM
+        || algorithm == HYBRID_MAXSUM
+        || algorithm == CAF_MAXSUM;
   }
   
   public boolean isClustering() {
-    return algorithm == CLUSTERING_DPOP || algorithm == CLUSTERING_MAXSUM;
+    return algorithm == CAF_DPOP || algorithm == CAF_MAXSUM;
   }
   
   public boolean isRunningDiscreteAlg() {
-    return algorithm == DISCRETE_DPOP || algorithm == DISCRETE_MAXSUM || algorithm == DISCRETE_DSA;
+    return algorithm == DPOP || algorithm == MAXSUM || algorithm == DISCRETE_DSA;
   }
   
   public boolean isRunningHybridAlg() {
-    return algorithm == MOVING_DPOP 
-        || algorithm == CLUSTERING_DPOP 
-        || algorithm == MOVING_MAXSUM
-        || algorithm == CLUSTERING_MAXSUM;
+    return algorithm == AF_DPOP 
+        || algorithm == CAF_DPOP 
+        || algorithm == HYBRID_MAXSUM
+        || algorithm == CAF_MAXSUM;
   }
   
   public boolean isRunningHybridDPOP() {
-    return algorithm == MOVING_DPOP
-        || algorithm == CLUSTERING_DPOP;
+    return algorithm == AF_DPOP
+        || algorithm == CAF_DPOP;
   }
 
 	public String getID() {
-		return agenID;
+		return agentID;
 	}
 
 	public void setAgentStrID(String idStr) {
-		this.agenID = idStr;
+		this.agentID = idStr;
 	}
 
 	public boolean isRoot() {
@@ -730,12 +741,12 @@ public class DcopAgent extends Agent implements DcopConstants {
 		this.isLeaf = isLeaf;
 	}
 
-	public List<AID> getNeighborAIDList() {
-		return neighborAIDList;
+	public Set<AID> getNeighborAIDSet() {
+		return neighborAIDSet;
 	}
 
-	public void setNeighborAIDList(List<AID> neighborAIDList) {
-		this.neighborAIDList = neighborAIDList;
+	public void setNeighborAIDSet(Set<AID> neighborAIDSet) {
+		this.neighborAIDSet = neighborAIDSet;
 	}
 
 	public Set<String> getNeighborStrSet() {
@@ -947,7 +958,7 @@ public class DcopAgent extends Agent implements DcopConstants {
 	}
 
 	public static void setDelayMessageTime(long delayMessageTime) {
-		DcopAgent.delayMessageTime = delayMessageTime;
+		ContinuousDcopAgent.delayMessageTime = delayMessageTime;
 	}
 
 	public double getUtilFromChildren() {
@@ -1076,6 +1087,10 @@ public class DcopAgent extends Agent implements DcopConstants {
 
   public static Interval getGlobalInterval() {
     return globalInterval;
+  }
+  
+  public static void setGlobalInterval(Interval interval) {
+    globalInterval = interval;
   }
 
   public boolean isApprox() {

@@ -1,6 +1,6 @@
 package behavior;
 
-import agent.DcopAgent;
+import agent.ContinuousDcopAgent;
 import static agent.DcopConstants.*;
 
 import java.util.ArrayList;
@@ -16,9 +16,9 @@ public class PROPAGATE_RECEIVE_VALUE extends OneShotBehaviour {
 
 	private static final long serialVersionUID = -9137969826179481705L;
 
-	private DcopAgent agent;
+	private ContinuousDcopAgent agent;
 	
-	public PROPAGATE_RECEIVE_VALUE(DcopAgent agent) {
+	public PROPAGATE_RECEIVE_VALUE(ContinuousDcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}
@@ -37,8 +37,8 @@ public class PROPAGATE_RECEIVE_VALUE extends OneShotBehaviour {
 		agent.addupSimulatedTime(100);
 		
 		// SEND VALUE TO NEIGHBORS
-		for (AID neighborAgentAID : agent.getNeighborAIDList()) {
-			agent.sendObjectMessageWithTime(neighborAgentAID, agent.getValue(), PROPAGATE_VALUE, agent.getSimulatedTime());
+		for (AID neighborAgentAID : agent.getNeighborAIDSet()) {
+			agent.sendObjectMessage(neighborAgentAID, agent.getValue(), PROPAGATE_VALUE, agent.getSimulatedTime());
 		}
 		
 
@@ -63,7 +63,7 @@ public class PROPAGATE_RECEIVE_VALUE extends OneShotBehaviour {
 	
 	 public List<ACLMessage> waitingForMessageFromNeighborsWithTime(int msgCode) {
 	    List<ACLMessage> messageList = new ArrayList<ACLMessage>();
-	    while (messageList.size() < agent.getNeighborAIDList().size()) {
+	    while (messageList.size() < agent.getNeighborAIDSet().size()) {
 	      MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
 	      ACLMessage receivedMessage = myAgent.receive(template);
 	      if (receivedMessage != null) {
@@ -78,7 +78,7 @@ public class PROPAGATE_RECEIVE_VALUE extends OneShotBehaviour {
 	      else
 	        block();
 	    }
-	    agent.addupSimulatedTime(DcopAgent.getDelayMessageTime());
+	    agent.addupSimulatedTime(ContinuousDcopAgent.getDelayMessageTime());
 	    return messageList;
 	  }
 }

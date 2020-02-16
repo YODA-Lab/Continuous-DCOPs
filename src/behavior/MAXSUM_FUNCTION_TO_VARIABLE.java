@@ -10,7 +10,7 @@ import com.google.common.collect.Sets;
 
 import java.util.Set;
 
-import agent.DcopAgent;
+import agent.ContinuousDcopAgent;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 import jade.core.AID;
 import jade.core.behaviours.OneShotBehaviour;
@@ -35,9 +35,9 @@ public class MAXSUM_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
    */
   private static final long serialVersionUID = 796364337476910372L;
   
-  private DcopAgent agent;
+  private ContinuousDcopAgent agent;
   
-  public MAXSUM_FUNCTION_TO_VARIABLE(DcopAgent agent) {
+  public MAXSUM_FUNCTION_TO_VARIABLE(ContinuousDcopAgent agent) {
     super(agent);
     this.agent = agent;
   }
@@ -76,7 +76,7 @@ public class MAXSUM_FUNCTION_TO_VARIABLE extends OneShotBehaviour {
       
       agent.pauseSimulatedTiming();
       
-      agent.sendObjectMessageWithTime(functionAgent, FUNC_TO_VARmsg_to_send, FUNC_TO_VAR, time);
+      agent.sendObjectMessage(functionAgent, FUNC_TO_VARmsg_to_send, FUNC_TO_VAR, time);
       
       agent.startSimulatedTiming();
       

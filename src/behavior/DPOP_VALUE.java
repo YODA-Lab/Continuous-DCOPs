@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import agent.DcopAgent;
+import agent.ContinuousDcopAgent;
 import function.Interval;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
@@ -40,9 +40,9 @@ public class DPOP_VALUE extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 4288241761322913640L;
 	
-	private DcopAgent agent;
+	private ContinuousDcopAgent agent;
 	
-	public DPOP_VALUE(DcopAgent agent) {
+	public DPOP_VALUE(ContinuousDcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}
@@ -71,11 +71,11 @@ public class DPOP_VALUE extends OneShotBehaviour {
     agent.getNeighborChosenValueMap().putAll(valuesFromParent);
     
     // Only choose value if running DPOP-like algorithm
-    if (DcopAgent.getAlgorithm() == DcopAgent.DISCRETE_DPOP) {
+    if (ContinuousDcopAgent.getAlgorithm() == ContinuousDcopAgent.DPOP) {
       agent.setValue(chooseValue_TABLE(valuesFromParent));
-    } else if (DcopAgent.getAlgorithm() == DcopAgent.ANALYTICAL_DPOP || DcopAgent.getAlgorithm() == DcopAgent.APPROX_DPOP) {
+    } else if (ContinuousDcopAgent.getAlgorithm() == ContinuousDcopAgent.EF_DPOP || ContinuousDcopAgent.getAlgorithm() == ContinuousDcopAgent.DISCRETE_DPOP) {
       agent.setValue(chooseValue_FUNCTION(valuesFromParent));
-    } else if (DcopAgent.getAlgorithm() == DcopAgent.MOVING_DPOP | DcopAgent.getAlgorithm() == DcopAgent.CLUSTERING_DPOP) {
+    } else if (ContinuousDcopAgent.getAlgorithm() == ContinuousDcopAgent.AF_DPOP | ContinuousDcopAgent.getAlgorithm() == ContinuousDcopAgent.CAF_DPOP) {
       agent.setValue(chooseValue_HYBRID(valuesFromParent));
     }    
    
@@ -90,7 +90,7 @@ public class DPOP_VALUE extends OneShotBehaviour {
     
     if (agent.isLeaf() == false) {      
       for (AID children : agent.getChildrenAIDList()) {
-        agent.sendObjectMessageWithTime(children, agent.getValuesToSendInVALUEPhase(), DPOP_VALUE, agent.getSimulatedTime());
+        agent.sendObjectMessage(children, agent.getValuesToSendInVALUEPhase(), DPOP_VALUE, agent.getSimulatedTime());
       }
     } 
   }
@@ -168,7 +168,7 @@ public class DPOP_VALUE extends OneShotBehaviour {
    * @return
    */
   private double nonLeafValue_HYBRID(HashMap<String, Double> valuesFromParent) {
-    return agent.getAgentViewTable().maxArgmaxHybrid(agent, valuesFromParent, DcopAgent.getGlobalInterval().getMidPointInQuarterIntegerRanges(), 1)[1];
+    return agent.getAgentViewTable().maxArgmaxHybrid(valuesFromParent)[1];
   }
 
   /**
@@ -181,7 +181,7 @@ public class DPOP_VALUE extends OneShotBehaviour {
     agent.addValuesToSendInVALUEPhase(agent.getID(), agent.getValue());
     
     for (AID childrenAgentAID : agent.getChildrenAIDList()) {
-      agent.sendObjectMessageWithTime(childrenAgentAID, agent.getValuesToSendInVALUEPhase(), DPOP_VALUE,
+      agent.sendObjectMessage(childrenAgentAID, agent.getValuesToSendInVALUEPhase(), DPOP_VALUE,
           agent.getSimulatedTime());
     }
   }

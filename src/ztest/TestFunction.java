@@ -2,16 +2,21 @@ package ztest;
 
 import static java.lang.System.out;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
+import agent.ContinuousDcopAgent;
 import function.Interval;
 //import function.binary.CubicUnaryFunction;
 //import function.binary.QuadraticBinaryFunction;
 //import function.binary.QuadraticUnaryFunction;
 import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
+import table.Row;
+import table.Table;
 
 class TestFunction {
 //  @Test
@@ -197,7 +202,7 @@ class TestFunction {
 //    assert (interpolatedRowNull == null);
 //  }
   
-  @Test
+//  @Test
 //  void testBinaryInterpolatingFunction() {
 //    List<String> unaryLabel = new ArrayList<>();
 //    unaryLabel.add("1");
@@ -230,11 +235,12 @@ class TestFunction {
 ////    assert (interpolatedRow.equals(rowToCompare));
 //  }
   
-//  @Test
+  @Test
   void testAnalyticalProjectDPOP() {
     PiecewiseMultivariateQuadFunction f = new PiecewiseMultivariateQuadFunction();
     MultivariateQuadFunction f1 = new MultivariateQuadFunction();
 
+    // -2x_1^2 + 4x_1 + 2x_2^2 + x_2 + 7x_1x_2 - 10
     f1.getCoefficients().put("1", "1", -2.0);
     f1.getCoefficients().put("1", "", 4.0);    
     f1.getCoefficients().put("2", "2", 2.0);
@@ -270,7 +276,6 @@ class TestFunction {
     out.println("AFTER projecting:\n" + projected);
      
   }
-  
 
 //  Internal node combined function: 
 //  [Coefficients = {={=-151.1875}, 2={2=4.0, =-35.875, 1=5.0}, 1={1=1.0, =-7.0}}, Intervals = {1=[-10.0, 10.0], 2=[-10.0, 0.0]} ]
@@ -313,6 +318,53 @@ class TestFunction {
   
 //  @Test
   void TestApproximateProject() {
+  }
+  
+//  @Test
+  void interpolate() {
+    List<String> label = new ArrayList<>();
+    label.add("x1");
+    label.add("x4");
+    Table table = new Table(label);
+    
+    List<Double> valueList = new ArrayList<>();
+    valueList.add(2.2);
+    valueList.add(0.4);
+    table.addRow(new Row(new ArrayList<>(valueList), 96.97));
+    
+    valueList.clear();
+    valueList.add(-1.3);
+    valueList.add(-1.4);
+    table.addRow(new Row(new ArrayList<>(valueList), 57.80));
+    
+    valueList.clear();
+    valueList.add(2.1);
+    valueList.add(1.8);
+    table.addRow(new Row(new ArrayList<>(valueList), 148.37));
+    
+    valueList.clear();
+    valueList.add(-1.4);
+    valueList.add(-0.3);
+    table.addRow(new Row(new ArrayList<>(valueList), 24.13));
+    
+    valueList.clear();
+    valueList.add(1.5);
+    valueList.add(0.5);
+    table.addRow(new Row(new ArrayList<>(valueList), 81.52));
+
+    valueList.clear();
+    valueList.add(-2.3);
+    valueList.add(2.7);
+    table.addRow(new Row(new ArrayList<>(valueList), -93.22));
+    
+    System.out.println(table);
+    
+    Map<String, Double> valueMap = new HashMap<>();
+    valueMap.put("x1", 2.2);
+    
+    ContinuousDcopAgent.setGlobalInterval(new Interval(-100,100));
+    double[] argmax = table.maxArgmaxHybrid(valueMap);
+    System.out.println(argmax[1]);
   }
   
 //  @Test

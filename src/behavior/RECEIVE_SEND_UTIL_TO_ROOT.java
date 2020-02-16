@@ -1,6 +1,6 @@
 package behavior;
 
-import agent.DcopAgent;
+import agent.ContinuousDcopAgent;
 import static agent.DcopConstants.*;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
@@ -12,9 +12,9 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
 
 	private static final long serialVersionUID = 4766760189659187968L;
 
-	private DcopAgent agent;
+	private ContinuousDcopAgent agent;
 	
-	public RECEIVE_SEND_UTIL_TO_ROOT(DcopAgent agent) {
+	public RECEIVE_SEND_UTIL_TO_ROOT(ContinuousDcopAgent agent) {
 		super(agent);
 		this.agent = agent;
 	}
@@ -31,7 +31,7 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
 		System.out.println("Agent " +  agent.getID() + " send utility: " + agent.getAggregatedUtility());
 		 
 		if (!agent.isRoot())
-			agent.sendObjectMessageWithTime(agent.getParentAID(), agent.getAggregatedUtility(), UTILITY_TO_THE_ROOT, agent.getSimulatedTime());
+			agent.sendObjectMessage(agent.getParentAID(), agent.getAggregatedUtility(), UTILITY_TO_THE_ROOT, agent.getSimulatedTime());
 		else {
 			agent.setEndTime(System.currentTimeMillis());
 			
