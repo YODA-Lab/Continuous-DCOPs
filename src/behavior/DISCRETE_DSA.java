@@ -90,16 +90,16 @@ public class DISCRETE_DSA extends OneShotBehaviour {
     int messageCount = 0;
     while (messageCount < agent.getNeighborAIDSet().size()) {
       MessageTemplate template = MessageTemplate.MatchPerformative(DSA_VALUE);
-      ACLMessage receivedMessage = agent.receive(template);
-      if (receivedMessage != null) {
+      ACLMessage receivedMessage = agent.blockingReceive(template);
+//      if (receivedMessage != null) {
         messageCount++;
         String sender = receivedMessage.getSender().getLocalName();
         double senderValue = Double.parseDouble(receivedMessage.getContent());
         utilities = updateUtilities(utilities, sender, senderValue);
 
-      } else {
-        block();
-      }
+//      } else {
+//        block();
+//      }
     }
 
     // change the current value to the optimal value with probability of 0.6
@@ -166,9 +166,9 @@ public class DISCRETE_DSA extends OneShotBehaviour {
     
     while (valueMap.size() < agent.getChildrenAIDList().size()) {
       MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
-      ACLMessage receivedMessage = myAgent.receive(template);
+      ACLMessage receivedMessage = myAgent.blockingReceive(template);
 
-      if (receivedMessage != null) {
+//      if (receivedMessage != null) {
         long timeFromReceiveMessage = Long.parseLong(receivedMessage.getLanguage());
         if (timeFromReceiveMessage > agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime()) {
           agent.setSimulatedTime(timeFromReceiveMessage);
@@ -182,8 +182,8 @@ public class DISCRETE_DSA extends OneShotBehaviour {
           // TODO Auto-generated catch block
           e.printStackTrace();
         }        
-      } else
-        block();
+//      } else
+//        block();
     }
     
     return valueMap;

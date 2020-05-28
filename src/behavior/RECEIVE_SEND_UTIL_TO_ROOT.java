@@ -50,8 +50,8 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
     
     while (noMessageCount < agent.getChildrenAIDList().size()) {
       MessageTemplate template = MessageTemplate.MatchPerformative(UTILITY_TO_THE_ROOT);
-      ACLMessage receivedMessage = myAgent.receive(template);
-      if (receivedMessage != null) {
+      ACLMessage receivedMessage = myAgent.blockingReceive(template);
+//      if (receivedMessage != null) {
         noMessageCount++;         
         try {
           totalUtility += (Double) receivedMessage.getContentObject();
@@ -67,9 +67,9 @@ public class RECEIVE_SEND_UTIL_TO_ROOT extends OneShotBehaviour {
         } else {
           agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
         }
-      }
-      else
-        block();
+//      }
+//      else
+//        block();
     }
     
     return totalUtility;

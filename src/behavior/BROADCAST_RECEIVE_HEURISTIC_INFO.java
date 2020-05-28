@@ -49,12 +49,12 @@ public class BROADCAST_RECEIVE_HEURISTIC_INFO extends OneShotBehaviour {
 		ArrayList<ACLMessage> messageList = new ArrayList<ACLMessage>();
 		while (messageList.size() < agent.getNeighborAIDSet().size()) {
 			MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
-			ACLMessage receivedMessage = myAgent.receive(template);
-			if (receivedMessage != null) {
+			ACLMessage receivedMessage = myAgent.blockingReceive(template);
+//			if (receivedMessage != null) {
 				messageList.add(receivedMessage);
-			}
-			else
-				block();
+//			}
+//			else
+//				block();
 		}
 		return messageList;
 	}

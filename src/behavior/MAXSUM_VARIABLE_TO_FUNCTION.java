@@ -197,9 +197,9 @@ public class MAXSUM_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
     int msgCount = 0;    
     while (msgCount < agent.getFunctionIOwn().size()) {
       MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
-      ACLMessage receivedMessage = myAgent.receive(template);
+      ACLMessage receivedMessage = myAgent.blockingReceive(template);
       
-      if (receivedMessage != null) {
+//      if (receivedMessage != null) {
         MaxSumMessage maxsumMsg = null;
         try {
           maxsumMsg = (MaxSumMessage) receivedMessage.getContentObject();
@@ -215,9 +215,9 @@ public class MAXSUM_VARIABLE_TO_FUNCTION extends OneShotBehaviour {
         }
         agent.getReceived_VARIABLE_TO_FUNCTION().put(receivedMessage.getSender(), maxsumMsg);
         msgCount++;
-      }
-      else
-        block();
+//      }
+//      else
+//        block();
     }
   }
 }

@@ -92,8 +92,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
     if (agent.isRunningDiscreteAlg()) {
       createDCOPTableFromFunction(agent.getPWFunctionWithPParentMap());
     }
-    // At this point, all three algorithms have the same functions (or
-    // transformed to tables)
+    // At this point, all three algorithms have the same functions (or transformed to tables)
     agent.setSimulatedTime(agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
     if (agent.isRunningDiscreteAlg()) {
@@ -188,8 +187,6 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     agent.setAgentViewTable(combinedTable);
     Table projectedTable = projectOperator(combinedTable, agent.getLocalName());
-
-    // out.println("Projected table: " ); projectedTable.printDecVar();
 
     agent.setSimulatedTime(agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime());
 
@@ -979,9 +976,9 @@ public class DPOP_UTIL extends OneShotBehaviour {
 
     while (messageList.size() < agent.getChildrenAIDList().size()) {
       MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
-      ACLMessage receivedMessage = myAgent.receive(template);
+      ACLMessage receivedMessage = myAgent.blockingReceive(template);
 
-      if (receivedMessage != null) {
+//      if (receivedMessage != null) {
         long timeFromReceiveMessage = Long.parseLong(receivedMessage.getLanguage());
         if (timeFromReceiveMessage > agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime()) {
           agent.setSimulatedTime(timeFromReceiveMessage);
@@ -998,8 +995,8 @@ public class DPOP_UTIL extends OneShotBehaviour {
           // TODO Auto-generated catch block
           e.printStackTrace();
         }
-      } else
-        block();
+//      } else
+//        block();
     }
     
     return messageList;

@@ -61,8 +61,8 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 	  // Reading for messages
 		while (ContinuousDcopAgent.WAITING_FOR_MSG) {
 			MessageTemplate template = MessageTemplate.MatchPerformative(PSEUDOTREE);
-			ACLMessage receivedMessage = myAgent.receive(template);
-			if (receivedMessage != null) {
+			ACLMessage receivedMessage = myAgent.blockingReceive(template);
+//			if (receivedMessage != null) {
 				AID sender = receivedMessage.getSender();
 				
 				//first time the agent is visited
@@ -134,10 +134,10 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 					
 					break;
 				}
-			}
-			else {
-				block();
-			}
+//			}
+//			else {
+//				block();
+//			}
 		}
 		
 		//confirm process
@@ -159,8 +159,8 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 		else {
 			while (ContinuousDcopAgent.WAITING_FOR_MSG) {
 				MessageTemplate template = MessageTemplate.MatchPerformative(PSEUDOTREE);
-				ACLMessage receivedMessage = myAgent.receive(template);
-				if (receivedMessage != null) {
+				ACLMessage receivedMessage = myAgent.blockingReceive(template);
+//				if (receivedMessage != null) {
 					if (receivedMessage.getContent().equals("TREE_FINISH")) {							
 						for (AID childrenAgentAID:agent.getChildrenAIDList()) {
 							ACLMessage treeFinishMsg = new ACLMessage(PSEUDOTREE);
@@ -172,9 +172,9 @@ public class PSEUDOTREE_GENERATION extends OneShotBehaviour {
 						}
 						break;
 					}
-				}
-				else
-					block();		
+//				}
+//				else
+//					block();		
 			}
 		}
 	

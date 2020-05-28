@@ -65,8 +65,8 @@ public class PROPAGATE_RECEIVE_VALUE extends OneShotBehaviour {
 	    List<ACLMessage> messageList = new ArrayList<ACLMessage>();
 	    while (messageList.size() < agent.getNeighborAIDSet().size()) {
 	      MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
-	      ACLMessage receivedMessage = myAgent.receive(template);
-	      if (receivedMessage != null) {
+	      ACLMessage receivedMessage = myAgent.blockingReceive(template);
+//	      if (receivedMessage != null) {
 //	        System.out.println("Agent " + getLocalName() + " receive message "
 //	            + msgTypes[msgCode] + " from Agent " + receivedMessage.
 //	            getSender().getLocalName());
@@ -74,9 +74,9 @@ public class PROPAGATE_RECEIVE_VALUE extends OneShotBehaviour {
 	        if (timeFromReceiveMessage > agent.getSimulatedTime())
 	          agent.setSimulatedTime(timeFromReceiveMessage);
 	        messageList.add(receivedMessage);
-	      }
-	      else
-	        block();
+//	      }
+//	      else
+//	        block();
 	    }
 	    agent.addupSimulatedTime(ContinuousDcopAgent.getDelayMessageTime());
 	    return messageList;

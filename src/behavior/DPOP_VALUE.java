@@ -195,8 +195,8 @@ public class DPOP_VALUE extends OneShotBehaviour {
 
 		while (true) {
   		MessageTemplate template = MessageTemplate.MatchPerformative(msgCode);
-  		receivedMessage = myAgent.receive(template);
-  		if (receivedMessage != null) {
+  		receivedMessage = myAgent.blockingReceive(template);
+//  		if (receivedMessage != null) {
         long timeFromReceiveMessage = Long.parseLong(receivedMessage.getLanguage());
         if (timeFromReceiveMessage > agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime()) {
           agent.setSimulatedTime(timeFromReceiveMessage);
@@ -205,9 +205,9 @@ public class DPOP_VALUE extends OneShotBehaviour {
         }
         
   			break;
-  		}
-  		else
-  			block();
+//  		}
+//  		else
+//  			block();
 		}
 				
     try {

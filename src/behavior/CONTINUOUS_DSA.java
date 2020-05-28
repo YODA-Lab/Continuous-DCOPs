@@ -75,9 +75,9 @@ public class CONTINUOUS_DSA extends OneShotBehaviour {
 //      System.out.println("Iteration " + agent.getLsIteration() + " Agent " + agent.getID() + " is waiting for message from neighbor: " + valueMap);
       
       MessageTemplate template = MessageTemplate.and(MessageTemplate.MatchPerformative(msgCode), MessageTemplate.MatchConversationId(String.valueOf(iteration)));      
-      ACLMessage receivedMessage = myAgent.receive(template);
+      ACLMessage receivedMessage = myAgent.blockingReceive(template);
 
-      if (receivedMessage != null) {
+//      if (receivedMessage != null) {
 //        long timeFromReceiveMessage = Long.parseLong(receivedMessage.getLanguage());
 //        if (timeFromReceiveMessage > agent.getSimulatedTime() + agent.getBean().getCurrentThreadUserTime() - agent.getCurrentStartTime()) {
 //          agent.setSimulatedTime(timeFromReceiveMessage);
@@ -99,8 +99,8 @@ public class CONTINUOUS_DSA extends OneShotBehaviour {
         } catch (UnreadableException e) {
           e.printStackTrace();
         }        
-      } else
-        block();
+//      } else
+//        block();
     }
     
     return valueMap;
