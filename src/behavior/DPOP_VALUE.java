@@ -17,7 +17,6 @@ import function.multivariate.MultivariateQuadFunction;
 import function.multivariate.PiecewiseMultivariateQuadFunction;
 
 import static agent.DcopConstants.*;
-import static java.lang.System.*;
 /*	1. IF X is a root
  * 		Send the value of root to all the children
  *		PRINT OUT the value picked
@@ -56,8 +55,6 @@ public class DPOP_VALUE extends OneShotBehaviour {
 	  }
 	  
 	  nonRootChooseAndSendValue();
-	  
-	  out.println("Agent " + agent.getID() + " choose value: " + agent.getValue());
 	}
 
   /**
@@ -83,9 +80,7 @@ public class DPOP_VALUE extends OneShotBehaviour {
     agent.setValuesToSendInVALUEPhase(valuesFromParent);
     
     agent.addValuesToSendInVALUEPhase(agent.getID(), agent.getValue());     
-    
-    System.out.println("Agent " + agent.getID() + " has CHOSEN VALUE is " + agent.getValue());
-    
+        
     agent.pauseSimulatedTiming();
     
     if (agent.isLeaf() == false) {      

@@ -49,7 +49,7 @@ public class DISCRETE_DSA extends OneShotBehaviour {
       agent.send(msg);
     }
     
-    Map<String, Double> neighborValueMap = waitingForMessageFromNeighborWithTime(DSA_VALUE);
+//    Map<String, Double> neighborValueMap = waitingForMessageFromNeighborWithTime(DSA_VALUE);
     
     for (Entry<String, PiecewiseMultivariateQuadFunction> entry : agent.getFunctionMap().entrySet()) {
       System.out.println(entry.getKey());
