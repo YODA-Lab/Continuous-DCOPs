@@ -158,7 +158,8 @@ public class DISCRETE_DSA extends OneShotBehaviour {
   }
   
   //TODO: Review the simulated runtime
-  private Map<String, Double> waitingForMessageFromNeighborWithTime(int msgCode) {
+  @SuppressWarnings("unused")
+private Map<String, Double> waitingForMessageFromNeighborWithTime(int msgCode) {
     // Start of waiting time for the message
     agent.startSimulatedTiming();    
     
