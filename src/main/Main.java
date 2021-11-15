@@ -30,7 +30,7 @@ public class Main {
     for (int i = 1; i <= noAgent; i++) {
       AgentController ac;
       try {
-        ac = cc.createNewAgent(String.valueOf(i), "agent.DcopAgent", arg);
+        ac = cc.createNewAgent(String.valueOf(i), "agent.ContinuousDcopAgent", arg);
         ac.start();
       } catch (StaleProxyException e) {
         e.printStackTrace();
