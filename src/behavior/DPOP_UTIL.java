@@ -102,9 +102,6 @@ public class DPOP_UTIL extends OneShotBehaviour {
     } else if (agent.isRunningHybridAlg()) {
       doUtil_HYBRID();
     }
-
-    // long maxMemory = Runtime.getRuntime().maxMemory() / 10241024;
-    // out.println(agent.getIdStr() + " Max memory after done: " + maxMemory);
   }
   
   private void doUtil_FUNC() {
