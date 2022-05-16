@@ -416,8 +416,6 @@ public class ContinuousDcopAgent extends Agent implements DcopConstants {
 		message.setLanguage(String.valueOf(time));
 		message.setConversationId(String.valueOf(iteration));
 		send(message);
-
-//    out.println("Iteration " + getLsIteration() + " Agent " + agenID + " send message " + content + " to agent " + receiver.getLocalName());
 	}
 
 	public void sendByteObjectMessageWithTime(AID receiver, PiecewiseMultivariateQuadFunction content, int msgCode,

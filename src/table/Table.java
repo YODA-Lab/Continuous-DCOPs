@@ -187,7 +187,6 @@ public class Table implements Serializable {
 	}
 	
   /**
-   * TODO: REVIEW THIS FUNCTION
    * Find the argmax of this agent given the agentViewTable and the valueMapOfOtherVariables
    * 1. Create the missing-one-dimension row from the valueMapOfOtherVariables
    * 2. Calculate the missing-one-dimension distance to all other points (and save it to the list)

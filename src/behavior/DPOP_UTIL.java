@@ -600,7 +600,7 @@ public class DPOP_UTIL extends OneShotBehaviour {
       
       for (List<Double> valueList : mutableProductPPValues) {
         if (agent.isPrinting()) {
-          System.out.println("Agent " + agent.getID() + " is moving point " + valueList);
+//          System.out.println("Agent " + agent.getID() + " is moving point " + valueList);
         }
         
         // For each ppToMove (direction), take the derivative of the utility function
