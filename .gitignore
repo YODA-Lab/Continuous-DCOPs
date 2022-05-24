@@ -1,7 +1,7 @@
 *.class
 .DS_Store
 .settings/
-/target/
+target/
 .classpath
 .project
 MTPs-Main-Container.txt
